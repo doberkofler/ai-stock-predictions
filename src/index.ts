@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
-import './env.ts';
-
 /**
  * AI Stock Predictions CLI Application
  * Entry point for the stock price prediction tool
  */
 
 import util from 'node:util';
+import {initializeEnvironment} from './env.ts';
 
 // Polyfills for Node.js 23+ compatibility with older tfjs-node versions
 if (!('isNullOrUndefined' in util)) {
@@ -24,7 +23,6 @@ if (!('isArray' in util)) {
 	};
 }
 
-import '@tensorflow/tfjs-node';
 import {Command} from 'commander';
 import {initCommand} from './cli/commands/init.ts';
 import {gatherCommand} from './cli/commands/gather.ts';
@@ -39,13 +37,15 @@ program
 	.name('ai-stock-predictions')
 	.description('CLI application for stock price prediction using TensorFlow.js LSTM models')
 	.version('1.0.0')
-	.option('-c, --config <path>', 'path to configuration file', 'config.json');
+	.option('-c, --config <path>', 'path to configuration file', 'config.json')
+	.option('--quick-test', 'run with 3 symbols and 50 data points for verification', false);
 
 // Register CLI commands
 program
 	.command('init')
 	.description('Initialize configuration file with default values')
 	.action(async () => {
+		await initializeEnvironment();
 		const options = program.opts<{config: string}>();
 		await initCommand(options.config);
 	});
@@ -54,26 +54,27 @@ program
 	.command('gather')
 	.description('Gather new stock data from Yahoo Finance API')
 	.option('--full', 'perform a full history refresh instead of an incremental update', false)
-	.option('--quick-test', 'run with 3 symbols and 50 data points for verification', false)
 	.option('--init', 'clear all existing data before gathering', false)
-	.action(async (options: {full: boolean; quickTest: boolean; init: boolean}) => {
-		const programOptions = program.opts<{config: string}>();
-		await gatherCommand(programOptions.config, options.full, options.quickTest, options.init);
+	.action(async (options: {full: boolean; init: boolean}) => {
+		await initializeEnvironment();
+		const programOptions = program.opts<{config: string; quickTest: boolean}>();
+		await gatherCommand(programOptions.config, options.full, programOptions.quickTest, options.init);
 	});
 
 program
 	.command('train')
 	.description('Train models from scratch using all available data')
-	.option('--quick-test', 'run with 3 symbols and 50 data points for verification', false)
-	.action(async (options: {quickTest: boolean}) => {
-		const programOptions = program.opts<{config: string}>();
-		await trainCommand(programOptions.config, options.quickTest);
+	.action(async () => {
+		await initializeEnvironment();
+		const programOptions = program.opts<{config: string; quickTest: boolean}>();
+		await trainCommand(programOptions.config, programOptions.quickTest);
 	});
 
 program
 	.command('predict')
 	.description('Generate predictions and create HTML reports')
 	.action(async () => {
+		await initializeEnvironment();
 		const options = program.opts<{config: string}>();
 		await predictCommand(options.config);
 	});
@@ -83,6 +84,7 @@ program
 	.description('Export all databases to a JSON file')
 	.argument('[path]', 'path to the export file', 'export.json')
 	.action(async (path: string) => {
+		await initializeEnvironment();
 		await exportCommand(path);
 	});
 
@@ -91,6 +93,7 @@ program
 	.description('Import databases from a JSON file (overwrites existing)')
 	.argument('[path]', 'path to the import file', 'export.json')
 	.action(async (path: string) => {
+		await initializeEnvironment();
 		await importCommand(path);
 	});
 
