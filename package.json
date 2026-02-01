@@ -33,7 +33,6 @@
 	},
 	"dependencies": {
 		"@tensorflow/tfjs": "^4.22.0",
-		"@tensorflow/tfjs-node": "^4.22.0",
 		"better-sqlite3": "^12.6.2",
 		"chalk": "^5.6.2",
 		"chart.js": "^4.5.1",
@@ -44,6 +43,9 @@
 		"ora": "^9.1.0",
 		"yahoo-finance2": "^3.13.0",
 		"zod": "^4.3.6"
+	},
+	"optionalDependencies": {
+		"@tensorflow/tfjs-node": "^4.22.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.2",
