@@ -11,6 +11,7 @@ describe('SqliteStorage', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Create a new memory storage for each test to ensure isolation
 		storage = new SqliteStorage(true); // isMemory = true
 	});
 
@@ -52,7 +53,6 @@ describe('SqliteStorage', () => {
 		});
 
 		it('should return available symbols', async () => {
-			// Clear data first since it might be polluted if :memory: is shared (unlikely but safe)
 			await storage.saveStockData('AAPL', mockData);
 			await storage.saveStockData('MSFT', mockData);
 			const symbols = await storage.getAvailableSymbols();

@@ -83,15 +83,15 @@ export class SqliteStorage {
 	private readonly historicalDb: Database.Database;
 	private readonly modelsDb: Database.Database;
 
-	public constructor(isMemory = false) {
+	public constructor() {
 		this.dataDir = join(process.cwd(), 'data');
 
-		if (!isMemory && !existsSync(this.dataDir)) {
+		if (!existsSync(this.dataDir)) {
 			mkdirSync(this.dataDir, {recursive: true});
 		}
 
-		this.historicalDb = new Database(isMemory ? ':memory:' : join(this.dataDir, 'historical_data.db'));
-		this.modelsDb = new Database(isMemory ? ':memory:' : join(this.dataDir, 'models.db'));
+		this.historicalDb = new Database(join(this.dataDir, 'historical_data.db'));
+		this.modelsDb = new Database(join(this.dataDir, 'models.db'));
 
 		this.initializeDatabases();
 	}
@@ -165,14 +165,14 @@ export class SqliteStorage {
 	 * @param {string} symbol - Stock symbol
 	 * @returns {Promise<StockDataPoint[] | null>} Array of stock data points or null if not found
 	 */
-	public async getStockData(symbol: string): Promise<StockDataPoint[] | null> {
+	public getStockData(symbol: string): Promise<StockDataPoint[] | null> {
 		const context = {
 			operation: 'get-stock-data',
 			symbol,
 			step: 'sqlite-read',
 		};
 
-		return ErrorHandler.wrapAsync(async () => {
+		const result = ErrorHandler.wrapSync(() => {
 			const stmt = this.historicalDb.prepare('SELECT date, open, high, low, close, volume, adjClose FROM quotes WHERE symbol = ? ORDER BY date ASC');
 			const rows = stmt.all(symbol) as StockDataPoint[];
 
@@ -180,9 +180,10 @@ export class SqliteStorage {
 				return null;
 			}
 
-			await Promise.resolve();
 			return StockDataSchema.parse(rows);
 		}, context);
+
+		return Promise.resolve(result);
 	}
 
 	/**
@@ -191,14 +192,14 @@ export class SqliteStorage {
 	 * @param {StockDataPoint[]} data - Array of stock data points
 	 * @returns {Promise<void>}
 	 */
-	public async saveStockData(symbol: string, data: StockDataPoint[]): Promise<void> {
+	public saveStockData(symbol: string, data: StockDataPoint[]): Promise<void> {
 		const context = {
 			operation: 'save-stock-data',
 			symbol,
 			step: 'sqlite-write',
 		};
 
-		await ErrorHandler.wrapAsync(async () => {
+		ErrorHandler.wrapSync(() => {
 			const insert = this.historicalDb.prepare(`
 				INSERT OR REPLACE INTO quotes (symbol, date, open, high, low, close, volume, adjClose)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -211,26 +212,28 @@ export class SqliteStorage {
 			});
 
 			transaction(data);
-			await Promise.resolve();
 		}, context);
+
+		return Promise.resolve();
 	}
 
 	/**
 	 * Get all available stock symbols from the quotes table
 	 * @returns {Promise<string[]>} Array of stock symbols
 	 */
-	public async getAvailableSymbols(): Promise<string[]> {
+	public getAvailableSymbols(): Promise<string[]> {
 		const context = {
 			operation: 'get-available-symbols',
 			step: 'sqlite-read',
 		};
 
-		return ErrorHandler.wrapAsync(async () => {
+		const result = ErrorHandler.wrapSync(() => {
 			const stmt = this.historicalDb.prepare('SELECT DISTINCT symbol FROM quotes');
 			const rows = stmt.all() as {symbol: string}[];
-			await Promise.resolve();
 			return rows.map((r) => r.symbol);
 		}, context);
+
+		return Promise.resolve(result);
 	}
 
 	/**
@@ -238,14 +241,14 @@ export class SqliteStorage {
 	 * @param {string} symbol - Stock symbol
 	 * @returns {Promise<ModelMetadata | null>} Model metadata or null if not found
 	 */
-	public async getModelMetadata(symbol: string): Promise<ModelMetadata | null> {
+	public getModelMetadata(symbol: string): Promise<ModelMetadata | null> {
 		const context = {
 			operation: 'get-model-metadata',
 			symbol,
 			step: 'sqlite-read',
 		};
 
-		return ErrorHandler.wrapAsync(async () => {
+		const result = ErrorHandler.wrapSync(() => {
 			const stmt = this.modelsDb.prepare('SELECT * FROM metadata WHERE symbol = ?');
 			const row = stmt.get(symbol) as MetadataRow | undefined;
 
@@ -265,7 +268,6 @@ export class SqliteStorage {
 
 			const validated = ModelMetadataSchema.parse(metadataRaw);
 
-			await Promise.resolve();
 			return {
 				version: validated.version,
 				trainedAt: new Date(validated.trainedAt),
@@ -276,6 +278,8 @@ export class SqliteStorage {
 				symbol: validated.symbol,
 			};
 		}, context);
+
+		return Promise.resolve(result);
 	}
 
 	/**
@@ -284,14 +288,14 @@ export class SqliteStorage {
 	 * @param {ModelMetadata} metadata - Model metadata to save
 	 * @returns {Promise<void>}
 	 */
-	public async saveModelMetadata(symbol: string, metadata: ModelMetadata): Promise<void> {
+	public saveModelMetadata(symbol: string, metadata: ModelMetadata): Promise<void> {
 		const context = {
 			operation: 'save-model-metadata',
 			symbol,
 			step: 'sqlite-write',
 		};
 
-		await ErrorHandler.wrapAsync(async () => {
+		ErrorHandler.wrapSync(() => {
 			const upsert = this.modelsDb.prepare(`
 				INSERT OR REPLACE INTO metadata (symbol, version, trainedAt, dataPoints, loss, windowSize, metrics)
 				VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -306,8 +310,9 @@ export class SqliteStorage {
 				metadata.windowSize,
 				JSON.stringify(metadata.metrics),
 			);
-			await Promise.resolve();
 		}, context);
+
+		return Promise.resolve();
 	}
 
 	/**
@@ -315,19 +320,20 @@ export class SqliteStorage {
 	 * @param {string} symbol - Stock symbol
 	 * @returns {Promise<Date | null>} Last update timestamp or null if not found
 	 */
-	public async getDataTimestamp(symbol: string): Promise<Date | null> {
+	public getDataTimestamp(symbol: string): Promise<Date | null> {
 		const context = {
 			operation: 'get-data-timestamp',
 			symbol,
 			step: 'sqlite-read',
 		};
 
-		return ErrorHandler.wrapAsync(async () => {
+		const result = ErrorHandler.wrapSync(() => {
 			const stmt = this.historicalDb.prepare('SELECT MAX(date) as lastDate FROM quotes WHERE symbol = ?');
 			const row = stmt.get(symbol) as {lastDate: string | null} | undefined;
-			await Promise.resolve();
 			return row?.lastDate ? new Date(row.lastDate) : null;
 		}, context);
+
+		return Promise.resolve(result);
 	}
 
 	/**
@@ -367,13 +373,13 @@ export class SqliteStorage {
 	 * @param {HistoricalRow[]} data
 	 * @returns {Promise<void>}
 	 */
-	public async overwriteHistoricalData(data: HistoricalRow[]): Promise<void> {
+	public overwriteHistoricalData(data: HistoricalRow[]): Promise<void> {
 		const context = {
 			operation: 'overwrite-historical-data',
 			step: 'sqlite-write',
 		};
 
-		await ErrorHandler.wrapAsync(async () => {
+		ErrorHandler.wrapSync(() => {
 			this.historicalDb.exec('DELETE FROM quotes');
 			const insert = this.historicalDb.prepare(`
 				INSERT INTO quotes (symbol, date, open, high, low, close, volume, adjClose)
@@ -385,8 +391,9 @@ export class SqliteStorage {
 				}
 			});
 			transaction(data);
-			await Promise.resolve();
 		}, context);
+
+		return Promise.resolve();
 	}
 
 	/**
@@ -394,13 +401,13 @@ export class SqliteStorage {
 	 * @param {SymbolRow[]} data
 	 * @returns {Promise<void>}
 	 */
-	public async overwriteSymbols(data: SymbolRow[]): Promise<void> {
+	public overwriteSymbols(data: SymbolRow[]): Promise<void> {
 		const context = {
 			operation: 'overwrite-symbols',
 			step: 'sqlite-write',
 		};
 
-		await ErrorHandler.wrapAsync(async () => {
+		ErrorHandler.wrapSync(() => {
 			this.historicalDb.exec('DELETE FROM symbols');
 			const insert = this.historicalDb.prepare(`
 				INSERT INTO symbols (symbol, name)
@@ -412,8 +419,9 @@ export class SqliteStorage {
 				}
 			});
 			transaction(data);
-			await Promise.resolve();
 		}, context);
+
+		return Promise.resolve();
 	}
 
 	/**
@@ -421,13 +429,13 @@ export class SqliteStorage {
 	 * @param {MetadataRow[]} data
 	 * @returns {Promise<void>}
 	 */
-	public async overwriteModelsMetadata(data: MetadataRow[]): Promise<void> {
+	public overwriteModelsMetadata(data: MetadataRow[]): Promise<void> {
 		const context = {
 			operation: 'overwrite-models-metadata',
 			step: 'sqlite-write',
 		};
 
-		await ErrorHandler.wrapAsync(async () => {
+		ErrorHandler.wrapSync(() => {
 			this.modelsDb.exec('DELETE FROM metadata');
 			const insert = this.modelsDb.prepare(`
 				INSERT INTO metadata (symbol, version, trainedAt, dataPoints, loss, windowSize, metrics)
@@ -439,24 +447,26 @@ export class SqliteStorage {
 				}
 			});
 			transaction(data);
-			await Promise.resolve();
 		}, context);
+
+		return Promise.resolve();
 	}
 
 	/**
 	 * Clear all quotes and symbols from the historical database
 	 * @returns {Promise<void>}
 	 */
-	public async clearAllData(): Promise<void> {
+	public clearAllData(): Promise<void> {
 		const context = {
 			operation: 'clear-all-data',
 			step: 'sqlite-delete',
 		};
 
-		await ErrorHandler.wrapAsync(async () => {
+		ErrorHandler.wrapSync(() => {
 			this.historicalDb.exec('DELETE FROM quotes');
 			this.historicalDb.exec('DELETE FROM symbols');
-			await Promise.resolve();
 		}, context);
+
+		return Promise.resolve();
 	}
 }

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import './env.ts';
+
 /**
  * AI Stock Predictions CLI Application
  * Entry point for the stock price prediction tool

@@ -154,6 +154,24 @@ export class ErrorHandler {
 			throw new ContextualError(String(error), context);
 		}
 	}
+
+	/**
+	 * Wrap synchronous function with error handling
+	 * @template T
+	 * @param {function(): T} fn - Synchronous function to wrap
+	 * @param {ErrorContext} context - Error context
+	 * @returns {T} Result of the function
+	 */
+	public static wrapSync<T>(fn: () => T, context: ErrorContext): T {
+		try {
+			return fn();
+		} catch (error) {
+			if (error instanceof Error) {
+				throw new ContextualError(error.message, context, error);
+			}
+			throw new ContextualError(String(error), context);
+		}
+	}
 }
 
 /**
