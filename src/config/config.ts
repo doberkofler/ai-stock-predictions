@@ -1,0 +1,92 @@
+/**
+ * Configuration management with file operations and validation
+ * Handles loading, saving, and validating config.json files
+ */
+
+import {readFileSync, writeFileSync, existsSync} from 'node:fs';
+import {join, dirname} from 'node:path';
+import type {Config} from './schema.ts';
+import {ConfigSchema, DefaultConfig} from './schema.ts';
+import chalk from 'chalk';
+import {ensureDir} from 'fs-extra';
+
+/**
+ * Get configuration file path
+ * @param {string} [configPath] - Optional custom path
+ * @returns {string} Resolved configuration file path
+ */
+export function getConfigFilePath(configPath?: string): string {
+	return join(process.cwd(), configPath ?? 'config.json');
+}
+
+/**
+ * Load and validate configuration from file
+ * @param {string} [configPath] - Optional custom path
+ * @throws {Error} If configuration file doesn't exist or is invalid
+ * @returns {Config} Validated configuration object
+ */
+export function loadConfig(configPath?: string): Config {
+	const resolvedPath = getConfigFilePath(configPath);
+	if (!existsSync(resolvedPath)) {
+		throw new Error(
+			`${chalk.red('Configuration file not found')}: ${resolvedPath}\n` + `Run ${chalk.cyan('ai-stock-predictions init')} to create a configuration file.`,
+		);
+	}
+
+	try {
+		const configData = JSON.parse(readFileSync(resolvedPath, 'utf8')) as unknown;
+		return ConfigSchema.parse(configData);
+	} catch (error) {
+		if (error instanceof Error) {
+			throw new Error(
+				`${chalk.red('Invalid configuration file')}: ${resolvedPath}\n` +
+					`Error: ${error.message}\n` +
+					`Run ${chalk.cyan('ai-stock-predictions init')} to create a new configuration file.`,
+			);
+		}
+		throw error;
+	}
+}
+
+/**
+ * Save configuration to file with validation
+ * @param {Config} config - Configuration object to save
+ * @param {string} [configPath] - Optional custom path
+ * @throws {Error} If configuration is invalid or file cannot be written
+ */
+export async function saveConfig(config: Config, configPath?: string): Promise<void> {
+	const resolvedPath = getConfigFilePath(configPath);
+	try {
+		// Validate configuration before saving
+		const validatedConfig = ConfigSchema.parse(config);
+
+		// Ensure directory exists
+		await ensureDir(dirname(resolvedPath));
+
+		// Write configuration file with pretty formatting
+		const configJson = JSON.stringify(validatedConfig, null, 2);
+		writeFileSync(resolvedPath, configJson, 'utf8');
+	} catch (error) {
+		if (error instanceof Error) {
+			throw new Error(`${chalk.red('Failed to save configuration file')}: ${resolvedPath}\n` + `Error: ${error.message}`);
+		}
+		throw error;
+	}
+}
+
+/**
+ * Check if configuration file exists
+ * @param {string} [configPath] - Optional custom path
+ * @returns {boolean} True if configuration file exists
+ */
+export function configExists(configPath?: string): boolean {
+	return existsSync(getConfigFilePath(configPath));
+}
+
+/**
+ * Get default configuration
+ * @returns {Config} Default configuration object
+ */
+export function getDefaultConfig(): Config {
+	return {...DefaultConfig};
+}

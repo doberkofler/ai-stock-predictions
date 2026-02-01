@@ -1,0 +1,69 @@
+{
+	"name": "ai-stock-predictions",
+	"version": "1.0.0",
+	"description": "CLI application for stock price prediction using TensorFlow.js LSTM models",
+	"main": "src/index.ts",
+	"type": "module",
+	"scripts": {
+		"start": "node src/index.ts",
+		"test": "vitest",
+		"test:coverage": "vitest --coverage",
+		"test:ui": "vitest --ui",
+		"lint": "eslint src --ext .ts",
+		"typecheck": "tsc --noEmit",
+		"format": "prettier --write src/**/*.ts",
+		"format:check": "prettier --check src/**/*.ts",
+		"ci": "npm run typecheck && npm run lint && npm run test:coverage"
+	},
+	"keywords": [
+		"stock",
+		"prediction",
+		"machine-learning",
+		"tensorflow",
+		"cli",
+		"typescript",
+		"lstm",
+		"yahoo-finance",
+		"chart-js"
+	],
+	"author": "AI Stock Predictions CLI",
+	"license": "MIT",
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"dependencies": {
+		"@tensorflow/tfjs": "^4.22.0",
+		"@tensorflow/tfjs-node": "^4.22.0",
+		"better-sqlite3": "^12.6.2",
+		"chalk": "^5.6.2",
+		"chart.js": "^4.5.1",
+		"chartjs-adapter-date-fns": "^3.0.0",
+		"commander": "^14.0.3",
+		"date-fns": "^4.1.0",
+		"fs-extra": "^11.3.3",
+		"ora": "^9.1.0",
+		"yahoo-finance2": "^3.13.0",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.2",
+		"@types/better-sqlite3": "^7.6.13",
+		"@types/fs-extra": "^11.0.4",
+		"@types/node": "^25.2.0",
+		"@typescript-eslint/eslint-plugin": "^8.54.0",
+		"@typescript-eslint/parser": "^8.54.0",
+		"@vitest/browser": "^4.0.18",
+		"@vitest/coverage-v8": "^4.0.18",
+		"@vitest/ui": "^4.0.18",
+		"eslint": "^9.39.2",
+		"eslint-plugin-import-x": "^4.16.1",
+		"eslint-plugin-jsdoc": "^62.5.0",
+		"eslint-plugin-regexp": "^3.0.0",
+		"eslint-plugin-unicorn": "^62.0.0",
+		"playwright": "^1.58.1",
+		"prettier": "^3.8.1",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.54.0",
+		"vitest": "^4.0.18"
+	}
+}

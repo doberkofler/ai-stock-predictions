@@ -1,0 +1,10 @@
+# Ignore all Markdown files
+*.md
+
+.vscode
+data
+coverage
+doc
+node_modules
+**/*.json
+temp
