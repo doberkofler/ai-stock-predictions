@@ -1,6 +1,6 @@
 /**
- * Train command - Trains models incrementally or from scratch
- * Implements incremental training logic and model validation/comparison
+ * Train command - Trains models from scratch using all available data
+ * Implements fresh training logic and model validation
  */
 
 import chalk from 'chalk';
@@ -10,19 +10,17 @@ import {SqliteStorage} from '../../gather/storage.ts';
 import {LstmModel} from '../../compute/lstm-model.ts';
 import {ModelPersistence} from '../../compute/persistence.ts';
 import {ProgressTracker} from '../utils/progress.ts';
-import type {StockDataPoint} from '../../types/index.ts';
-import type {Config} from '../../config/schema.ts';
 import {join} from 'node:path';
 
 /**
  * Train command implementation
- * Trains models incrementally for all configured symbols
+ * Trains models from scratch for all configured symbols
  * @param {string} configPath - Path to the configuration file
  * @param {boolean} [quickTest] - Run with limited symbols and data for verification
- * @param {boolean} [init] - If true, trains a new model from scratch and compares with existing
  */
-export async function trainCommand(configPath: string, quickTest = false, init = false): Promise<void> {
-	console.log(chalk.bold.blue('\n--- Training ML Models ---'));
+export async function trainCommand(configPath: string, quickTest = false): Promise<void> {
+	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Model Training ==='));
+	console.log(chalk.dim('Optimizing TensorFlow.js LSTM neural networks for the specified portfolio.\n'));
 	const startTime = Date.now();
 
 	// Handle Ctrl-C
@@ -49,16 +47,7 @@ export async function trainCommand(configPath: string, quickTest = false, init =
 			console.log(chalk.yellow('⚠️  Quick test mode active: Processing only the first 3 symbols and 50 data points'));
 		}
 
-		if (init) {
-			console.log(chalk.blue('\n🔄 Training from scratch mode active (--init)'));
-			console.log(chalk.dim('Existing models will be compared and replaced only if performance improves.'));
-		}
-
 		console.log(chalk.blue(`\n🧠 Training models for ${symbolsToProcess.length} symbols`));
-		if (!init) {
-			console.log(chalk.dim(`Incremental training: ${config.training.incremental ? 'Enabled' : 'Disabled'}`));
-			console.log(chalk.dim(`Minimum new data points: ${config.training.minNewDataPoints}`));
-		}
 
 		// Process each symbol
 		for (let i = 0; i < symbolsToProcess.length; i++) {
@@ -81,35 +70,14 @@ export async function trainCommand(configPath: string, quickTest = false, init =
 					stockData = stockData.slice(-50);
 				}
 
-				// Load existing model for either incremental training or comparison
-				const existingModel = await modelPersistence.loadModel(symbol, config);
-				let model: LstmModel;
-				let existingPerformance = null;
-
-				if (init) {
-					// Mode: Train from scratch and compare
-					symbolSpinner.text = `Evaluating existing ${name} (${symbol}) model...`;
-					existingPerformance = existingModel ? await existingModel.evaluate(stockData, config) : null;
-
-					symbolSpinner.text = `Creating fresh ${name} (${symbol}) model...`;
-					model = new LstmModel(config.ml);
-				} else {
-					// Mode: Incremental training
-					const shouldIncrementalTrain = config.training.incremental && existingModel && (await shouldTrainIncrementally(storage, symbol, config));
-
-					if (!shouldIncrementalTrain && existingModel && !quickTest) {
-						symbolSpinner.info(`${name} (${symbol}) (no new data for incremental training)`);
-						progress.complete(symbol, 'no-new-data');
-						continue;
-					}
-
-					model = existingModel ?? new LstmModel(config.ml);
-				}
+				// Always create a fresh model
+				symbolSpinner.text = `Creating fresh ${name} (${symbol}) model...`;
+				const model = new LstmModel(config.ml);
 
 				// Train model
 				const trainingStartTime = Date.now();
 				const trainingProgress = (epoch: number, loss: number) => {
-					const bar = progress.createProgressBar(config.ml.epochs, epoch, `${init ? 'Retraining' : 'Training'} ${name} (${symbol})`);
+					const bar = progress.createProgressBar(config.ml.epochs, epoch, `Training ${name} (${symbol})`);
 					const eta = ProgressTracker.calculateEta(trainingStartTime, epoch, config.ml.epochs);
 					symbolSpinner.text = `${bar} (Loss: ${loss.toFixed(6)}, ETA: ${eta})`;
 				};
@@ -121,31 +89,15 @@ export async function trainCommand(configPath: string, quickTest = false, init =
 				const performance = await model.evaluate(stockData, config);
 
 				if (performance.isValid || quickTest) {
-					let shouldSave = true;
-					let improvement = '';
-
-					if (init && existingPerformance && !quickTest) {
-						// Only replace if new model is significantly better (5% threshold)
-						shouldSave = performance.loss < existingPerformance.loss * 0.95;
-						if (shouldSave) {
-							improvement = ` (${((1 - performance.loss / existingPerformance.loss) * 100).toFixed(1)}% improvement)`;
-						}
-					}
-
-					if (shouldSave) {
-						await modelPersistence.saveModel(symbol, model, {
-							...performance,
-							dataPoints: stockData.length,
-							modelType: config.ml.modelType,
-							windowSize: config.ml.windowSize,
-						});
-						const perfMsg = performance.isValid ? `(Loss: ${performance.loss.toFixed(6)})` : `(Loss: ${performance.loss.toFixed(6)} - Forced save)`;
-						symbolSpinner.succeed(`${name} (${symbol})${improvement} ${perfMsg}`);
-						progress.complete(symbol, init ? 'retrained' : 'trained', performance.loss);
-					} else {
-						symbolSpinner.warn(`${name} (${symbol}) (No significant improvement, keeping existing)`);
-						progress.complete(symbol, 'no-improvement');
-					}
+					await modelPersistence.saveModel(symbol, model, {
+						...performance,
+						dataPoints: stockData.length,
+						modelType: config.ml.modelType,
+						windowSize: config.ml.windowSize,
+					});
+					const perfMsg = performance.isValid ? `(Loss: ${performance.loss.toFixed(6)})` : `(Loss: ${performance.loss.toFixed(6)} - Forced save)`;
+					symbolSpinner.succeed(`${name} (${symbol}) ${perfMsg}`);
+					progress.complete(symbol, 'trained', performance.loss);
 				} else {
 					symbolSpinner.warn(`${name} (${symbol}) ⚠️ (Poor performance, model not saved)`);
 					progress.complete(symbol, 'poor-performance');
@@ -165,9 +117,7 @@ export async function trainCommand(configPath: string, quickTest = false, init =
 		// Display summary
 		const summary = progress.getSummary();
 		console.log('\n' + chalk.bold('🎯 Training Summary:'));
-		console.log(chalk.green(`  ✅ Trained: ${(summary.trained ?? 0) + (summary.retrained ?? 0)}`));
-		console.log(chalk.blue(`  ℹ️  No new data: ${summary['no-new-data'] ?? 0}`));
-		console.log(chalk.blue(`  ↔️  No improvement: ${summary['no-improvement'] ?? 0}`));
+		console.log(chalk.green(`  ✅ Trained: ${summary.trained ?? 0}`));
 		console.log(chalk.yellow(`  ⚠️  Poor performance: ${summary['poor-performance'] ?? 0}`));
 		console.log(chalk.red(`  ❌ Errors: ${summary.error ?? 0}`));
 		console.log(chalk.dim(`  📊 Total symbols processed: ${symbolsToProcess.length}`));
@@ -187,31 +137,5 @@ export async function trainCommand(configPath: string, quickTest = false, init =
 			console.error(chalk.red('Unknown error occurred during training'));
 		}
 		process.exit(1);
-	}
-}
-
-/**
- * Determine if incremental training should be performed
- * @param {SqliteStorage} storage - Data storage instance
- * @param {string} symbol - Stock symbol
- * @param {Config} config - Configuration object
- * @returns {Promise<boolean>} True if incremental training should be performed
- */
-async function shouldTrainIncrementally(storage: SqliteStorage, symbol: string, config: Config): Promise<boolean> {
-	try {
-		const modelMetadata = await storage.getModelMetadata(symbol);
-		if (!modelMetadata) {
-			return false;
-		}
-
-		// Check if enough new data points exist
-		const stockData = await storage.getStockData(symbol);
-		if (!stockData) return false;
-		const lastTrainingDate = new Date(modelMetadata.trainedAt);
-		const newDataPoints = stockData.filter((data: StockDataPoint) => new Date(data.date) > lastTrainingDate).length;
-
-		return newDataPoints >= config.training.minNewDataPoints;
-	} catch {
-		return false;
 	}
 }

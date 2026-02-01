@@ -26,7 +26,8 @@ const ExportSchema = z.object({
  * @param {string} importPath - Path to the JSON file to import
  */
 export async function importCommand(importPath = 'export.json'): Promise<void> {
-	console.log(chalk.bold.blue('\n--- Importing Databases from JSON ---'));
+	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Import ==='));
+	console.log(chalk.dim('Hydrating the relational SQLite databases from a serialized JSON backup.\n'));
 	const startTime = Date.now();
 	const spinner = ora('Importing databases...').start();
 

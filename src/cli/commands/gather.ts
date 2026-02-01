@@ -19,7 +19,8 @@ import {ProgressTracker} from '../utils/progress.ts';
  * @param {boolean} [init] - Clear all existing data before gathering
  */
 export async function gatherCommand(configPath: string, full = false, quickTest = false, init = false): Promise<void> {
-	console.log(chalk.bold.blue('\n--- Gathering Stock Data ---'));
+	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Gathering ==='));
+	console.log(chalk.dim('Fetching historical market data from Yahoo Finance and syncing the local database.\n'));
 	const startTime = Date.now();
 
 	// Handle Ctrl-C

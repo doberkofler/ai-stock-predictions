@@ -100,8 +100,8 @@ export class LstmModel {
 				throw new ModelError(`Insufficient data: need at least ${this.config.windowSize + 1} points, got ${data.length}`);
 			}
 
-			// Create model if not exists
-			this.model ??= this.createModel();
+			// Always create a fresh model
+			this.model = this.createModel();
 
 			// Preprocess data
 			const {trainX, trainY} = this.preprocessData(data);

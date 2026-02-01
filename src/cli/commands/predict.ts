@@ -21,7 +21,8 @@ import type {ReportPrediction} from '../../types/index.ts';
  * @param {string} configPath - Path to the configuration file
  */
 export async function predictCommand(configPath: string): Promise<void> {
-	console.log(chalk.bold.blue('\n--- Generating Stock Predictions ---'));
+	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Price Estimation ==='));
+	console.log(chalk.dim('Generating multi-day trend forecasts and rendering the interactive HTML report.\n'));
 	const startTime = Date.now();
 	const spinner = ora('Loading configuration').start();
 

@@ -16,7 +16,8 @@ import {ProgressTracker} from '../utils/progress.ts';
  * @param {string} configPath - Path to the configuration file
  */
 export async function initCommand(configPath: string): Promise<void> {
-	console.log(chalk.bold.blue('\n--- Initializing AI Stock Predictions CLI ---'));
+	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Initialization ==='));
+	console.log(chalk.dim('Setting up project structure and creating the default configuration file.\n'));
 	const startTime = Date.now();
 	const spinner = ora('Initializing AI Stock Predictions CLI').start();
 

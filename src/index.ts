@@ -63,12 +63,11 @@ program
 
 program
 	.command('train')
-	.description('Train models incrementally or from scratch')
+	.description('Train models from scratch using all available data')
 	.option('--quick-test', 'run with 3 symbols and 50 data points for verification', false)
-	.option('--init', 'train a new model from scratch and replace existing only if performance improves', false)
-	.action(async (options: {quickTest: boolean; init: boolean}) => {
+	.action(async (options: {quickTest: boolean}) => {
 		const programOptions = program.opts<{config: string}>();
-		await trainCommand(programOptions.config, options.quickTest, options.init);
+		await trainCommand(programOptions.config, options.quickTest);
 	});
 
 program

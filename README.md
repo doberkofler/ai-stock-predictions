@@ -44,15 +44,13 @@ npm start gather -- --full
 ```
 
 ### 3. Train Models
-Train LSTM models for the gathered data:
+Train fresh LSTM models using all available data:
 ```bash
 npm start train
-# or force a full retrain from scratch
-npm start retrain
 ```
 
 ### 4. Predict & Report
-Generate predictions and an interactive HTML report:
+Generate predictions based on the latest gathered data and existing models:
 ```bash
 npm start predict
 ```

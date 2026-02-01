@@ -14,7 +14,8 @@ import {ProgressTracker} from '../utils/progress.ts';
  * @param {string} exportPath - Path where to save the export file
  */
 export async function exportCommand(exportPath = 'export.json'): Promise<void> {
-	console.log(chalk.bold.blue('\n--- Exporting Databases to JSON ---'));
+	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Export ==='));
+	console.log(chalk.dim('Serializing relational SQLite databases into a portable JSON format.\n'));
 	const startTime = Date.now();
 	const spinner = ora('Exporting databases...').start();
 
