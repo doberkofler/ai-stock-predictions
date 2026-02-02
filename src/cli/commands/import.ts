@@ -7,8 +7,7 @@ import ora from 'ora';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {z} from 'zod';
-import {SqliteStorage} from '../../gather/storage.ts';
-import type {HistoricalRow, MetadataRow, SymbolRow} from '../../gather/storage.ts';
+import {SqliteStorage, SymbolRowSchema, HistoricalRowSchema, MetadataRowSchema} from '../../gather/storage.ts';
 import {ProgressTracker} from '../utils/progress.ts';
 
 /**
@@ -16,9 +15,9 @@ import {ProgressTracker} from '../utils/progress.ts';
  */
 const ExportSchema = z.object({
 	version: z.string(),
-	symbols: z.array(z.unknown()).optional(),
-	historical_data: z.array(z.unknown()),
-	models_metadata: z.array(z.unknown()),
+	symbols: z.array(SymbolRowSchema).optional(),
+	historical_data: z.array(HistoricalRowSchema),
+	models_metadata: z.array(MetadataRowSchema),
 });
 
 /**
@@ -43,14 +42,14 @@ export async function importCommand(importPath = 'export.json'): Promise<void> {
 
 		if (validatedData.symbols) {
 			spinner.text = 'Overwriting symbols...';
-			await storage.overwriteSymbols(validatedData.symbols as unknown as SymbolRow[]);
+			await storage.overwriteSymbols(validatedData.symbols);
 		}
 
 		spinner.text = 'Overwriting historical data...';
-		await storage.overwriteHistoricalData(validatedData.historical_data as unknown as HistoricalRow[]);
+		await storage.overwriteHistoricalData(validatedData.historical_data);
 
 		spinner.text = 'Overwriting models metadata...';
-		await storage.overwriteModelsMetadata(validatedData.models_metadata as unknown as MetadataRow[]);
+		await storage.overwriteModelsMetadata(validatedData.models_metadata);
 
 		storage.close();
 		spinner.succeed(`Import complete! Overwritten from: ${resolvedPath}`);

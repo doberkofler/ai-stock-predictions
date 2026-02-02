@@ -7,25 +7,10 @@ import yahooFinance from 'yahoo-finance2';
 import {z} from 'zod';
 
 import {DataSourceError, ErrorHandler} from '../cli/utils/errors.ts';
+import {StockDataPointSchema, YahooQuoteSchema} from '../types/index.ts';
 import type {StockDataPoint, ApiConfig} from '../types/index.ts';
 
-/**
- * Stock data array schema for validation
- */
-const StockDataSchema = z.array(
-	z.object({
-		date: z
-			.string()
-			.or(z.date())
-			.transform((val) => (typeof val === 'string' ? val : val.toISOString())),
-		open: z.number(),
-		high: z.number(),
-		low: z.number(),
-		close: z.number(),
-		volume: z.number(),
-		adjClose: z.number().optional().default(0),
-	}),
-);
+const StockDataSchema = z.array(StockDataPointSchema);
 
 /**
  * Yahoo Finance data fetch result
@@ -179,7 +164,7 @@ export class YahooFinanceDataSource {
 
 		return ErrorHandler.wrapAsync(async () => {
 			try {
-				const quote = (await Promise.race([
+				const response = await Promise.race([
 					this.api.quote(symbol),
 					new Promise((_, reject) => {
 						const timeoutId = setTimeout(() => {
@@ -187,18 +172,16 @@ export class YahooFinanceDataSource {
 						}, this.config.timeout);
 						timeoutId.unref();
 					}),
-				])) as Record<string, unknown>;
+				]);
 
-				if (typeof quote === 'object' && quote.regularMarketPrice != null && quote.currency != null) {
-					const name = (quote.longName as string) || (quote.shortName as string) || symbol;
-					return {
-						price: quote.regularMarketPrice as number,
-						currency: quote.currency as string,
-						name,
-					};
-				}
+				const quote = YahooQuoteSchema.parse(response);
+				const name = quote.longName ?? quote.shortName ?? symbol;
 
-				throw new DataSourceError(`Invalid quote data for symbol ${symbol}`, symbol);
+				return {
+					price: quote.regularMarketPrice,
+					currency: quote.currency,
+					name,
+				};
 			} catch (error) {
 				throw new DataSourceError(`Failed to fetch current quote: ${error instanceof Error ? error.message : String(error)}`, symbol);
 			}

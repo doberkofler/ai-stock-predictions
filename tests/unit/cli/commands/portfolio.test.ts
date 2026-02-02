@@ -1,16 +1,33 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {portfolioCommand} from '@/cli/commands/portfolio.ts';
-import {SqliteStorage} from '@/gather/storage.ts';
-import {YahooFinanceDataSource} from '@/gather/yahoo-finance.ts';
-import {ModelPersistence} from '@/compute/persistence.ts';
-import {loadConfig} from '@/config/config.ts';
-import defaults from '@/constants/defaults.json' with {type: 'json'};
+import {portfolioCommand} from '../../../../src/cli/commands/portfolio.ts';
+import {SqliteStorage} from '../../../../src/gather/storage.ts';
+import {YahooFinanceDataSource} from '../../../../src/gather/yahoo-finance.ts';
+import {ModelPersistence} from '../../../../src/compute/persistence.ts';
+import {loadConfig} from '../../../../src/config/config.ts';
+import {ui} from '../../../../src/cli/utils/ui.ts';
 
-vi.mock('@/gather/storage.ts');
-vi.mock('@/gather/yahoo-finance.ts');
-vi.mock('@/compute/persistence.ts');
-vi.mock('@/config/config.ts');
-vi.mock('@/constants/defaults.json', () => ({
+vi.mock('../../../../src/gather/storage.ts');
+vi.mock('../../../../src/gather/yahoo-finance.ts');
+vi.mock('../../../../src/compute/persistence.ts');
+vi.mock('../../../../src/config/config.ts');
+vi.mock('../../../../src/cli/utils/ui.ts', () => ({
+	ui: {
+		log: vi.fn(),
+		error: vi.fn(),
+		spinner: vi.fn().mockReturnValue({
+			start: vi.fn().mockReturnThis(),
+			stop: vi.fn().mockReturnThis(),
+			succeed: vi.fn().mockReturnThis(),
+			fail: vi.fn().mockReturnThis(),
+			warn: vi.fn().mockReturnThis(),
+			info: vi.fn().mockReturnThis(),
+			text: '',
+		}),
+		divider: vi.fn(),
+	},
+}));
+
+vi.mock('../../../../src/constants/defaults.json', () => ({
 	default: [
 		{symbol: 'AAPL', name: 'Apple Inc.'},
 		{symbol: 'MSFT', name: 'Microsoft Corporation'},
@@ -34,10 +51,9 @@ describe('Portfolio Command', () => {
 		const mockSymbols = [{symbol: 'AAPL', name: 'Apple Inc.'}];
 		vi.mocked(SqliteStorage.prototype.getAllSymbols).mockReturnValue(mockSymbols);
 
-		const consoleSpy = vi.spyOn(console, 'log');
 		await portfolioCommand('config.json', {});
 
-		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('AAPL'));
+		expect(ui.log).toHaveBeenCalledWith(expect.stringContaining('AAPL'));
 	});
 
 	it('should add default symbols', async () => {
@@ -71,7 +87,7 @@ describe('Portfolio Command', () => {
 		vi.mocked(SqliteStorage.prototype.symbolExists).mockReturnValue(false);
 		vi.mocked(YahooFinanceDataSource.prototype.validateSymbol).mockResolvedValue(false);
 
-		await expect(portfolioCommand('config.json', {add: 'INVALID'})).rejects.toThrow('process.exit');
+		await expect(portfolioCommand('json', {add: 'INVALID'})).rejects.toThrow('process.exit');
 	});
 
 	it('should remove a specific symbol', async () => {

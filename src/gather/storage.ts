@@ -30,7 +30,7 @@ const StockDataSchema = z.array(StockDataPointSchema);
 /**
  * Model metadata schema for validation
  */
-const ModelMetadataSchema = z.object({
+export const ModelMetadataSchema = z.object({
 	version: z.string(),
 	trainedAt: z.string().or(z.date()),
 	dataPoints: z.number(),
@@ -41,39 +41,54 @@ const ModelMetadataSchema = z.object({
 });
 
 /**
+ * Historical data row schema
+ */
+export const HistoricalRowSchema = z.object({
+	symbol: z.string(),
+	date: z.string(),
+	open: z.number(),
+	high: z.number(),
+	low: z.number(),
+	close: z.number(),
+	volume: z.number(),
+	adjClose: z.number(),
+});
+
+/**
  * Type for historical data row
  */
-export type HistoricalRow = {
-	symbol: string;
-	date: string;
-	open: number;
-	high: number;
-	low: number;
-	close: number;
-	volume: number;
-	adjClose: number;
-};
+export type HistoricalRow = z.infer<typeof HistoricalRowSchema>;
+
+/**
+ * Model metadata row schema
+ */
+export const MetadataRowSchema = z.object({
+	symbol: z.string(),
+	version: z.string(),
+	trainedAt: z.string(),
+	dataPoints: z.number(),
+	loss: z.number(),
+	windowSize: z.number(),
+	metrics: z.string(),
+});
 
 /**
  * Type for model metadata row
  */
-export type MetadataRow = {
-	symbol: string;
-	version: string;
-	trainedAt: string;
-	dataPoints: number;
-	loss: number;
-	windowSize: number;
-	metrics: string;
-};
+export type MetadataRow = z.infer<typeof MetadataRowSchema>;
+
+/**
+ * Symbol row schema
+ */
+export const SymbolRowSchema = z.object({
+	symbol: z.string(),
+	name: z.string(),
+});
 
 /**
  * Type for symbol row
  */
-export type SymbolRow = {
-	symbol: string;
-	name: string;
-};
+export type SymbolRow = z.infer<typeof SymbolRowSchema>;
 
 /**
  * SQLite storage implementation
@@ -174,9 +189,9 @@ export class SqliteStorage {
 
 		const result = ErrorHandler.wrapSync(() => {
 			const stmt = this.historicalDb.prepare('SELECT date, open, high, low, close, volume, adjClose FROM quotes WHERE symbol = ? ORDER BY date ASC');
-			const rows = stmt.all(symbol) as StockDataPoint[];
+			const rows: unknown = stmt.all(symbol);
 
-			if (rows.length === 0) {
+			if (!Array.isArray(rows) || rows.length === 0) {
 				return null;
 			}
 
@@ -250,20 +265,22 @@ export class SqliteStorage {
 
 		const result = ErrorHandler.wrapSync(() => {
 			const stmt = this.modelsDb.prepare('SELECT * FROM metadata WHERE symbol = ?');
-			const row = stmt.get(symbol) as MetadataRow | undefined;
+			const row: unknown = stmt.get(symbol);
 
 			if (!row) {
 				return null;
 			}
 
+			const metadataRow = MetadataRowSchema.parse(row);
+
 			const metadataRaw: unknown = {
-				version: row.version,
-				trainedAt: row.trainedAt,
-				dataPoints: row.dataPoints,
-				loss: row.loss,
-				windowSize: row.windowSize,
-				metrics: JSON.parse(row.metrics) as Record<string, number>,
-				symbol: row.symbol,
+				version: metadataRow.version,
+				trainedAt: metadataRow.trainedAt,
+				dataPoints: metadataRow.dataPoints,
+				loss: metadataRow.loss,
+				windowSize: metadataRow.windowSize,
+				metrics: JSON.parse(metadataRow.metrics) as unknown,
+				symbol: metadataRow.symbol,
 			};
 
 			const validated = ModelMetadataSchema.parse(metadataRaw);
@@ -389,7 +406,8 @@ export class SqliteStorage {
 	 * @returns {SymbolRow[]}
 	 */
 	public getAllSymbols(): SymbolRow[] {
-		return this.historicalDb.prepare('SELECT * FROM symbols').all() as SymbolRow[];
+		const rows: unknown = this.historicalDb.prepare('SELECT * FROM symbols').all();
+		return z.array(SymbolRowSchema).parse(rows);
 	}
 
 	/**
@@ -397,7 +415,8 @@ export class SqliteStorage {
 	 * @returns {HistoricalRow[]}
 	 */
 	public getAllQuotes(): HistoricalRow[] {
-		return this.historicalDb.prepare('SELECT * FROM quotes').all() as HistoricalRow[];
+		const rows: unknown = this.historicalDb.prepare('SELECT * FROM quotes').all();
+		return z.array(HistoricalRowSchema).parse(rows);
 	}
 
 	/**
@@ -405,7 +424,8 @@ export class SqliteStorage {
 	 * @returns {MetadataRow[]}
 	 */
 	public getAllMetadata(): MetadataRow[] {
-		return this.modelsDb.prepare('SELECT * FROM metadata').all() as MetadataRow[];
+		const rows: unknown = this.modelsDb.prepare('SELECT * FROM metadata').all();
+		return z.array(MetadataRowSchema).parse(rows);
 	}
 
 	/**

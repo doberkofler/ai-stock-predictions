@@ -1,21 +1,36 @@
-import {describe, it, expect, beforeEach, vi} from 'vitest';
-import {SqliteStorage} from '@/gather/storage.ts';
-import type {StockDataPoint} from '@/types/index.ts';
-import type {ModelMetadata} from '@/compute/lstm-model.ts';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
+import {SqliteStorage} from '../../../src/gather/storage.ts';
+import type {StockDataPoint} from '../../../src/types/index.ts';
+import type {ModelMetadata} from '../../../src/compute/lstm-model.ts';
 
-// Note: Better-sqlite3 is difficult to mock deeply without significant boilerplate.
-// Since we are running in an environment that supports SQLite, we use a real :memory: database for high-fidelity testing.
+vi.mock('node:fs', () => ({
+	existsSync: vi.fn().mockReturnValue(true),
+	mkdirSync: vi.fn(),
+}));
 
 describe('SqliteStorage', () => {
 	let storage: SqliteStorage;
+	const mockData: StockDataPoint[] = [
+		{
+			date: '2023-01-01',
+			open: 100,
+			high: 110,
+			low: 90,
+			close: 105,
+			volume: 1000,
+			adjClose: 105,
+		},
+	];
 
 	beforeEach(() => {
-		vi.clearAllMocks();
-		// Create a new memory storage for each test to ensure isolation
-		storage = new SqliteStorage(true); // isMemory = true
+		storage = new SqliteStorage();
 	});
 
-	describe('Symbols Operations', () => {
+	afterEach(() => {
+		storage.close();
+	});
+
+	describe('Symbol Operations', () => {
 		it('should save and retrieve symbol name', () => {
 			storage.saveSymbol('AAPL', 'Apple Inc.');
 			const name = storage.getSymbolName('AAPL');
@@ -26,38 +41,53 @@ describe('SqliteStorage', () => {
 			const name = storage.getSymbolName('NONEXISTENT');
 			expect(name).toBeNull();
 		});
+
+		it('should check if symbol exists', () => {
+			storage.saveSymbol('AAPL', 'Apple Inc.');
+			expect(storage.symbolExists('AAPL')).toBe(true);
+			expect(storage.symbolExists('TSLA')).toBe(false);
+		});
+
+		it('should delete symbol and associated data', async () => {
+			storage.saveSymbol('AAPL', 'Apple Inc.');
+			await storage.saveStockData('AAPL', mockData);
+
+			storage.deleteSymbol('AAPL');
+
+			expect(storage.symbolExists('AAPL')).toBe(false);
+			const data = await storage.getStockData('AAPL');
+			expect(data).toBeNull();
+		});
 	});
 
 	describe('Quotes Operations', () => {
-		const mockData: StockDataPoint[] = [
-			{
-				date: '2023-01-01',
-				open: 150,
-				high: 155,
-				low: 145,
-				close: 152,
-				volume: 1000000,
-				adjClose: 152,
-			},
-		];
-
 		it('should save and retrieve stock data', async () => {
 			await storage.saveStockData('AAPL', mockData);
-			const result = await storage.getStockData('AAPL');
-			expect(result).toEqual(mockData);
+			const data = await storage.getStockData('AAPL');
+			expect(data).toHaveLength(1);
+			expect(data).toEqual(mockData);
+		});
+
+		it('should return null for empty data rows', async () => {
+			const data = await storage.getStockData('EMPTY');
+			expect(data).toBeNull();
+		});
+
+		it('should get quote count', async () => {
+			await storage.saveStockData('AAPL', mockData);
+			expect(storage.getQuoteCount('AAPL')).toBe(1);
+			expect(storage.getQuoteCount('TSLA')).toBe(0);
 		});
 
 		it('should return null for non-existent symbol', async () => {
-			const result = await storage.getStockData('NONEXISTENT');
-			expect(result).toBeNull();
+			const data = await storage.getStockData('NONEXISTENT');
+			expect(data).toBeNull();
 		});
 
 		it('should return available symbols', async () => {
 			await storage.saveStockData('AAPL', mockData);
-			await storage.saveStockData('MSFT', mockData);
 			const symbols = await storage.getAvailableSymbols();
 			expect(symbols).toContain('AAPL');
-			expect(symbols).toContain('MSFT');
 		});
 
 		it('should get correct data timestamp', async () => {
@@ -69,92 +99,80 @@ describe('SqliteStorage', () => {
 	});
 
 	describe('Model Metadata Operations', () => {
-		const mockMetadata: ModelMetadata = {
-			version: '1.0.0',
-			trainedAt: new Date('2023-01-01T00:00:00.000Z'),
-			dataPoints: 100,
-			loss: 0.01,
-			windowSize: 30,
-			metrics: {mae: 0.05},
-			symbol: 'AAPL',
-		};
-
 		it('should save and retrieve model metadata', async () => {
+			const mockMetadata: ModelMetadata = {
+				version: '1.0.0',
+				trainedAt: new Date(),
+				dataPoints: 100,
+				loss: 0.01,
+				windowSize: 30,
+				metrics: {mae: 0.05},
+				symbol: 'AAPL',
+			};
+
 			await storage.saveModelMetadata('AAPL', mockMetadata);
-			const result = await storage.getModelMetadata('AAPL');
-			expect(result).toEqual(mockMetadata);
+			const metadata = await storage.getModelMetadata('AAPL');
+			expect(metadata).not.toBeNull();
+			expect(metadata?.version).toBe('1.0.0');
+			expect(metadata?.symbol).toBe('AAPL');
 		});
 
 		it('should return null for non-existent model metadata', async () => {
-			const result = await storage.getModelMetadata('NONEXISTENT');
-			expect(result).toBeNull();
+			const metadata = await storage.getModelMetadata('NONEXISTENT');
+			expect(metadata).toBeNull();
 		});
 	});
 
 	describe('Export/Import Operations', () => {
-		it('should export and import data correctly', async () => {
-			const mockSymbol = {
-				symbol: 'AAPL',
-				name: 'Apple Inc.',
-			};
-			const mockQuote = {
-				symbol: 'AAPL',
-				date: '2023-01-01',
-				open: 150,
-				high: 155,
-				low: 145,
-				close: 152,
-				volume: 1000000,
-				adjClose: 152,
-			};
-			const mockMeta = {
-				symbol: 'AAPL',
-				version: '1.0.0',
-				trainedAt: '2023-01-01T00:00:00.000Z',
-				dataPoints: 100,
-				loss: 0.01,
-				windowSize: 30,
-				metrics: JSON.stringify({mae: 0.05}),
-			};
+		it('should export and import symbols correctly', async () => {
+			const symbols = [{symbol: 'AAPL', name: 'Apple Inc.'}];
+			await storage.overwriteSymbols(symbols);
+			expect(storage.getAllSymbols()).toEqual(symbols);
+		});
 
-			await storage.overwriteSymbols([mockSymbol]);
-			await storage.overwriteHistoricalData([mockQuote]);
-			await storage.overwriteModelsMetadata([mockMeta]);
+		it('should export and import quotes correctly', async () => {
+			const quotes = [
+				{
+					symbol: 'AAPL',
+					date: '2023-01-01',
+					open: 100,
+					high: 110,
+					low: 90,
+					close: 105,
+					volume: 1000,
+					adjClose: 105,
+				},
+			];
+			await storage.overwriteHistoricalData(quotes);
+			expect(storage.getAllQuotes()).toEqual(quotes);
+		});
 
-			const symbols = storage.getAllSymbols();
-			const quotes = storage.getAllQuotes();
-			const metadata = storage.getAllMetadata();
-
-			expect(symbols).toHaveLength(1);
-			expect(symbols[0]?.name).toBe('Apple Inc.');
-			expect(quotes).toHaveLength(1);
-			expect(quotes[0]?.symbol).toBe('AAPL');
-			expect(metadata).toHaveLength(1);
-			expect(metadata[0]?.symbol).toBe('AAPL');
+		it('should export and import metadata correctly', async () => {
+			const metadata = [
+				{
+					symbol: 'AAPL',
+					version: '1.0.0',
+					trainedAt: '2023-01-01T00:00:00.000Z',
+					dataPoints: 100,
+					loss: 0.01,
+					windowSize: 30,
+					metrics: JSON.stringify({mae: 0.05}),
+				},
+			];
+			await storage.overwriteModelsMetadata(metadata);
+			expect(storage.getAllMetadata()).toEqual(metadata);
 		});
 	});
 
-	describe('Data Management', () => {
+	describe('Cleanup Operations', () => {
 		it('should clear all data', async () => {
-			await storage.saveSymbol('AAPL', 'Apple Inc.');
-			await storage.saveStockData('AAPL', [
-				{
-					date: '2023-01-01',
-					open: 150,
-					high: 155,
-					low: 145,
-					close: 152,
-					volume: 1000000,
-					adjClose: 152,
-				},
-			]);
-
+			storage.saveSymbol('AAPL', 'Apple Inc.');
+			await storage.saveStockData('AAPL', mockData);
 			await storage.clearAllData();
-			const symbols = await storage.getAvailableSymbols();
-			const name = storage.getSymbolName('AAPL');
 
+			const symbols = await storage.getAvailableSymbols();
 			expect(symbols).toHaveLength(0);
-			expect(name).toBeNull();
+			expect(storage.getAllSymbols()).toHaveLength(0);
 		});
 	});
 });

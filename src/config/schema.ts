@@ -58,7 +58,7 @@ const MlSchema = z.object({
 	windowSize: z.number().min(10, 'ML window size must be at least 10').max(100, 'ML window size cannot exceed 100').default(30),
 	epochs: z.number().min(10, 'ML epochs must be at least 10').max(200, 'ML epochs cannot exceed 200').default(50),
 	learningRate: z.number().min(0.0001, 'ML learning rate must be at least 0.0001').max(0.1, 'ML learning rate cannot exceed 0.1').default(0.001),
-	batchSize: z.number().min(1, 'ML batch size must be at least 1').max(100, 'ML batch size cannot exceed 100').default(32),
+	batchSize: z.number().min(1, 'ML batch size must be at least 1').max(512, 'ML batch size cannot exceed 512').default(128),
 });
 
 /**
@@ -115,6 +115,6 @@ export const DefaultConfig: Config = {
 		windowSize: 30,
 		epochs: 50,
 		learningRate: 0.001,
-		batchSize: 32,
+		batchSize: 128,
 	},
 };

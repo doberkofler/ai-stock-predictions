@@ -1,6 +1,5 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {YahooFinanceDataSource} from '@/gather/yahoo-finance.ts';
-import YahooFinance from 'yahoo-finance2';
+import {YahooFinanceDataSource} from '../../../src/gather/yahoo-finance.ts';
 
 // Create stable mock functions
 const mockChart = vi.fn();
@@ -48,6 +47,23 @@ describe('YahooFinanceDataSource', () => {
 			expect(result.oldestDate).toBe('2023-01-01');
 		});
 
+		it('should apply limit to historical data', async () => {
+			const mockResponse = {
+				quotes: [
+					{date: new Date('2023-01-01'), open: 100, high: 110, low: 90, close: 100, volume: 1000, adjclose: 100},
+					{date: new Date('2023-01-02'), open: 101, high: 111, low: 91, close: 101, volume: 1000, adjclose: 101},
+					{date: new Date('2023-01-03'), open: 102, high: 112, low: 92, close: 102, volume: 1000, adjclose: 102},
+				],
+			};
+			mockChart.mockResolvedValue(mockResponse);
+
+			const result = await dataSource.getHistoricalData('AAPL', new Date('2023-01-01'), 2);
+
+			expect(result.data).toHaveLength(2);
+			expect(result.data[0]?.date).toBe('2023-01-02');
+			expect(result.data[1]?.date).toBe('2023-01-03');
+		});
+
 		it('should deduplicate records by date', async () => {
 			const mockResponse = {
 				quotes: [
@@ -61,6 +77,16 @@ describe('YahooFinanceDataSource', () => {
 
 			expect(result.data).toHaveLength(1);
 			expect(result.data[0]?.close).toBe(106); // keeps the last one
+		});
+
+		it('should retry on API error and eventually succeed', async () => {
+			mockChart.mockRejectedValueOnce(new Error('Transient Error')).mockResolvedValueOnce({
+				quotes: [{date: new Date('2023-01-01'), open: 100, high: 110, low: 90, close: 105, volume: 1000, adjclose: 105}],
+			});
+
+			const result = await dataSource.getHistoricalData('AAPL', new Date('2023-01-01'));
+			expect(result.data).toHaveLength(1);
+			expect(mockChart).toHaveBeenCalledTimes(2);
 		});
 
 		it('should throw DataSourceError after max retries', async () => {
@@ -79,16 +105,64 @@ describe('YahooFinanceDataSource', () => {
 	});
 
 	describe('getCurrentQuote', () => {
-		it('should successfully fetch current quote', async () => {
+		it('should successfully fetch current quote with name', async () => {
 			mockQuote.mockResolvedValue({
 				regularMarketPrice: 150.5,
 				currency: 'USD',
+				longName: 'Apple Inc.',
 			});
 
 			const quote = await dataSource.getCurrentQuote('AAPL');
 
 			expect(quote.price).toBe(150.5);
 			expect(quote.currency).toBe('USD');
+			expect(quote.name).toBe('Apple Inc.');
+		});
+
+		it('should use fallback names if longName is missing', async () => {
+			mockQuote.mockResolvedValue({
+				regularMarketPrice: 150.5,
+				currency: 'USD',
+				shortName: 'Apple',
+			});
+
+			const quote = await dataSource.getCurrentQuote('AAPL');
+			expect(quote.name).toBe('Apple');
+		});
+
+		it('should use symbol if both names are missing', async () => {
+			mockQuote.mockResolvedValue({
+				regularMarketPrice: 150.5,
+				currency: 'USD',
+			});
+
+			const quote = await dataSource.getCurrentQuote('AAPL');
+			expect(quote.name).toBe('AAPL');
+		});
+
+		it('should throw error if quote response is malformed', async () => {
+			mockQuote.mockResolvedValue({
+				invalid: 'data',
+			});
+
+			await expect(dataSource.getCurrentQuote('AAPL')).rejects.toThrow(/Failed to fetch current quote/);
+		});
+	});
+
+	describe('validateSymbol', () => {
+		it('should return true for valid symbol', async () => {
+			mockQuote.mockResolvedValue({
+				regularMarketPrice: 150.5,
+				currency: 'USD',
+			});
+			const isValid = await dataSource.validateSymbol('AAPL');
+			expect(isValid).toBe(true);
+		});
+
+		it('should return false for invalid symbol', async () => {
+			mockQuote.mockRejectedValue(new Error('Invalid symbol'));
+			const isValid = await dataSource.validateSymbol('INVALID');
+			expect(isValid).toBe(false);
 		});
 	});
 });

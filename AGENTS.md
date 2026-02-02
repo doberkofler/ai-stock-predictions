@@ -45,7 +45,8 @@ Agents MUST verify changes using these commands:
 
 - **Types ONLY**: Use `type` exclusively. `interface` is strictly forbidden.
 - **Zod Boundaries**: `zod` is mandatory for all external data boundaries (API, JSON, CLI input, Filesystem).
-- **Assertions**: Minimal use of `as`. If used, add a comment explaining why it's necessary.
+- **Assertions**: Strictly avoid `as` type assertions. Use Zod validation (`.parse()` or `.safeParse()`) instead.
+- **Assertion Exception**: If `as` is unavoidable (e.g., third-party type narrowing that cannot be validated), a comment MUST be added justifying why validation is impossible.
 - **No Any**: `any` type is strictly forbidden. Use `unknown` if type is truly unknown before validation.
 
 ### Error Handling
@@ -120,4 +121,3 @@ For every modification, the agent MUST execute:
 
 Estimated Time Remaining: 0 minutes
 Total Estimated Time Remaining: 0 minutes
-
