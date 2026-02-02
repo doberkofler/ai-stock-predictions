@@ -3,14 +3,14 @@
  * Generates a static index.html file with interactive Chart.js visualizations
  */
 
+import {ensureDir} from 'fs-extra';
 import {writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
-import {ensureDir} from 'fs-extra';
+import type {Config} from '../config/schema.ts';
+import type {ReportPrediction} from '../types/index.ts';
 
 import {ErrorHandler} from '../cli/utils/errors.ts';
-import type {ReportPrediction} from '../types/index.ts';
-import type {Config} from '../config/schema.ts';
 
 /**
  * HTML report generator class
@@ -35,10 +35,12 @@ export class HtmlGenerator {
 		};
 
 		return ErrorHandler.wrapAsync(async () => {
+			 
 			await ensureDir(this.config.directory);
 			const reportPath = join(this.config.directory, 'index.html');
 
 			const html = this.renderHtml(predictions, appConfig);
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			await writeFile(reportPath, html, 'utf8');
 
 			return reportPath;

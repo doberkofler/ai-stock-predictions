@@ -1,8 +1,10 @@
 import chalk from 'chalk';
+
+import type {Config} from '../../config/schema.ts';
+
 import {loadConfig} from '../../config/config.ts';
 import {initializeEnvironment} from '../../env.ts';
 import {ui} from './ui.ts';
-import type {Config} from '../../config/schema.ts';
 
 type CommandContext = {
 	config: Config;
@@ -12,9 +14,9 @@ type CommandContext = {
 type CommandHandler<T> = (context: CommandContext, options: T) => Promise<void>;
 
 type RunOptions = {
-	title: string;
-	description?: string;
 	configPath: string;
+	description?: string;
+	title: string;
 };
 
 /**

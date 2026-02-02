@@ -3,11 +3,12 @@
  */
 
 import chalk from 'chalk';
-import ora from 'ora';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
+import ora from 'ora';
 import {z} from 'zod';
-import {SqliteStorage, SymbolRowSchema, HistoricalRowSchema, MetadataRowSchema} from '../../gather/storage.ts';
+
+import {HistoricalRowSchema, MetadataRowSchema, SqliteStorage, SymbolRowSchema} from '../../gather/storage.ts';
 import {ProgressTracker} from '../utils/progress.ts';
 
 /**
@@ -32,6 +33,7 @@ export async function importCommand(importPath = 'export.json'): Promise<void> {
 
 	try {
 		const resolvedPath = join(process.cwd(), importPath);
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
 		const fileContent = await readFile(resolvedPath, 'utf8');
 		const rawData = JSON.parse(fileContent) as unknown;
 

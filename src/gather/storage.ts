@@ -4,13 +4,14 @@
  */
 
 import Database from 'better-sqlite3';
+import {existsSync, mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {z} from 'zod';
-import {existsSync, mkdirSync} from 'node:fs';
 
-import {ErrorHandler} from '../cli/utils/errors.ts';
 import type {ModelMetadata} from '../compute/lstm-model.ts';
 import type {StockDataPoint} from '../types/index.ts';
+
+import {ErrorHandler} from '../cli/utils/errors.ts';
 
 /**
  * Stock data point schema for validation
@@ -101,7 +102,9 @@ export class SqliteStorage {
 	public constructor() {
 		this.dataDir = join(process.cwd(), 'data');
 
+		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		if (!existsSync(this.dataDir)) {
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			mkdirSync(this.dataDir, {recursive: true});
 		}
 
@@ -169,9 +172,9 @@ export class SqliteStorage {
 	 * @param symbol - Stock symbol
 	 * @returns Company name or null if not found
 	 */
-	public getSymbolName(symbol: string): string | null {
+	public getSymbolName(symbol: string): null | string {
 		const stmt = this.historicalDb.prepare('SELECT name FROM symbols WHERE symbol = ?');
-		const row = stmt.get(symbol) as {name: string} | undefined;
+		const row = stmt.get(symbol) as undefined | {name: string};
 		return row?.name ?? null;
 	}
 
@@ -180,7 +183,7 @@ export class SqliteStorage {
 	 * @param symbol - Stock symbol
 	 * @returns Array of stock data points or null if not found
 	 */
-	public getStockData(symbol: string): Promise<StockDataPoint[] | null> {
+	public getStockData(symbol: string): Promise<null | StockDataPoint[]> {
 		const context = {
 			operation: 'get-stock-data',
 			symbol,
@@ -205,7 +208,6 @@ export class SqliteStorage {
 	 * Save stock data for a symbol
 	 * @param symbol - Stock symbol
 	 * @param data - Array of stock data points
-	 * @returns
 	 */
 	public saveStockData(symbol: string, data: StockDataPoint[]): Promise<void> {
 		const context = {
@@ -303,7 +305,6 @@ export class SqliteStorage {
 	 * Save model metadata for a symbol
 	 * @param symbol - Stock symbol
 	 * @param metadata - Model metadata to save
-	 * @returns
 	 */
 	public saveModelMetadata(symbol: string, metadata: ModelMetadata): Promise<void> {
 		const context = {
@@ -367,7 +368,7 @@ export class SqliteStorage {
 	 */
 	public getQuoteCount(symbol: string): number {
 		const stmt = this.historicalDb.prepare('SELECT COUNT(*) as count FROM quotes WHERE symbol = ?');
-		const row = stmt.get(symbol) as {count: number} | undefined;
+		const row = stmt.get(symbol) as undefined | {count: number};
 		return row?.count ?? 0;
 	}
 
@@ -385,7 +386,7 @@ export class SqliteStorage {
 
 		const result = ErrorHandler.wrapSync(() => {
 			const stmt = this.historicalDb.prepare('SELECT MAX(date) as lastDate FROM quotes WHERE symbol = ?');
-			const row = stmt.get(symbol) as {lastDate: string | null} | undefined;
+			const row = stmt.get(symbol) as undefined | {lastDate: null | string};
 			return row?.lastDate ? new Date(row.lastDate) : null;
 		}, context);
 
@@ -402,7 +403,6 @@ export class SqliteStorage {
 
 	/**
 	 * Get all symbols for export
-	 * @returns
 	 */
 	public getAllSymbols(): SymbolRow[] {
 		const rows: unknown = this.historicalDb.prepare('SELECT * FROM symbols').all();
@@ -411,7 +411,6 @@ export class SqliteStorage {
 
 	/**
 	 * Get all quotes for export
-	 * @returns
 	 */
 	public getAllQuotes(): HistoricalRow[] {
 		const rows: unknown = this.historicalDb.prepare('SELECT * FROM quotes').all();
@@ -420,7 +419,6 @@ export class SqliteStorage {
 
 	/**
 	 * Get all metadata for export
-	 * @returns
 	 */
 	public getAllMetadata(): MetadataRow[] {
 		const rows: unknown = this.modelsDb.prepare('SELECT * FROM metadata').all();
@@ -430,7 +428,6 @@ export class SqliteStorage {
 	/**
 	 * Overwrite historical data from export
 	 * @param data
-	 * @returns
 	 */
 	public overwriteHistoricalData(data: HistoricalRow[]): Promise<void> {
 		const context = {
@@ -458,7 +455,6 @@ export class SqliteStorage {
 	/**
 	 * Overwrite symbols from export
 	 * @param data
-	 * @returns
 	 */
 	public overwriteSymbols(data: SymbolRow[]): Promise<void> {
 		const context = {
@@ -486,7 +482,6 @@ export class SqliteStorage {
 	/**
 	 * Overwrite models metadata from export
 	 * @param data
-	 * @returns
 	 */
 	public overwriteModelsMetadata(data: MetadataRow[]): Promise<void> {
 		const context = {
@@ -513,7 +508,6 @@ export class SqliteStorage {
 
 	/**
 	 * Clear all quotes, symbols and model metadata from the databases
-	 * @returns
 	 */
 	public clearAllData(): Promise<void> {
 		const context = {

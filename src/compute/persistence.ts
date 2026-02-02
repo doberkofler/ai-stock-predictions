@@ -5,15 +5,16 @@
 
 import * as tf from '@tensorflow/tfjs';
 import {ensureDir, remove} from 'fs-extra';
-import {writeFile, readFile, existsSync} from 'node:fs';
+import {existsSync, readFile, writeFile} from 'node:fs';
 import {join} from 'node:path';
 import {promisify} from 'node:util';
 
-import {ModelError, ErrorHandler} from '../cli/utils/errors.ts';
-import {LstmModel} from './lstm-model.ts';
-import {ModelMetadataSchema} from '../gather/storage.ts';
-import type {ModelMetadata, PerformanceMetrics} from './lstm-model.ts';
 import type {Config} from '../config/schema.ts';
+import type {ModelMetadata, PerformanceMetrics} from './lstm-model.ts';
+
+import {ErrorHandler, ModelError} from '../cli/utils/errors.ts';
+import {ModelMetadataSchema} from '../gather/storage.ts';
+import {LstmModel} from './lstm-model.ts';
 
 const readFileAsync = promisify(readFile);
 const writeFileAsync = promisify(writeFile);
@@ -33,13 +34,12 @@ export class ModelPersistence {
 	 * @param symbol - Stock symbol
 	 * @param model - LSTM model instance
 	 * @param metrics - Training performance metrics
-	 * @returns
 	 */
 	public async saveModel(symbol: string, model: LstmModel, metrics: PerformanceMetrics): Promise<void> {
 		const context = {
 			operation: 'save-model',
-			symbol,
 			step: 'directory-creation',
+			symbol,
 		};
 
 		await ErrorHandler.wrapAsync(async () => {
@@ -65,8 +65,8 @@ export class ModelPersistence {
 			const fullMetadata: ModelMetadata = {
 				...metadata,
 				...metrics,
-				trainedAt: new Date(),
 				symbol,
+				trainedAt: new Date(),
 			};
 
 			await writeFileAsync(join(modelDir, 'metadata.json'), JSON.stringify(fullMetadata, null, 2));
@@ -82,8 +82,8 @@ export class ModelPersistence {
 	public async loadModel(symbol: string, appConfig: Config): Promise<LstmModel | null> {
 		const context = {
 			operation: 'load-model',
-			symbol,
 			step: 'file-check',
+			symbol,
 		};
 
 		return ErrorHandler.wrapAsync(async () => {
@@ -91,6 +91,7 @@ export class ModelPersistence {
 			const metadataPath = join(modelDir, 'metadata.json');
 			const modelPath = join(modelDir, 'model.json');
 
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			if (!existsSync(metadataPath) || !existsSync(modelPath)) {
 				return null;
 			}
@@ -112,9 +113,9 @@ export class ModelPersistence {
 
 				// Re-compile model with current configuration
 				tfModel.compile({
-					optimizer: tf.train.adam(appConfig.model.learningRate),
 					loss: 'meanSquaredError',
 					metrics: ['mae'],
+					optimizer: tf.train.adam(appConfig.model.learningRate),
 				});
 
 				const model = new LstmModel(appConfig.model);
@@ -135,6 +136,7 @@ export class ModelPersistence {
 	public modelExists(symbol: string): boolean {
 		const metadataPath = join(this.modelsPath, symbol, 'metadata.json');
 		const modelPath = join(this.modelsPath, symbol, 'model.json');
+		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		return existsSync(metadataPath) && existsSync(modelPath);
 	}
 
@@ -146,13 +148,14 @@ export class ModelPersistence {
 	public async getModelMetadata(symbol: string): Promise<ModelMetadata | null> {
 		const context = {
 			operation: 'get-model-metadata',
-			symbol,
 			step: 'metadata-read',
+			symbol,
 		};
 
 		return ErrorHandler.wrapAsync(async () => {
 			const metadataPath = join(this.modelsPath, symbol, 'metadata.json');
 
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			if (!existsSync(metadataPath)) {
 				return null;
 			}
@@ -176,17 +179,17 @@ export class ModelPersistence {
 	/**
 	 * Delete a model for a symbol
 	 * @param symbol - Stock symbol
-	 * @returns
 	 */
 	public async deleteModel(symbol: string): Promise<void> {
 		const context = {
 			operation: 'delete-model',
-			symbol,
 			step: 'model-deletion',
+			symbol,
 		};
 
 		await ErrorHandler.wrapAsync(async () => {
 			const modelDir = join(this.modelsPath, symbol);
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			if (existsSync(modelDir)) {
 				await remove(modelDir);
 			}
@@ -195,7 +198,6 @@ export class ModelPersistence {
 
 	/**
 	 * Delete all models in the models directory
-	 * @returns
 	 */
 	public async deleteAllModels(): Promise<void> {
 		const context = {
@@ -204,6 +206,7 @@ export class ModelPersistence {
 		};
 
 		await ErrorHandler.wrapAsync(async () => {
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			if (existsSync(this.modelsPath)) {
 				await remove(this.modelsPath);
 				await ensureDir(this.modelsPath);

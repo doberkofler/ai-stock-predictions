@@ -1,0 +1,9 @@
+# Knip Configuration
+$schema: https://unpkg.com/knip@5/schema.json
+
+entry:
+  - src/index.ts
+  - tests/unit/**/*.test.ts
+
+project:
+  - src/**/*.ts

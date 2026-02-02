@@ -6,9 +6,10 @@
 import yahooFinance from 'yahoo-finance2';
 import {z} from 'zod';
 
+import type {ApiConfig, StockDataPoint} from '../types/index.ts';
+
 import {DataSourceError, ErrorHandler} from '../cli/utils/errors.ts';
 import {StockDataPointSchema, YahooQuoteSchema} from '../types/index.ts';
-import type {StockDataPoint, ApiConfig} from '../types/index.ts';
 
 const StockDataSchema = z.array(StockDataPointSchema);
 
@@ -17,21 +18,21 @@ const StockDataSchema = z.array(StockDataPointSchema);
  */
 export type FetchResult = {
 	data: StockDataPoint[];
+	oldestDate: null | string;
 	omittedCount: number;
-	oldestDate: string | null;
 };
 
 /**
  * Internal Yahoo Finance Quote Type
  */
 type RawYahooQuote = {
-	date: Date | string | number;
-	open?: number | null;
-	high?: number | null;
-	low?: number | null;
-	close?: number | null;
-	volume?: number | null;
-	adjclose?: number | null;
+	adjclose?: null | number;
+	close?: null | number;
+	date: Date | number | string;
+	high?: null | number;
+	low?: null | number;
+	open?: null | number;
+	volume?: null | number;
 };
 
 /**
@@ -50,7 +51,7 @@ export class YahooFinanceDataSource {
 	 * Get historical data for a stock symbol
 	 * @param symbol - Stock symbol
 	 * @param startDate - Start date for historical data
-	 * @param [limit] - Optional limit for data points
+	 * @param limit - Optional limit for data points
 	 * @returns Object containing data and fetch metadata
 	 * @throws {DataSourceError} If API request fails or data is invalid
 	 */
@@ -72,7 +73,7 @@ export class YahooFinanceDataSource {
 							period1: startDate.toISOString().split('T')[0] ?? '',
 							interval: '1d',
 						}),
-						new Promise((_, reject) => {
+						new Promise((_resolve, reject) => {
 							const timeoutId = setTimeout(() => {
 								reject(new Error('Timeout'));
 							}, this.config.timeout);
@@ -81,61 +82,22 @@ export class YahooFinanceDataSource {
 					])) as {quotes: RawYahooQuote[]};
 
 					const rawQuotes = response.quotes;
-					let omittedCount = 0;
-					const validQuotes: StockDataPoint[] = [];
+					const deduplicatedQuotes = this.processQuotes(rawQuotes, limit);
 
-					for (const quote of rawQuotes) {
-						// Filter out null/undefined values
-						if (quote.open != null && quote.high != null && quote.low != null && quote.close != null && quote.volume != null && quote.adjclose != null) {
-							// Normalize date to YYYY-MM-DD string to prevent duplicates with different times
-							const dateObj = quote.date instanceof Date ? quote.date : new Date(quote.date);
-							const dateStr = dateObj.toISOString().split('T')[0];
-
-							if (dateStr) {
-								validQuotes.push({
-									date: dateStr,
-									open: quote.open,
-									high: quote.high,
-									low: quote.low,
-									close: quote.close,
-									volume: quote.volume,
-									adjClose: quote.adjclose,
-								});
-							}
-						} else {
-							omittedCount++;
-						}
-					}
-
-					// Deduplicate by date (keep the last one encountered in the batch)
-					const quoteMap = new Map<string, StockDataPoint>();
-					for (const quote of validQuotes) {
-						quoteMap.set(quote.date, quote);
-					}
-
-					let deduplicatedQuotes = [...quoteMap.values()].toSorted((a, b) => a.date.localeCompare(b.date));
-
-					// Apply limit if specified (take the most recent N points)
-					if (limit && limit > 0 && deduplicatedQuotes.length > limit) {
-						deduplicatedQuotes = deduplicatedQuotes.slice(-limit);
-					}
-
-					// Validate the filtered and deduplicated data array
-					const validatedData = StockDataSchema.parse(deduplicatedQuotes);
-
-					if (validatedData.length === 0 && omittedCount === 0) {
+					if (deduplicatedQuotes.length === 0) {
 						throw new DataSourceError(`No data returned for symbol ${symbol}`, symbol);
 					}
 
 					return {
-						data: validatedData,
-						omittedCount,
-						oldestDate: validatedData[0]?.date ?? null,
+						data: deduplicatedQuotes,
+						omittedCount: rawQuotes.length - deduplicatedQuotes.length,
+						oldestDate: deduplicatedQuotes[0]?.date ?? null,
 					};
 				} catch (error) {
 					lastError = error instanceof Error ? error : new Error(String(error));
 
 					if (attempt < this.config.retries) {
+						// eslint-disable-next-line sonarjs/pseudo-random
 						const delay = Math.min(1000 * Math.pow(2, attempt - 1) + Math.random() * 1000, 10_000);
 						await new Promise((resolve) => {
 							const timeoutId = setTimeout(resolve, delay);
@@ -150,12 +112,55 @@ export class YahooFinanceDataSource {
 	}
 
 	/**
+	 * Process raw quotes from API into valid, deduplicated stock data points
+	 * @param rawQuotes - Raw quotes from Yahoo Finance
+	 * @param limit - Optional limit for data points
+	 * @returns Valid stock data points
+	 */
+	private processQuotes(rawQuotes: RawYahooQuote[], limit?: number): StockDataPoint[] {
+		const validQuotes: StockDataPoint[] = [];
+
+		for (const quote of rawQuotes) {
+			if (quote.open != null && quote.high != null && quote.low != null && quote.close != null && quote.volume != null && quote.adjclose != null) {
+				const dateObj = quote.date instanceof Date ? quote.date : new Date(quote.date);
+				const dateStr = dateObj.toISOString().split('T')[0];
+
+				if (dateStr) {
+					validQuotes.push({
+						date: dateStr,
+						open: quote.open,
+						high: quote.high,
+						low: quote.low,
+						close: quote.close,
+						volume: quote.volume,
+						adjClose: quote.adjclose,
+					});
+				}
+			}
+		}
+
+		// Deduplicate by date
+		const quoteMap = new Map<string, StockDataPoint>();
+		for (const quote of validQuotes) {
+			quoteMap.set(quote.date, quote);
+		}
+
+		let result = [...quoteMap.values()].toSorted((a, b) => a.date.localeCompare(b.date));
+
+		if (limit && limit > 0 && result.length > limit) {
+			result = result.slice(-limit);
+		}
+
+		return StockDataSchema.parse(result);
+	}
+
+	/**
 	 * Get current quote for a symbol
 	 * @param symbol - Stock symbol
 	 * @returns Current price, currency and company name
 	 * @throws {DataSourceError} If API request fails
 	 */
-	public async getCurrentQuote(symbol: string): Promise<{price: number; currency: string; name: string}> {
+	public async getCurrentQuote(symbol: string): Promise<{currency: string; name: string; price: number}> {
 		const context = {
 			operation: 'fetch-current-quote',
 			symbol,
@@ -166,7 +171,7 @@ export class YahooFinanceDataSource {
 			try {
 				const response = await Promise.race([
 					this.api.quote(symbol),
-					new Promise((_, reject) => {
+					new Promise((_resolve, reject) => {
 						const timeoutId = setTimeout(() => {
 							reject(new Error('Timeout'));
 						}, this.config.timeout);

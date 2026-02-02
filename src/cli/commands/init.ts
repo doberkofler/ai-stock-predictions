@@ -4,11 +4,12 @@
 
 import chalk from 'chalk';
 import {ensureDir, remove} from 'fs-extra';
-import {join} from 'node:path';
 import {writeFile} from 'node:fs/promises';
-import {getDefaultConfig, configExists, getConfigFilePath} from '../../config/config.ts';
-import {ui} from '../utils/ui.ts';
+import {join} from 'node:path';
+
+import {configExists, getConfigFilePath, getDefaultConfig} from '../../config/config.ts';
 import {initializeEnvironment} from '../../env.ts';
+import {ui} from '../utils/ui.ts';
 
 /**
  * Initialize command implementation
@@ -84,6 +85,7 @@ prediction:
   minConfidence: ${defaultConfig.prediction.minConfidence}        # Minimum required model confidence for a valid signal
 `;
 
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
 		await writeFile(resolvedPath, yamlContent, 'utf8');
 		spinner.succeed('Initialization complete!');
 

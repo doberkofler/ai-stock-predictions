@@ -3,9 +3,10 @@
  */
 
 import chalk from 'chalk';
-import ora from 'ora';
 import {writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
+import ora from 'ora';
+
 import {SqliteStorage} from '../../gather/storage.ts';
 import {ProgressTracker} from '../utils/progress.ts';
 
@@ -32,14 +33,15 @@ export async function exportCommand(exportPath = 'export.json'): Promise<void> {
 		const metadata = storage.getAllMetadata();
 
 		const exportData = {
-			version: '1.1.0',
 			exportedAt: new Date().toISOString(),
-			symbols,
 			historical_data: quotes,
 			models_metadata: metadata,
+			symbols,
+			version: '1.1.0',
 		};
 
 		const resolvedPath = join(process.cwd(), exportPath);
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
 		await writeFile(resolvedPath, JSON.stringify(exportData, null, 2), 'utf8');
 
 		storage.close();

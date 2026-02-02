@@ -3,8 +3,8 @@
  */
 
 import {SqliteStorage} from '../../gather/storage.ts';
-import {runCommand} from '../utils/runner.ts';
 import {SyncService} from '../services/sync-service.ts';
+import {runCommand} from '../utils/runner.ts';
 
 /**
  * Sync command implementation

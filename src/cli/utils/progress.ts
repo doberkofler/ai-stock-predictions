@@ -9,23 +9,23 @@ import chalk from 'chalk';
  * Progress status types
  */
 export type ProgressStatus =
-	| 'pending'
-	| 'updated'
-	| 'up-to-date'
 	| 'error'
-	| 'trained'
-	| 'no-new-data'
-	| 'poor-performance'
-	| 'retrained'
 	| 'no-improvement'
-	| 'predicted';
+	| 'no-new-data'
+	| 'pending'
+	| 'poor-performance'
+	| 'predicted'
+	| 'retrained'
+	| 'trained'
+	| 'up-to-date'
+	| 'updated';
 
 /**
  * Individual item progress
  */
 type ItemProgress = {
+	details: number | string | undefined;
 	status: ProgressStatus;
-	details: string | number | undefined;
 	timestamp: Date;
 };
 
@@ -41,7 +41,7 @@ export class ProgressTracker {
 	 * @param status - Completion status
 	 * @param [details] - Additional details (e.g., loss value, data points)
 	 */
-	public complete(item: string, status: ProgressStatus, details?: string | number): void {
+	public complete(item: string, status: ProgressStatus, details?: number | string): void {
 		this.progress.set(item, {
 			status,
 			details: details ?? undefined,

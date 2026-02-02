@@ -1,11 +1,12 @@
 import {Command} from 'commander';
-import {initCommand} from './cli/commands/init.ts';
-import {trainCommand} from './cli/commands/train.ts';
-import {predictCommand} from './cli/commands/predict.ts';
+
 import {exportCommand} from './cli/commands/export.ts';
 import {importCommand} from './cli/commands/import.ts';
-import {symbolAddCommand, symbolRemoveCommand, symbolDefaultsCommand, symbolListCommand} from './cli/commands/symbols.ts';
+import {initCommand} from './cli/commands/init.ts';
+import {predictCommand} from './cli/commands/predict.ts';
+import {symbolAddCommand, symbolDefaultsCommand, symbolListCommand, symbolRemoveCommand} from './cli/commands/symbols.ts';
 import {syncCommand} from './cli/commands/sync.ts';
+import {trainCommand} from './cli/commands/train.ts';
 
 const program = new Command();
 

@@ -4,38 +4,39 @@
  */
 
 import * as tf from '@tensorflow/tfjs';
+
 import type {Config} from '../config/schema.ts';
 import type {StockDataPoint} from '../types/index.ts';
-
-/**
- * Model performance metrics returned after evaluation or training
- */
-export type PerformanceMetrics = {
-	loss: number;
-	accuracy: number;
-	isValid: boolean;
-	dataPoints: number;
-	windowSize: number;
-};
 
 /**
  * Metadata stored with the saved model
  */
 export type ModelMetadata = {
-	version: string;
-	trainedAt: Date;
 	dataPoints: number;
 	loss: number;
-	windowSize: number;
 	metrics: Record<string, number>;
 	symbol: string;
+	trainedAt: Date;
+	version: string;
+	windowSize: number;
+};
+
+/**
+ * Model performance metrics returned after evaluation or training
+ */
+export type PerformanceMetrics = {
+	accuracy: number;
+	dataPoints: number;
+	isValid: boolean;
+	loss: number;
+	windowSize: number;
 };
 
 /**
  * LSTM Model class wrapper
  */
 export class LstmModel {
-	private model: tf.LayersModel | null = null;
+	private model: null | tf.LayersModel = null;
 	private metadata: ModelMetadata | null = null;
 	private readonly config: Config['model'];
 
@@ -104,7 +105,7 @@ export class LstmModel {
 	 * @param data - Historical stock data
 	 * @returns Normalized tensors
 	 */
-	private preprocessData(data: StockDataPoint[]): {inputs: tf.Tensor3D; labels: tf.Tensor2D; min: number; max: number} {
+	private preprocessData(data: StockDataPoint[]): {inputs: tf.Tensor3D; labels: tf.Tensor2D; max: number; min: number;} {
 		const prices = data.map((d) => d.close);
 		const min = Math.min(...prices);
 		const max = Math.max(...prices);
@@ -278,7 +279,7 @@ export class LstmModel {
 	 * Get the internal TensorFlow.js model
 	 * @returns The model instance
 	 */
-	public getModel(): tf.LayersModel | null {
+	public getModel(): null | tf.LayersModel {
 		return this.model;
 	}
 

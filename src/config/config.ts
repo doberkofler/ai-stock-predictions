@@ -3,13 +3,25 @@
  * Handles loading, saving, and validating config.json files
  */
 
-import {readFileSync, writeFileSync, existsSync} from 'node:fs';
-import {join, dirname} from 'node:path';
-import {parse, stringify} from 'yaml';
-import type {Config} from './schema.ts';
-import {ConfigSchema, DefaultConfig} from './schema.ts';
 import chalk from 'chalk';
 import {ensureDir} from 'fs-extra';
+import {existsSync, readFileSync, writeFileSync} from 'node:fs';
+import {dirname, join} from 'node:path';
+import {parse, stringify} from 'yaml';
+
+import type {Config} from './schema.ts';
+
+import {ConfigSchema, DefaultConfig} from './schema.ts';
+
+/**
+ * Check if configuration file exists
+ * @param [configPath] - Optional custom path
+ * @returns True if configuration file exists
+ */
+export function configExists(configPath?: string): boolean {
+	// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
+	return existsSync(getConfigFilePath(configPath));
+}
 
 /**
  * Get configuration file path
@@ -21,6 +33,14 @@ export function getConfigFilePath(configPath?: string): string {
 }
 
 /**
+ * Get default configuration
+ * @returns Default configuration object
+ */
+export function getDefaultConfig(): Config {
+	return {...DefaultConfig};
+}
+
+/**
  * Load and validate configuration from file
  * @param [configPath] - Optional custom path
  * @throws {Error} If configuration file doesn't exist or is invalid
@@ -28,6 +48,7 @@ export function getConfigFilePath(configPath?: string): string {
  */
 export function loadConfig(configPath?: string): Config {
 	const resolvedPath = getConfigFilePath(configPath);
+	// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 	if (!existsSync(resolvedPath)) {
 		throw new Error(
 			`${chalk.red('Configuration file not found')}: ${resolvedPath}\n` + `Run ${chalk.cyan('ai-stock-predictions init')} to create a configuration file.`,
@@ -35,6 +56,7 @@ export function loadConfig(configPath?: string): Config {
 	}
 
 	try {
+		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		const content = readFileSync(resolvedPath, 'utf8');
 		const rawConfig = parse(content) as unknown;
 		return ConfigSchema.parse(rawConfig);
@@ -67,6 +89,7 @@ export async function saveConfig(config: Config, configPath?: string): Promise<v
 
 		// Write configuration file with YAML comments
 		const yamlContent = stringify(validatedConfig);
+		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		writeFileSync(resolvedPath, yamlContent, 'utf8');
 	} catch (error) {
 		if (error instanceof Error) {
@@ -74,21 +97,4 @@ export async function saveConfig(config: Config, configPath?: string): Promise<v
 		}
 		throw error;
 	}
-}
-
-/**
- * Check if configuration file exists
- * @param [configPath] - Optional custom path
- * @returns True if configuration file exists
- */
-export function configExists(configPath?: string): boolean {
-	return existsSync(getConfigFilePath(configPath));
-}
-
-/**
- * Get default configuration
- * @returns Default configuration object
- */
-export function getDefaultConfig(): Config {
-	return {...DefaultConfig};
 }

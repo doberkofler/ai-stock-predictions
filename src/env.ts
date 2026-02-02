@@ -17,13 +17,17 @@ export async function initializeEnvironment(): Promise<void> {
 
 	// Justification: Environment shims for library compatibility (better-sqlite3/ora/tfjs-node).
 	// Runtime validation impossible as we are dynamically extending properties on core modules.
+	// eslint-disable-next-line n/no-deprecated-api
 	if (!(util as unknown as Record<string, unknown>).isNullOrUndefined) {
+		// eslint-disable-next-line n/no-deprecated-api
 		(util as unknown as Record<string, unknown>).isNullOrUndefined = (val: unknown): val is null | undefined => {
 			return val === null || val === undefined;
 		};
 	}
 
+	// eslint-disable-next-line n/no-deprecated-api
 	if (!(util as unknown as Record<string, unknown>).isArray) {
+		// eslint-disable-next-line n/no-deprecated-api
 		(util as unknown as Record<string, unknown>).isArray = (val: unknown): val is unknown[] => {
 			return Array.isArray(val);
 		};

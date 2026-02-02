@@ -3,10 +3,11 @@
  * Handles generating future price predictions using trained LSTM models
  */
 
-import {PredictionError, ErrorHandler} from '../cli/utils/errors.ts';
-import type {LstmModel} from './lstm-model.ts';
 import type {Config} from '../config/schema.ts';
-import type {StockDataPoint, PredictionResult, TradingSignal} from '../types/index.ts';
+import type {PredictionResult, StockDataPoint, TradingSignal} from '../types/index.ts';
+import type {LstmModel} from './lstm-model.ts';
+
+import {ErrorHandler, PredictionError} from '../cli/utils/errors.ts';
 
 /**
  * Prediction engine class

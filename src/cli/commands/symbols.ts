@@ -3,15 +3,16 @@
  */
 
 import chalk from 'chalk';
-import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
-import {SqliteStorage} from '../../gather/storage.ts';
-import {ModelPersistence} from '../../compute/persistence.ts';
 import {join} from 'node:path';
-import {ui} from '../utils/ui.ts';
-import {runCommand} from '../utils/runner.ts';
-import {SyncService} from '../services/sync-service.ts';
-import {SymbolService} from '../services/symbol-service.ts';
+
+import {ModelPersistence} from '../../compute/persistence.ts';
 import defaults from '../../constants/defaults.json' with {type: 'json'};
+import {SqliteStorage} from '../../gather/storage.ts';
+import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
+import {SymbolService} from '../services/symbol-service.ts';
+import {SyncService} from '../services/sync-service.ts';
+import {runCommand} from '../utils/runner.ts';
+import {ui} from '../utils/ui.ts';
 
 /**
  * Adds symbols to the database and synchronizes data
@@ -29,7 +30,7 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 			const storage = new SqliteStorage();
 			const dataSource = new YahooFinanceDataSource(config.dataSource);
 			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());
-			const addedSymbols: {symbol: string; name: string}[] = [];
+			const addedSymbols: {name: string; symbol: string;}[] = [];
 
 			for (const symbol of symbols) {
 				const spinner = ui.spinner(`Adding symbol ${symbol}...`).start();
@@ -68,31 +69,6 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 }
 
 /**
- * Removes symbols from the database
- * @param configPath - Path to the config file
- * @param symbolsStr - Comma-separated symbols
- */
-export async function symbolRemoveCommand(configPath: string, symbolsStr: string): Promise<void> {
-	await runCommand(
-		{
-			title: 'Remove Symbols',
-			description: 'Removing symbols and associated data/models from the portfolio.',
-			configPath,
-		},
-		async () => {
-			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());
-
-			for (const symbol of symbols) {
-				const spinner = ui.spinner(`Removing symbol ${symbol}...`).start();
-				await SymbolService.removeSymbol(symbol);
-				spinner.succeed(`Removed ${symbol} and all associated data/models`);
-			}
-		},
-		{},
-	);
-}
-
-/**
  * Adds default symbols and synchronizes data
  * @param configPath - Path to the config file
  */
@@ -105,7 +81,7 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 		},
 		async ({config}) => {
 			const storage = new SqliteStorage();
-			const addedSymbols: {symbol: string; name: string}[] = [];
+			const addedSymbols: {name: string; symbol: string;}[] = [];
 
 			for (const entry of defaults) {
 				if (!storage.symbolExists(entry.symbol)) {
@@ -160,6 +136,31 @@ export async function symbolListCommand(configPath: string): Promise<void> {
 				const lossCol = metadata ? metadata.loss.toFixed(4) : '-';
 
 				ui.log(`${symCol}${nameCol}${countCol}${dateCol}${trainedAtCol}${lossCol}`);
+			}
+		},
+		{},
+	);
+}
+
+/**
+ * Removes symbols from the database
+ * @param configPath - Path to the config file
+ * @param symbolsStr - Comma-separated symbols
+ */
+export async function symbolRemoveCommand(configPath: string, symbolsStr: string): Promise<void> {
+	await runCommand(
+		{
+			title: 'Remove Symbols',
+			description: 'Removing symbols and associated data/models from the portfolio.',
+			configPath,
+		},
+		async () => {
+			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());
+
+			for (const symbol of symbols) {
+				const spinner = ui.spinner(`Removing symbol ${symbol}...`).start();
+				await SymbolService.removeSymbol(symbol);
+				spinner.succeed(`Removed ${symbol} and all associated data/models`);
 			}
 		},
 		{},

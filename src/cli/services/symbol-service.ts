@@ -1,6 +1,7 @@
-import {SqliteStorage} from '../../gather/storage.ts';
-import {ModelPersistence} from '../../compute/persistence.ts';
 import {join} from 'node:path';
+
+import {ModelPersistence} from '../../compute/persistence.ts';
+import {SqliteStorage} from '../../gather/storage.ts';
 
 /**
  * Service for managing symbols and associated data/models
@@ -22,7 +23,7 @@ export const SymbolService = {
 	 * Gets all symbols currently in the database
 	 * @returns Array of symbol entries
 	 */
-	getAllSymbols: (): {symbol: string; name: string}[] => {
+	getAllSymbols: (): {name: string; symbol: string;}[] => {
 		const storage = new SqliteStorage();
 		return storage.getAllSymbols();
 	},

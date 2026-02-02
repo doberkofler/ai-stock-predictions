@@ -6,46 +6,13 @@
 import chalk from 'chalk';
 
 /**
- * Custom error classes for different error types
- */
-export class DataSourceError extends Error {
-	public constructor(
-		message: string,
-		public readonly symbol?: string,
-	) {
-		super(chalk.red(`Data Source Error: ${message}${symbol ? ` (${symbol})` : ''}`));
-		this.name = 'DataSourceError';
-	}
-}
-
-export class ModelError extends Error {
-	public constructor(
-		message: string,
-		public readonly symbol?: string,
-	) {
-		super(chalk.red(`Model Error: ${message}${symbol ? ` (${symbol})` : ''}`));
-		this.name = 'ModelError';
-	}
-}
-
-export class PredictionError extends Error {
-	public constructor(
-		message: string,
-		public readonly symbol?: string,
-	) {
-		super(chalk.red(`Prediction Error: ${message}${symbol ? ` (${symbol})` : ''}`));
-		this.name = 'PredictionError';
-	}
-}
-
-/**
  * Error context information
  */
 type ErrorContext = {
-	operation: string;
-	symbol?: string;
-	step?: string;
 	additionalInfo?: Record<string, unknown>;
+	operation: string;
+	step?: string;
+	symbol?: string;
 };
 
 /**
@@ -57,10 +24,42 @@ class ContextualError extends Error {
 		public readonly context: ErrorContext,
 		public readonly originalError?: Error,
 	) {
-		super(
-			`${chalk.red(message)}\n${chalk.dim('Context:')} ${context.operation}${context.symbol ? ` (${context.symbol})` : ''}${context.step ? ` - ${context.step}` : ''}`,
-		);
+		let contextualMessage = `${chalk.red(message)}\n${chalk.dim('Context:')} ${context.operation}`;
+		if (context.symbol) contextualMessage += ` (${context.symbol})`;
+		if (context.step) contextualMessage += ` - ${context.step}`;
+
+		super(contextualMessage);
 		this.name = 'ContextualError';
+	}
+}
+
+/**
+ * Custom error classes for different error types
+ */
+export class DataSourceError extends Error {
+	public constructor(message: string, symbol?: string) {
+		let msg = `Data Source Error: ${message}`;
+		if (symbol) msg += ` (${symbol})`;
+		super(chalk.red(msg));
+		this.name = 'DataSourceError';
+	}
+}
+
+export class ModelError extends Error {
+	public constructor(message: string, symbol?: string) {
+		let msg = `Model Error: ${message}`;
+		if (symbol) msg += ` (${symbol})`;
+		super(chalk.red(msg));
+		this.name = 'ModelError';
+	}
+}
+
+export class PredictionError extends Error {
+	public constructor(message: string, symbol?: string) {
+		let msg = `Prediction Error: ${message}`;
+		if (symbol) msg += ` (${symbol})`;
+		super(chalk.red(msg));
+		this.name = 'PredictionError';
 	}
 }
 
@@ -76,7 +75,8 @@ export const ErrorHandler = {
 	 * @returns Retry error
 	 */
 	createRetryError: (operation: string, attempts: number, originalError: Error): Error => {
-		return new Error(`Operation "${operation}" failed after ${attempts} attempts. Last error: ${originalError.message}`);
+		const msg = `Operation "${operation}" failed after ${attempts} attempts. Last error: ${originalError.message}`;
+		return new Error(msg);
 	},
 
 	/**

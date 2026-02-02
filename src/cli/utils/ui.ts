@@ -3,14 +3,14 @@ import ora, {type Ora} from 'ora';
 /**
  * Minimal interface representing the subset of Ora we use.
  */
-type MockOra = {
+export type MockOra = {
+	fail: (text?: string) => MockOra;
+	info: (text?: string) => MockOra;
 	start: () => MockOra;
 	stop: () => MockOra;
 	succeed: (text?: string) => MockOra;
-	fail: (text?: string) => MockOra;
-	warn: (text?: string) => MockOra;
-	info: (text?: string) => MockOra;
 	text: string;
+	warn: (text?: string) => MockOra;
 };
 
 /**
@@ -49,7 +49,7 @@ class UiService {
 	 * @param text - The initial text for the spinner.
 	 * @returns The spinner instance.
 	 */
-	public spinner(text: string): Ora | MockOra {
+	public spinner(text: string): MockOra | Ora {
 		if (this.isInteractive) {
 			return ora(text);
 		}
