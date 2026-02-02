@@ -22,44 +22,6 @@ export const StockDataPointSchema = z.object({
 export type StockDataPoint = z.infer<typeof StockDataPointSchema>;
 
 /**
- * Normalized stock data with numeric timestamp
- */
-export type NormalizedStockData = {
-	timestamp: number;
-	price: number;
-	volume: number;
-	high: number;
-	low: number;
-};
-
-/**
- * Model training result with performance metrics
- */
-export type TrainingResult = {
-	loss: number;
-	accuracy: number;
-	meanAbsoluteError: number;
-	rootMeanSquaredError: number;
-	epochs: number;
-	trainingTime: number;
-	isValid: boolean;
-};
-
-/**
- * Model performance metrics
- */
-export type ModelPerformance = {
-	loss: number;
-	accuracy: number;
-	meanAbsoluteError: number;
-	rootMeanSquaredError: number;
-	isValid: boolean;
-	lastTrained: Date;
-	dataPoints: number;
-	version: string;
-};
-
-/**
  * Prediction result for a stock symbol
  */
 export type PredictionResult = {
@@ -102,55 +64,6 @@ export type ReportPrediction = {
 };
 
 /**
- * Chart data point for visualization
- */
-export type ChartDataPoint = {
-	date: string;
-	price: number;
-	predicted?: number;
-	volume?: number;
-};
-
-/**
- * Report generation context
- */
-export type ReportContext = {
-	title: string;
-	generatedAt: string;
-	totalSymbols: number;
-	predictedSymbols: number;
-	buySignals: number;
-	sellSignals: number;
-	holdSignals: number;
-	averageConfidence: number;
-};
-
-/**
- * Progress tracking status
- */
-export type ProgressStatus =
-	| 'pending'
-	| 'updated'
-	| 'up-to-date'
-	| 'error'
-	| 'trained'
-	| 'no-new-data'
-	| 'poor-performance'
-	| 'retrained'
-	| 'no-improvement'
-	| 'predicted';
-
-/**
- * ML configuration
- */
-export type MlConfig = {
-	windowSize: number;
-	epochs: number;
-	learningRate: number;
-	batchSize: number;
-};
-
-/**
  * Trading configuration
  */
 export type TradingConfig = {
@@ -169,32 +82,6 @@ export type ApiConfig = {
 };
 
 /**
- * Database configuration
- */
-export type DatabaseConfig = {
-	type: 'json' | 'sqlite';
-	path: string;
-	modelsPath: string;
-};
-
-/**
- * Output configuration
- */
-export type OutputConfig = {
-	directory: string;
-};
-
-/**
- * Error context for error handling
- */
-export type ErrorContext = {
-	operation: string;
-	symbol?: string;
-	step?: string;
-	additionalInfo?: Record<string, unknown>;
-};
-
-/**
  * Yahoo Finance Quote response schema
  */
 export const YahooQuoteSchema = z.object({
@@ -202,41 +89,4 @@ export const YahooQuoteSchema = z.object({
 	currency: z.string(),
 	longName: z.string().optional(),
 	shortName: z.string().optional(),
-});
-
-/**
- * Data export/import schema
- */
-export const ImportExportSchema = z.object({
-	version: z.string(),
-	exportedAt: z.string(),
-	symbols: z.array(
-		z.object({
-			symbol: z.string(),
-			name: z.string(),
-		}),
-	),
-	historical_data: z.array(
-		z.object({
-			symbol: z.string(),
-			date: z.string(),
-			open: z.number(),
-			high: z.number(),
-			low: z.number(),
-			close: z.number(),
-			volume: z.number(),
-			adjClose: z.number(),
-		}),
-	),
-	models_metadata: z.array(
-		z.object({
-			symbol: z.string(),
-			version: z.string(),
-			trainedAt: z.string(),
-			dataPoints: z.number(),
-			loss: z.number(),
-			windowSize: z.number(),
-			metrics: z.string(),
-		}),
-	),
 });

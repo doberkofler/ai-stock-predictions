@@ -17,7 +17,7 @@ type MockOra = {
  * UI Service to centralize CLI communication and handle TTY/non-TTY environments.
  * Ensures a clean output during tests and CI while providing a rich dashboard in terminals.
  */
-export class UiService {
+class UiService {
 	private readonly isInteractive: boolean;
 
 	public constructor() {

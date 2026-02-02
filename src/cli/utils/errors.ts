@@ -41,7 +41,7 @@ export class PredictionError extends Error {
 /**
  * Error context information
  */
-export type ErrorContext = {
+type ErrorContext = {
 	operation: string;
 	symbol?: string;
 	step?: string;
@@ -51,7 +51,7 @@ export type ErrorContext = {
 /**
  * Enhanced error with context
  */
-export class ContextualError extends Error {
+class ContextualError extends Error {
 	public constructor(
 		message: string,
 		public readonly context: ErrorContext,
