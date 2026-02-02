@@ -3,7 +3,8 @@
  */
 
 import chalk from 'chalk';
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 import {configExists, getConfigFilePath, getDefaultConfig} from '../../config/config.ts';
 import {initializeEnvironment} from '../../env.ts';
@@ -52,37 +53,33 @@ export async function initCommand(configPath: string, force = false): Promise<vo
 		const defaultConfig = getDefaultConfig();
 		const resolvedPath = getConfigFilePath(configPath);
 
-		const yamlContent = `# ==========================================
-# AI Stock Predictions Configuration
-# ==========================================
+		// Load template and replace placeholders
+		const currentDir = dirname(fileURLToPath(import.meta.url));
+		const templatePath = join(currentDir, '../../constants/config-template.yaml');
+		let yamlContent = await FsUtils.readText(templatePath);
 
-# Data Source: Controls how market data is fetched
-dataSource:
-  timeout: ${defaultConfig.dataSource.timeout}   # Timeout in milliseconds for API requests
-  retries: ${defaultConfig.dataSource.retries}       # Number of attempts for failed network calls
-  rateLimit: ${defaultConfig.dataSource.rateLimit}  # Delay (ms) between symbols to avoid rate limiting
+		// Perform replacements for all configuration sections
+		const replacements: Record<string, number | string> = {
+			'dataSource.timeout': defaultConfig.dataSource.timeout,
+			'dataSource.retries': defaultConfig.dataSource.retries,
+			'dataSource.rateLimit': defaultConfig.dataSource.rateLimit,
+			'training.minNewDataPoints': defaultConfig.training.minNewDataPoints,
+			'model.windowSize': defaultConfig.model.windowSize,
+			'model.epochs': defaultConfig.model.epochs,
+			'model.learningRate': defaultConfig.model.learningRate,
+			'model.batchSize': defaultConfig.model.batchSize,
+			'prediction.days': defaultConfig.prediction.days,
+			'prediction.historyChartDays': defaultConfig.prediction.historyChartDays,
+			'prediction.contextDays': defaultConfig.prediction.contextDays,
+			'prediction.directory': defaultConfig.prediction.directory,
+			'prediction.buyThreshold': defaultConfig.prediction.buyThreshold,
+			'prediction.sellThreshold': defaultConfig.prediction.sellThreshold,
+			'prediction.minConfidence': defaultConfig.prediction.minConfidence,
+		};
 
-# Training: Controls the synchronization and skip logic
-training:
-  minNewDataPoints: ${defaultConfig.training.minNewDataPoints} # Only retrain if at least this many new points are available
-
-# Model: Neural network architecture and hyperparameters
-model:
-  windowSize: ${defaultConfig.model.windowSize}   # How many past days the model uses to predict the next day
-  epochs: ${defaultConfig.model.epochs}       # Maximum number of training cycles
-  learningRate: ${defaultConfig.model.learningRate}
-  batchSize: ${defaultConfig.model.batchSize}   # Larger batch size improves training speed on modern CPUs
-
-# Prediction & Reporting: Controls forecasts and visual output
-prediction:
-  days: ${defaultConfig.prediction.days}                  # Number of future days to forecast
-  historyChartDays: ${defaultConfig.prediction.historyChartDays}    # Days shown in the full history chart (5 years)
-  contextDays: ${defaultConfig.prediction.contextDays}           # Actual days shown in the prediction chart for context
-  directory: "${defaultConfig.prediction.directory}"       # Destination directory for HTML reports
-  buyThreshold: ${defaultConfig.prediction.buyThreshold}        # Price increase threshold to trigger a BUY signal
-  sellThreshold: ${defaultConfig.prediction.sellThreshold}      # Price decrease threshold to trigger a SELL signal
-  minConfidence: ${defaultConfig.prediction.minConfidence}        # Minimum required model confidence for a valid signal
-`;
+		for (const [key, value] of Object.entries(replacements)) {
+			yamlContent = yamlContent.replace(`{{${key}}}`, value.toString());
+		}
 
 		await FsUtils.writeText(resolvedPath, yamlContent);
 		spinner.succeed('Initialization complete!');
