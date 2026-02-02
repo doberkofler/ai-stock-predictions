@@ -91,7 +91,8 @@ program
 	.description('Export databases to a JSON file for portability')
 	.argument('[path]', 'path to the export file', 'export.json')
 	.action(async (path: string) => {
-		await exportCommand(path);
+		const programOptions = program.opts<{config: string}>();
+		await exportCommand(programOptions.config, path);
 	});
 
 program
@@ -99,7 +100,8 @@ program
 	.description('Import databases from a JSON file (overwrites existing)')
 	.argument('[path]', 'path to the import file', 'export.json')
 	.action(async (path: string) => {
-		await importCommand(path);
+		const programOptions = program.opts<{config: string}>();
+		await importCommand(programOptions.config, path);
 	});
 
 // Parse command line arguments

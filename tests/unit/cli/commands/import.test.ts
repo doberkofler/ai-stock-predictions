@@ -26,7 +26,11 @@ vi.mock('../../../../src/gather/storage.ts', async (importOriginal) => {
 // Mock runner to execute handler immediately
 vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
-		await handler({config: {}, startTime: Date.now()}, commandOptions);
+		try {
+			await handler({config: {}, startTime: Date.now()}, commandOptions);
+		} catch (error) {
+			process.exit(1);
+		}
 	}),
 }));
 
@@ -61,7 +65,7 @@ describe('importCommand', () => {
 			models_metadata: [{symbol: 'AAPL', version: '1.0.0', trainedAt: '2023-01-01', dataPoints: 100, loss: 0.01, windowSize: 30, metrics: '{}'}],
 		});
 
-		await importCommand('export.json');
+		await importCommand('config.yaml', 'export.json');
 
 		expect(FsUtils.readJson).toHaveBeenCalled();
 		expect(mockStorage.overwriteSymbols).toHaveBeenCalled();
@@ -72,7 +76,7 @@ describe('importCommand', () => {
 	it('should handle errors in import', async () => {
 		vi.mocked(FsUtils.readJson).mockRejectedValue(new Error('File Error'));
 
-		await importCommand('export.json');
+		await importCommand('config.yaml', 'export.json');
 		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 });

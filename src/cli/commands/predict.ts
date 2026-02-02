@@ -34,6 +34,9 @@ export async function predictCommand(configPath: string, quickTest = false, symb
 			title: 'Price Estimation',
 		},
 		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
 			const storage = new SqliteStorage();
 			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 			const predictionEngine = new PredictionEngine();

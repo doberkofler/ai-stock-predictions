@@ -18,6 +18,9 @@ export async function syncCommand(configPath: string): Promise<void> {
 			configPath,
 		},
 		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
 			const storage = new SqliteStorage();
 			const symbols = storage.getAllSymbols();
 			await SyncService.syncSymbols(symbols, config);

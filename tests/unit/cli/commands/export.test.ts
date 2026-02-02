@@ -17,9 +17,36 @@ vi.mock('../../../../src/gather/storage.ts', () => ({
 	}),
 }));
 
+// Mock runner to execute handler immediately
+vi.mock('../../../../src/cli/utils/runner.ts', () => ({
+	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
+		try {
+			await handler({config: {}, startTime: Date.now()}, commandOptions);
+		} catch (error) {
+			process.exit(1);
+		}
+	}),
+}));
+
+// Mock UI
+vi.mock('../../../../src/cli/utils/ui.ts', () => ({
+	ui: {
+		log: vi.fn(),
+		error: vi.fn(),
+		spinner: vi.fn().mockReturnValue({
+			start: vi.fn().mockReturnThis(),
+			succeed: vi.fn().mockReturnThis(),
+			fail: vi.fn().mockReturnThis(),
+			text: '',
+		}),
+	},
+}));
+
 describe('exportCommand', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// eslint-disable-next-line @typescript-eslint/no-empty-function
+		vi.spyOn(process, 'exit').mockImplementation((() => {}) as any);
 	});
 
 	it('should export data to json', async () => {
@@ -27,7 +54,7 @@ describe('exportCommand', () => {
 		mockStorage.getAllQuotes.mockReturnValue([]);
 		mockStorage.getAllMetadata.mockReturnValue([]);
 
-		await exportCommand('export.json');
+		await exportCommand('config.yaml', 'export.json');
 		expect(FsUtils.writeJson).toHaveBeenCalled();
 	});
 
@@ -35,10 +62,8 @@ describe('exportCommand', () => {
 		mockStorage.getAllSymbols.mockImplementation(() => {
 			throw new Error('DB Error');
 		});
-		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		vi.spyOn(process, 'exit').mockImplementation((() => {}) as any);
 
-		await exportCommand('export.json');
+		await exportCommand('config.yaml', 'export.json');
 		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 });

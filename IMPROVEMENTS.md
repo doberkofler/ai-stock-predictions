@@ -63,7 +63,5 @@ Impact: Smart risk management.
 Description: Simplify the HTML generation by splitting it into multiple modules. The HTML could be stored in an external file and the JavaScript code as well.
 The files could then be read and then combined. We should take advantage of eslint and lint the html and the js.
 
-Why can the commands init, import and export not use the `runCommand` abstraction?
-
 
 

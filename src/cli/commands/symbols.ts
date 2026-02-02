@@ -27,6 +27,9 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 			title: 'Add Symbols',
 		},
 		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
 			const storage = new SqliteStorage();
 			const dataSource = new YahooFinanceDataSource(config.dataSource);
 			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());
@@ -80,6 +83,9 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 			title: 'Add Default Symbols',
 		},
 		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
 			const storage = new SqliteStorage();
 			const addedSymbols: {name: string; symbol: string}[] = [];
 

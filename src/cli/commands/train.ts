@@ -31,6 +31,9 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 			title: 'Model Training',
 		},
 		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
 			const storage = new SqliteStorage();
 			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 			const progress = new ProgressTracker();

@@ -2,12 +2,13 @@ import chalk from 'chalk';
 
 import type {Config} from '../../config/schema.ts';
 
-import {loadConfig} from '../../config/config.ts';
+import {configExists, loadConfig} from '../../config/config.ts';
 import {initializeEnvironment} from '../../env.ts';
+import {DateUtils} from './date.ts';
 import {ui} from './ui.ts';
 
 type CommandContext = {
-	config: Config;
+	config: Config | undefined;
 	startTime: number;
 };
 
@@ -44,10 +45,11 @@ export async function runCommand<T>(options: RunOptions, handler: CommandHandler
 	process.on('SIGINT', sigintHandler);
 
 	try {
-		const config = loadConfig(options.configPath);
+		// Only load config if it exists
+		const config = configExists(options.configPath) ? loadConfig(options.configPath) : undefined;
 		await handler({config, startTime}, commandOptions);
 
-		ui.log(chalk.cyan(`\nProcess completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s.`));
+		ui.log(chalk.cyan(`\nProcess completed in ${DateUtils.formatDuration(Date.now() - startTime)}.`));
 	} catch (error) {
 		if (error instanceof Error) {
 			ui.error(chalk.red(`\n❌ ${options.title} failed`));
