@@ -2,21 +2,19 @@ import {describe, it, expect, vi, beforeEach} from 'vitest';
 import {ModelPersistence} from '../../../src/compute/persistence.ts';
 import {LstmModel} from '../../../src/compute/lstm-model.ts';
 import * as fs from 'node:fs';
-import {remove, ensureDir} from 'fs-extra';
+import * as fsPromises from 'node:fs/promises';
 import {join} from 'node:path';
 import * as tf from '@tensorflow/tfjs';
 
 vi.mock('node:fs', () => ({
-	writeFileSync: vi.fn(),
-	readFileSync: vi.fn(),
 	existsSync: vi.fn(),
-	writeFile: vi.fn(),
-	readFile: vi.fn(),
 }));
 
-vi.mock('fs-extra', () => ({
-	ensureDir: vi.fn().mockResolvedValue(undefined),
-	remove: vi.fn().mockResolvedValue(undefined),
+vi.mock('node:fs/promises', () => ({
+	mkdir: vi.fn().mockResolvedValue(undefined),
+	rm: vi.fn().mockResolvedValue(undefined),
+	readFile: vi.fn().mockResolvedValue(''),
+	writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@tensorflow/tfjs', () => ({
@@ -50,12 +48,6 @@ describe('ModelPersistence', () => {
 			getModel: vi.fn().mockReturnValue(mockTfModel),
 		} as unknown as LstmModel;
 
-		// Mock the fs.writeFile to prevent hanging
-		vi.mocked(fs.writeFile as any).mockImplementation((_path: any, _data: any, _opts: any, cb: any) => {
-			if (typeof _opts === 'function') _opts(null);
-			else if (typeof cb === 'function') cb(null);
-		});
-
 		await persistence.saveModel('AAPL', mockModel, {
 			loss: 0.01,
 			accuracy: 0.9,
@@ -64,8 +56,9 @@ describe('ModelPersistence', () => {
 			windowSize: 30,
 		});
 
-		expect(ensureDir).toHaveBeenCalled();
+		expect(fsPromises.mkdir).toHaveBeenCalled();
 		expect(mockTfModel.save).toHaveBeenCalled();
+		expect(fsPromises.writeFile).toHaveBeenCalled();
 	});
 
 	it('should throw error if model not initialized on save', async () => {
@@ -87,20 +80,17 @@ describe('ModelPersistence', () => {
 
 	it('should load a model', async () => {
 		vi.mocked(fs.existsSync).mockReturnValue(true);
-		vi.mocked(fs.readFile as any).mockImplementation((_path: string, _opts: any, cb: any) => {
-			cb(
-				null,
-				JSON.stringify({
-					version: '1.0.0',
-					trainedAt: new Date().toISOString(),
-					metrics: {},
-					symbol: 'AAPL',
-					dataPoints: 100,
-					loss: 0.01,
-					windowSize: 30,
-				}),
-			);
-		});
+		vi.mocked(fsPromises.readFile).mockResolvedValue(
+			JSON.stringify({
+				version: '1.0.0',
+				trainedAt: new Date().toISOString(),
+				metrics: {},
+				symbol: 'AAPL',
+				dataPoints: 100,
+				loss: 0.01,
+				windowSize: 30,
+			}),
+		);
 		vi.mocked(tf.loadLayersModel).mockResolvedValue({
 			compile: vi.fn(),
 		} as any);
@@ -118,20 +108,17 @@ describe('ModelPersistence', () => {
 
 	it('should get model metadata', async () => {
 		vi.mocked(fs.existsSync).mockReturnValue(true);
-		vi.mocked(fs.readFile as any).mockImplementation((_path: string, _opts: any, cb: any) => {
-			cb(
-				null,
-				JSON.stringify({
-					version: '1.0.0',
-					trainedAt: new Date().toISOString(),
-					metrics: {},
-					symbol: 'AAPL',
-					dataPoints: 100,
-					loss: 0.01,
-					windowSize: 30,
-				}),
-			);
-		});
+		vi.mocked(fsPromises.readFile).mockResolvedValue(
+			JSON.stringify({
+				version: '1.0.0',
+				trainedAt: new Date().toISOString(),
+				metrics: {},
+				symbol: 'AAPL',
+				dataPoints: 100,
+				loss: 0.01,
+				windowSize: 30,
+			}),
+		);
 
 		const metadata = await persistence.getModelMetadata('AAPL');
 		expect(metadata).not.toBeNull();
@@ -141,13 +128,13 @@ describe('ModelPersistence', () => {
 	it('should delete a model', async () => {
 		vi.mocked(fs.existsSync).mockReturnValue(true);
 		await persistence.deleteModel('AAPL');
-		expect(remove).toHaveBeenCalledWith(join(mockPath, 'AAPL'));
+		expect(fsPromises.rm).toHaveBeenCalledWith(join(mockPath, 'AAPL'), {force: true, recursive: true});
 	});
 
 	it('should delete all models', async () => {
 		vi.mocked(fs.existsSync).mockReturnValue(true);
 		await persistence.deleteAllModels();
-		expect(remove).toHaveBeenCalledWith(mockPath);
-		expect(ensureDir).toHaveBeenCalledWith(mockPath);
+		expect(fsPromises.rm).toHaveBeenCalledWith(mockPath, {force: true, recursive: true});
+		expect(fsPromises.mkdir).toHaveBeenCalledWith(mockPath, {recursive: true});
 	});
 });

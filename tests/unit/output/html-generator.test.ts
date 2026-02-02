@@ -3,13 +3,9 @@ import {HtmlGenerator} from '../../../src/output/html-generator.ts';
 import type {Config} from '../../../src/config/schema.ts';
 import type {ReportPrediction} from '../../../src/types/index.ts';
 import * as fs from 'node:fs/promises';
-import {ensureDir} from 'fs-extra';
-
-vi.mock('fs-extra', () => ({
-	ensureDir: vi.fn().mockResolvedValue(undefined),
-}));
 
 vi.mock('node:fs/promises', () => ({
+	mkdir: vi.fn().mockResolvedValue(undefined),
 	writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -38,9 +34,7 @@ describe('HtmlGenerator', () => {
 				predictionDate: new Date(),
 				days: 2,
 				historicalData: [],
-				fullHistory: [
-					{date: '2022-12-30', open: 148, high: 152, low: 147, close: 150, volume: 1000, adjClose: 150}
-				],
+				fullHistory: [{date: '2022-12-30', open: 148, high: 152, low: 147, close: 150, volume: 1000, adjClose: 150}],
 				predictedData: [
 					{date: '2023-01-01', price: 155},
 					{date: '2023-01-02', price: 160},
@@ -64,9 +58,7 @@ describe('HtmlGenerator', () => {
 				predictionDate: new Date(),
 				days: 2,
 				historicalData: [],
-				fullHistory: [
-					{date: '2022-12-30', open: 305, high: 310, low: 295, close: 300, volume: 1000, adjClose: 300}
-				],
+				fullHistory: [{date: '2022-12-30', open: 305, high: 310, low: 295, close: 300, volume: 1000, adjClose: 300}],
 				predictedData: [
 					{date: '2023-01-01', price: 290},
 					{date: '2023-01-02', price: 280},
@@ -77,7 +69,7 @@ describe('HtmlGenerator', () => {
 			},
 			signal: 'SELL',
 			confidence: 0.7,
-		}
+		},
 	];
 
 	const mockAppConfig: Config = {
@@ -94,8 +86,8 @@ describe('HtmlGenerator', () => {
 
 	it('should generate an HTML report', async () => {
 		const reportPath = await generator.generateReport(mockPredictions, mockAppConfig);
-		
-		expect(ensureDir).toHaveBeenCalledWith(mockOutputConfig.directory);
+
+		expect(fs.mkdir).toHaveBeenCalledWith(mockOutputConfig.directory, {recursive: true});
 		expect(fs.writeFile).toHaveBeenCalled();
 		expect(reportPath).toContain('index.html');
 	});
@@ -104,7 +96,7 @@ describe('HtmlGenerator', () => {
 		await generator.generateReport(mockPredictions, mockAppConfig);
 		const call = vi.mocked(fs.writeFile).mock.calls[0];
 		const html = (call ? call[1] : '') as string;
-		
+
 		expect(html).toContain('AAPL');
 		expect(html).toContain('Apple Inc.');
 		expect(html).toContain('MSFT');

@@ -5,7 +5,7 @@
 import type {Ora} from 'ora';
 
 import chalk from 'chalk';
-import {ensureDir} from 'fs-extra';
+import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 
 import type {Config} from '../../config/schema.ts';
@@ -145,8 +145,8 @@ async function generateReport(predictions: ReportPrediction[], config: Config): 
 	try {
 		const htmlGenerator = new HtmlGenerator(config.prediction);
 
-		 
-		await ensureDir(config.prediction.directory);
+		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
+		await mkdir(config.prediction.directory, {recursive: true});
 		const reportPath = await htmlGenerator.generateReport(predictions, config);
 		htmlSpinner.succeed('HTML report generated');
 		ui.log(chalk.green(`\n📄 Report saved to: ${reportPath}`));

@@ -4,10 +4,9 @@
  */
 
 import * as tf from '@tensorflow/tfjs';
-import {ensureDir, remove} from 'fs-extra';
-import {existsSync, readFile, writeFile} from 'node:fs';
+import {existsSync} from 'node:fs';
+import {mkdir, readFile, rm, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
-import {promisify} from 'node:util';
 
 import type {Config} from '../config/schema.ts';
 import type {ModelMetadata, PerformanceMetrics} from './lstm-model.ts';
@@ -15,9 +14,6 @@ import type {ModelMetadata, PerformanceMetrics} from './lstm-model.ts';
 import {ErrorHandler, ModelError} from '../cli/utils/errors.ts';
 import {ModelMetadataSchema} from '../gather/storage.ts';
 import {LstmModel} from './lstm-model.ts';
-
-const readFileAsync = promisify(readFile);
-const writeFileAsync = promisify(writeFile);
 
 /**
  * Model persistence service class
@@ -44,7 +40,8 @@ export class ModelPersistence {
 
 		await ErrorHandler.wrapAsync(async () => {
 			const modelDir = join(this.modelsPath, symbol);
-			await ensureDir(modelDir);
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
+			await mkdir(modelDir, {recursive: true});
 
 			// Save TensorFlow model
 			const tfModel = model.getModel();
@@ -69,7 +66,8 @@ export class ModelPersistence {
 				trainedAt: new Date(),
 			};
 
-			await writeFileAsync(join(modelDir, 'metadata.json'), JSON.stringify(fullMetadata, null, 2));
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
+			await writeFile(join(modelDir, 'metadata.json'), JSON.stringify(fullMetadata, null, 2), 'utf8');
 		}, context);
 	}
 
@@ -98,7 +96,8 @@ export class ModelPersistence {
 
 			// Load metadata first to verify version and configuration
 			context.step = 'metadata-deserialization';
-			const metadataRaw = await readFileAsync(metadataPath, 'utf8');
+			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
+			const metadataRaw = await readFile(metadataPath, 'utf8');
 			const metadataValidated = ModelMetadataSchema.parse(JSON.parse(metadataRaw));
 
 			const metadata: ModelMetadata = {
@@ -161,7 +160,8 @@ export class ModelPersistence {
 			}
 
 			try {
-				const metadataRaw = await readFileAsync(metadataPath, 'utf8');
+				// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
+				const metadataRaw = await readFile(metadataPath, 'utf8');
 				const metadataValidated = ModelMetadataSchema.parse(JSON.parse(metadataRaw));
 
 				const metadata: ModelMetadata = {
@@ -191,7 +191,8 @@ export class ModelPersistence {
 			const modelDir = join(this.modelsPath, symbol);
 			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			if (existsSync(modelDir)) {
-				await remove(modelDir);
+				 
+				await rm(modelDir, {force: true, recursive: true});
 			}
 		}, context);
 	}
@@ -208,8 +209,10 @@ export class ModelPersistence {
 		await ErrorHandler.wrapAsync(async () => {
 			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			if (existsSync(this.modelsPath)) {
-				await remove(this.modelsPath);
-				await ensureDir(this.modelsPath);
+				 
+				await rm(this.modelsPath, {force: true, recursive: true});
+				// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
+				await mkdir(this.modelsPath, {recursive: true});
 			}
 		}, context);
 	}

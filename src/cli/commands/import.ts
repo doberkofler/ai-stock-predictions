@@ -33,7 +33,7 @@ export async function importCommand(importPath = 'export.json'): Promise<void> {
 
 	try {
 		const resolvedPath = join(process.cwd(), importPath);
-		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		const fileContent = await readFile(resolvedPath, 'utf8');
 		const rawData = JSON.parse(fileContent) as unknown;
 

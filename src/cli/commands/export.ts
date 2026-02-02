@@ -41,7 +41,7 @@ export async function exportCommand(exportPath = 'export.json'): Promise<void> {
 		};
 
 		const resolvedPath = join(process.cwd(), exportPath);
-		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		await writeFile(resolvedPath, JSON.stringify(exportData, null, 2), 'utf8');
 
 		storage.close();
