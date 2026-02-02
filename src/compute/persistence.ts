@@ -112,12 +112,12 @@ export class ModelPersistence {
 
 				// Re-compile model with current configuration
 				tfModel.compile({
-					optimizer: tf.train.adam(appConfig.ml.learningRate),
+					optimizer: tf.train.adam(appConfig.model.learningRate),
 					loss: 'meanSquaredError',
 					metrics: ['mae'],
 				});
 
-				const model = new LstmModel(appConfig.ml);
+				const model = new LstmModel(appConfig.model);
 				model.setModel(tfModel, metadata);
 
 				return model;

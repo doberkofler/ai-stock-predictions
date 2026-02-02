@@ -61,7 +61,6 @@ describe('ModelPersistence', () => {
 			accuracy: 0.9,
 			isValid: true,
 			dataPoints: 100,
-			modelType: 'lstm',
 			windowSize: 30,
 		});
 
@@ -106,7 +105,7 @@ describe('ModelPersistence', () => {
 			compile: vi.fn(),
 		} as any);
 
-		const model = await persistence.loadModel('AAPL', {ml: {windowSize: 30, learningRate: 0.001}} as any);
+		const model = await persistence.loadModel('AAPL', {model: {windowSize: 30, learningRate: 0.001}} as any);
 		expect(model).not.toBeNull();
 		expect(tf.loadLayersModel).toHaveBeenCalled();
 	});

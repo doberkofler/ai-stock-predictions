@@ -61,8 +61,18 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 
 			if (quickTest) {
 				symbolsToProcess = symbolsToProcess.slice(0, 3);
-				ui.log(chalk.yellow(`⚠️  Quick test mode active: Processing only the first ${symbolsToProcess.length} symbols and 50 data points`));
+				ui.log(chalk.yellow(`⚠️  Quick test mode active: Processing only the first ${symbolsToProcess.length} symbols, 1000 data points, and 5 epochs`));
 			}
+
+			const effectiveConfig = quickTest
+				? {
+						...config,
+						model: {
+							...config.model,
+							epochs: 5,
+						},
+					}
+				: config;
 
 			const tf = await import('@tensorflow/tfjs');
 			ui.log(chalk.dim(`TensorFlow.js backend: ${tf.getBackend()}`));
@@ -81,40 +91,40 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 				try {
 					// Check if data exists
 					let stockData = await storage.getStockData(symbol);
-					if (!stockData || stockData.length < config.ml.windowSize) {
+					if (!stockData || stockData.length < effectiveConfig.model.windowSize) {
 						symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
 						progress.complete(symbol, 'error');
 						continue;
 					}
 
 					if (quickTest) {
-						stockData = stockData.slice(-50);
+						stockData = stockData.slice(-1000);
 					}
 
 					// Always create a fresh model
 					symbolSpinner.text = `${prefix} Creating fresh ${name} (${symbol}) model...`;
-					const model = new LstmModel(config.ml);
+					const model = new LstmModel(effectiveConfig.model);
 
 					// Train model
 					const trainingStartTime = Date.now();
 					const dataPointCount = stockData.length;
 					const trainingProgress = (epoch: number, loss: number) => {
-						const bar = progress.createProgressBar(config.ml.epochs, epoch, `Training ${name} (${symbol})`);
-						const eta = ProgressTracker.calculateEta(trainingStartTime, epoch, config.ml.epochs);
+						const bar = progress.createProgressBar(effectiveConfig.model.epochs, epoch, `Training ${name} (${symbol})`);
+						const eta = ProgressTracker.calculateEta(trainingStartTime, epoch, effectiveConfig.model.epochs);
 						symbolSpinner.text = `${prefix} ${bar} [${dataPointCount} pts] (Loss: ${loss.toFixed(6)}, ETA: ${eta})`;
 					};
 
-					await model.train(stockData, config, trainingProgress);
+					await model.train(stockData, effectiveConfig, trainingProgress);
 
 					// Validate and save model
 					symbolSpinner.text = `${prefix} Validating ${name} (${symbol}) model...`;
-					const performance = await model.evaluate(stockData, config);
+					const performance = await model.evaluate(stockData, effectiveConfig);
 
 					if (performance.isValid || quickTest) {
 						await modelPersistence.saveModel(symbol, model, {
 							...performance,
 							dataPoints: stockData.length,
-							windowSize: config.ml.windowSize,
+							windowSize: effectiveConfig.model.windowSize,
 						});
 						const perfMsg = performance.isValid ? `(Loss: ${performance.loss.toFixed(6)})` : `(Loss: ${performance.loss.toFixed(6)} - Forced save)`;
 						symbolSpinner.succeed(`${prefix} ${name} (${symbol}) ${perfMsg}`);

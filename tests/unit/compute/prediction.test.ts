@@ -12,12 +12,18 @@ describe('PredictionEngine', () => {
 	};
 
 	const mockAppConfig: Config = {
-		prediction: {days: 1, trainSplit: 0.8},
-		training: {incremental: true, retrain: false, minNewDataPoints: 5},
-		trading: mockTradingConfig,
-		api: {timeout: 5000, retries: 3, rateLimit: 100},
-		output: {directory: 'output', template: 'default', includeCharts: true, chartsType: 'both'},
-		ml: {modelType: 'lstm', windowSize: 10, epochs: 2, learningRate: 0.001, batchSize: 32},
+		dataSource: {timeout: 5000, retries: 3, rateLimit: 100},
+		training: {minNewDataPoints: 5},
+		model: {windowSize: 10, epochs: 2, learningRate: 0.001, batchSize: 32},
+		prediction: {
+			days: 1,
+			historyChartDays: 1825,
+			contextDays: 15,
+			directory: 'output',
+			buyThreshold: 0.05,
+			sellThreshold: -0.05,
+			minConfidence: 0.6,
+		},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 20}, (_, i) => ({
@@ -52,6 +58,7 @@ describe('PredictionEngine', () => {
 			expect(result.currentPrice).toBe(102 + 19);
 			expect(result.predictedPrices).toEqual([110]);
 			expect(result.confidence).toBeGreaterThan(0);
+			expect(result.fullHistory).toBeDefined();
 		});
 
 		it('should throw error if model is not trained', async () => {
@@ -83,7 +90,7 @@ describe('PredictionEngine', () => {
 				percentChange: 0.1,
 			};
 
-			const signal = engine.generateSignal(prediction, {...mockTradingConfig, minConfidence: 0.1});
+			const signal = engine.generateSignal(prediction, {...mockAppConfig.prediction, minConfidence: 0.1});
 			expect(signal.action).toBe('BUY');
 			expect(signal.delta).toBeCloseTo(0.1);
 		});
@@ -96,7 +103,7 @@ describe('PredictionEngine', () => {
 				percentChange: -0.1,
 			};
 
-			const signal = engine.generateSignal(prediction, {...mockTradingConfig, minConfidence: 0.1});
+			const signal = engine.generateSignal(prediction, {...mockAppConfig.prediction, minConfidence: 0.1});
 			expect(signal.action).toBe('SELL');
 			expect(signal.delta).toBeCloseTo(-0.1);
 		});
@@ -109,7 +116,7 @@ describe('PredictionEngine', () => {
 				percentChange: 0.2,
 			};
 
-			const signal = engine.generateSignal(prediction, {...mockTradingConfig, minConfidence: 0.99});
+			const signal = engine.generateSignal(prediction, {...mockAppConfig.prediction, minConfidence: 0.99});
 			expect(signal.action).toBe('HOLD');
 		});
 	});

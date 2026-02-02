@@ -27,7 +27,7 @@ export async function gatherCommand(configPath: string, quickTest = false, init 
 		},
 		async ({config}) => {
 			// Initialize components
-			const dataSource = new YahooFinanceDataSource(config.api);
+			const dataSource = new YahooFinanceDataSource(config.dataSource);
 			const storage = new SqliteStorage();
 			const progress = new ProgressTracker();
 
@@ -52,7 +52,7 @@ export async function gatherCommand(configPath: string, quickTest = false, init 
 
 			if (quickTest) {
 				symbolsToProcess = symbolsToProcess.slice(0, 3);
-				ui.log(chalk.yellow(`⚠️  Quick test mode active: Processing only the first ${symbolsToProcess.length} symbols`));
+				ui.log(chalk.yellow(`⚠️  Quick test mode active: Processing only the first ${symbolsToProcess.length} symbols and 1000 data points`));
 			}
 
 			ui.log(chalk.blue(`\n📊 Gathering data for ${symbolsToProcess.length} symbols`));
@@ -115,7 +115,7 @@ export async function gatherCommand(configPath: string, quickTest = false, init 
 
 					// Rate limiting
 					if (i < symbolsToProcess.length - 1) {
-						await new Promise((resolve) => setTimeout(resolve, config.api.rateLimit));
+						await new Promise((resolve) => setTimeout(resolve, config.dataSource.rateLimit));
 					}
 				} catch (error) {
 					symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);

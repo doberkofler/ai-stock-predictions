@@ -37,9 +37,9 @@ export type ModelMetadata = {
 export class LstmModel {
 	private model: tf.LayersModel | null = null;
 	private metadata: ModelMetadata | null = null;
-	private readonly config: Config['ml'];
+	private readonly config: Config['model'];
 
-	public constructor(config: Config['ml']) {
+	public constructor(config: Config['model']) {
 		this.config = config;
 	}
 

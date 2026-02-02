@@ -32,7 +32,7 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 			const storage = new SqliteStorage();
 			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 			const predictionEngine = new PredictionEngine();
-			const htmlGenerator = new HtmlGenerator(config.output);
+			const htmlGenerator = new HtmlGenerator(config.prediction);
 			const progress = new ProgressTracker();
 
 			// Model-aware filtering: Only process symbols that have trained models
@@ -72,7 +72,9 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 
 			ui.log(chalk.blue(`\n🔮 Generating predictions for ${symbolsToProcess.length} symbols`));
 			ui.log(chalk.dim(`Prediction window: ${config.prediction.days} days`));
-			ui.log(chalk.dim(`Trading thresholds: Buy ${(config.trading.buyThreshold * 100).toFixed(1)}%, Sell ${(config.trading.sellThreshold * 100).toFixed(1)}%`));
+			ui.log(
+				chalk.dim(`Trading thresholds: Buy ${(config.prediction.buyThreshold * 100).toFixed(1)}%, Sell ${(config.prediction.sellThreshold * 100).toFixed(1)}%`),
+			);
 
 			const predictions: ReportPrediction[] = [];
 
@@ -90,7 +92,7 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 					const stockData = await storage.getStockData(symbol);
 					const model = await modelPersistence.loadModel(symbol, config);
 
-					if (!stockData || stockData.length < config.ml.windowSize) {
+					if (!stockData || stockData.length < config.model.windowSize) {
 						symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
 						progress.complete(symbol, 'error');
 						continue;
@@ -107,7 +109,7 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 					const prediction = await predictionEngine.predict(model, stockData, config);
 
 					// Generate trading signal
-					const signal = predictionEngine.generateSignal(prediction, config.trading);
+					const signal = predictionEngine.generateSignal(prediction, config.prediction);
 
 					predictions.push({
 						symbol,
@@ -141,7 +143,7 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 
 				try {
 					// Ensure output directory exists
-					await ensureDir(config.output.directory);
+					await ensureDir(config.prediction.directory);
 
 					// Generate HTML report
 					const reportPath = await htmlGenerator.generateReport(predictions, config);

@@ -13,7 +13,7 @@ program.name('ai-stock-predictions').description('AI-powered stock price predict
 
 // Global options
 program
-	.option('-c, --config <path>', 'path to configuration file', 'config.json')
+	.option('-c, --config <path>', 'path to configuration file', 'config.yaml')
 	.option('--quick-test', 'run with limited data for rapid verification', false);
 
 program

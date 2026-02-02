@@ -34,13 +34,13 @@ export class PredictionEngine {
 				throw new PredictionError('Model not trained', symbol);
 			}
 
-			if (historicalData.length < appConfig.ml.windowSize) {
-				throw new PredictionError(`Insufficient data for prediction. Need at least ${appConfig.ml.windowSize} points.`, symbol);
+			if (historicalData.length < appConfig.model.windowSize) {
+				throw new PredictionError(`Insufficient data for prediction. Need at least ${appConfig.model.windowSize} points.`, symbol);
 			}
 
 			// Prepare the latest window of data
 			context.step = 'model-inference';
-			const recentData = historicalData.slice(-appConfig.ml.windowSize * 2);
+			const recentData = historicalData.slice(-appConfig.model.windowSize * 2);
 
 			// Multi-step prediction
 			const predictedPrices = await model.predict(recentData, appConfig.prediction.days);
@@ -78,16 +78,16 @@ export class PredictionEngine {
 	/**
 	 * Generate a trading signal based on prediction results
 	 * @param {PredictionResult} prediction - Prediction results
-	 * @param {Config['trading']} tradingConfig - Trading configuration
+	 * @param {Config['prediction']} predictionConfig - Prediction and trading configuration
 	 * @returns {TradingSignal} Trading signal
 	 */
-	public generateSignal(prediction: PredictionResult, tradingConfig: Config['trading']): TradingSignal {
+	public generateSignal(prediction: PredictionResult, predictionConfig: Config['prediction']): TradingSignal {
 		let action: TradingSignal['action'] = 'HOLD';
 		const confidence = Math.min(0.95, Math.max(0.1, 0.5 + prediction.percentChange * 2)); // Dynamic confidence
 
-		if (prediction.percentChange >= tradingConfig.buyThreshold && confidence >= tradingConfig.minConfidence) {
+		if (prediction.percentChange >= predictionConfig.buyThreshold && confidence >= predictionConfig.minConfidence) {
 			action = 'BUY';
-		} else if (prediction.percentChange <= tradingConfig.sellThreshold && confidence >= tradingConfig.minConfidence) {
+		} else if (prediction.percentChange <= predictionConfig.sellThreshold && confidence >= predictionConfig.minConfidence) {
 			action = 'SELL';
 		}
 

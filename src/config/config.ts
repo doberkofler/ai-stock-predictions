@@ -5,6 +5,7 @@
 
 import {readFileSync, writeFileSync, existsSync} from 'node:fs';
 import {join, dirname} from 'node:path';
+import {parse, stringify} from 'yaml';
 import type {Config} from './schema.ts';
 import {ConfigSchema, DefaultConfig} from './schema.ts';
 import chalk from 'chalk';
@@ -16,7 +17,7 @@ import {ensureDir} from 'fs-extra';
  * @returns {string} Resolved configuration file path
  */
 export function getConfigFilePath(configPath?: string): string {
-	return join(process.cwd(), configPath ?? 'config.json');
+	return join(process.cwd(), configPath ?? 'config.yaml');
 }
 
 /**
@@ -34,8 +35,9 @@ export function loadConfig(configPath?: string): Config {
 	}
 
 	try {
-		const configData = JSON.parse(readFileSync(resolvedPath, 'utf8')) as unknown;
-		return ConfigSchema.parse(configData);
+		const content = readFileSync(resolvedPath, 'utf8');
+		const rawConfig = parse(content) as unknown;
+		return ConfigSchema.parse(rawConfig);
 	} catch (error) {
 		if (error instanceof Error) {
 			throw new Error(
@@ -63,9 +65,9 @@ export async function saveConfig(config: Config, configPath?: string): Promise<v
 		// Ensure directory exists
 		await ensureDir(dirname(resolvedPath));
 
-		// Write configuration file with pretty formatting
-		const configJson = JSON.stringify(validatedConfig, null, 2);
-		writeFileSync(resolvedPath, configJson, 'utf8');
+		// Write configuration file with YAML comments
+		const yamlContent = stringify(validatedConfig);
+		writeFileSync(resolvedPath, yamlContent, 'utf8');
 	} catch (error) {
 		if (error instanceof Error) {
 			throw new Error(`${chalk.red('Failed to save configuration file')}: ${resolvedPath}\n` + `Error: ${error.message}`);

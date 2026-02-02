@@ -18,12 +18,18 @@ describe('LstmModel', () => {
 	};
 
 	const mockAppConfig: Config = {
-		prediction: {days: 1},
+		dataSource: {timeout: 5000, retries: 3, rateLimit: 100},
 		training: {minNewDataPoints: 5},
-		trading: {buyThreshold: 0.05, sellThreshold: -0.05, minConfidence: 0.6},
-		api: {timeout: 5000, retries: 3, rateLimit: 100},
-		output: {directory: 'output'},
-		ml: mockMlConfig,
+		model: mockMlConfig,
+		prediction: {
+			days: 1,
+			historyChartDays: 10,
+			contextDays: 5,
+			directory: 'output',
+			buyThreshold: 0.05,
+			sellThreshold: -0.05,
+			minConfidence: 0.6,
+		},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 15}, (_, i) => ({

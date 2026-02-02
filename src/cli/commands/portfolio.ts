@@ -28,7 +28,7 @@ export async function portfolioCommand(configPath: string, options: {addDefaults
 		},
 		async ({config}) => {
 			const storage = new SqliteStorage();
-			const dataSource = new YahooFinanceDataSource(config.api);
+			const dataSource = new YahooFinanceDataSource(config.dataSource);
 			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 
 			if (options.addDefaults) {
