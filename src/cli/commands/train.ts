@@ -13,9 +13,9 @@ import {runCommand} from '../utils/runner.ts';
 
 /**
  * Train command implementation
- * @param {string} configPath - Path to the configuration file
- * @param {boolean} quickTest - Whether to run with limited data and epochs
- * @param {string} symbolList - Optional list of symbols to train
+ * @param configPath - Path to the configuration file
+ * @param quickTest - Whether to run with limited data and epochs
+ * @param symbolList - Optional list of symbols to train
  */
 export async function trainCommand(configPath: string, quickTest = false, symbolList?: string): Promise<void> {
 	await runCommand(

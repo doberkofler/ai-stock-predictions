@@ -8,7 +8,7 @@ import {join} from 'node:path';
 export const SymbolService = {
 	/**
 	 * Removes a symbol and all its associated data and models
-	 * @param {string} symbol - The symbol to remove
+	 * @param symbol - The symbol to remove
 	 */
 	removeSymbol: async (symbol: string): Promise<void> => {
 		const storage = new SqliteStorage();
@@ -20,7 +20,7 @@ export const SymbolService = {
 
 	/**
 	 * Gets all symbols currently in the database
-	 * @returns {Array<{symbol: string, name: string}>} Array of symbol entries
+	 * @returns Array of symbol entries
 	 */
 	getAllSymbols: (): {symbol: string; name: string}[] => {
 		const storage = new SqliteStorage();

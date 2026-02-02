@@ -20,9 +20,9 @@ type RunOptions = {
 /**
  * Executes a CLI command with standardized initialization, error handling, and lifecycle logging.
  * Reduces boilerplate in command files by centralizing infrastructure.
- * @param {RunOptions} options - Command execution options (title, description, configPath)
- * @param {CommandHandler} handler - The actual command logic to execute
- * @param {unknown} commandOptions - Options specific to the command being run
+ * @param options - Command execution options (title, description, configPath)
+ * @param handler - The actual command logic to execute
+ * @param commandOptions - Options specific to the command being run
  */
 export async function runCommand<T>(options: RunOptions, handler: CommandHandler<T>, commandOptions: T): Promise<void> {
 	await initializeEnvironment();

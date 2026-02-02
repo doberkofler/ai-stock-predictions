@@ -13,8 +13,8 @@ import {initializeEnvironment} from '../../env.ts';
 /**
  * Initialize command implementation
  * Creates configuration file and necessary directories
- * @param {string} configPath - Path to the configuration file
- * @param {boolean} force - Whether to overwrite existing config and wipe all data
+ * @param configPath - Path to the configuration file
+ * @param force - Whether to overwrite existing config and wipe all data
  */
 export async function initCommand(configPath: string, force = false): Promise<void> {
 	await initializeEnvironment();

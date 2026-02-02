@@ -48,10 +48,10 @@ export class YahooFinanceDataSource {
 
 	/**
 	 * Get historical data for a stock symbol
-	 * @param {string} symbol - Stock symbol
-	 * @param {Date} startDate - Start date for historical data
-	 * @param {number} [limit] - Optional limit for data points
-	 * @returns {Promise<FetchResult>} Object containing data and fetch metadata
+	 * @param symbol - Stock symbol
+	 * @param startDate - Start date for historical data
+	 * @param [limit] - Optional limit for data points
+	 * @returns Object containing data and fetch metadata
 	 * @throws {DataSourceError} If API request fails or data is invalid
 	 */
 	public async getHistoricalData(symbol: string, startDate: Date, limit?: number): Promise<FetchResult> {
@@ -151,8 +151,8 @@ export class YahooFinanceDataSource {
 
 	/**
 	 * Get current quote for a symbol
-	 * @param {string} symbol - Stock symbol
-	 * @returns {Promise<{price: number; currency: string; name: string}>} Current price, currency and company name
+	 * @param symbol - Stock symbol
+	 * @returns Current price, currency and company name
 	 * @throws {DataSourceError} If API request fails
 	 */
 	public async getCurrentQuote(symbol: string): Promise<{price: number; currency: string; name: string}> {
@@ -190,8 +190,8 @@ export class YahooFinanceDataSource {
 
 	/**
 	 * Validate stock symbol
-	 * @param {string} symbol - Stock symbol to validate
-	 * @returns {Promise<boolean>} True if symbol is valid
+	 * @param symbol - Stock symbol to validate
+	 * @returns True if symbol is valid
 	 */
 	public async validateSymbol(symbol: string): Promise<boolean> {
 		try {

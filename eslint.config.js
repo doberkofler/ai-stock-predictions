@@ -41,6 +41,9 @@ export default tseslint.config(
 			'jsdoc/require-jsdoc': 'off',
 			'jsdoc/require-param-description': 'off',
 			'jsdoc/require-returns-description': 'off',
+			'jsdoc/no-types': 'error',
+			'jsdoc/require-param-type': 'off',
+			'jsdoc/require-returns-type': 'off',
 			'@typescript-eslint/no-explicit-any': 'error',
 			'@typescript-eslint/consistent-type-definitions': ['error', 'type'], // Enforce type over interface
 			'@typescript-eslint/restrict-template-expressions': [

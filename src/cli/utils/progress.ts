@@ -37,9 +37,9 @@ export class ProgressTracker {
 
 	/**
 	 * Mark an item as completed with its status
-	 * @param {string} item - Item identifier (e.g., stock symbol)
-	 * @param {ProgressStatus} status - Completion status
-	 * @param {string | number} [details] - Additional details (e.g., loss value, data points)
+	 * @param item - Item identifier (e.g., stock symbol)
+	 * @param status - Completion status
+	 * @param [details] - Additional details (e.g., loss value, data points)
 	 */
 	public complete(item: string, status: ProgressStatus, details?: string | number): void {
 		this.progress.set(item, {
@@ -51,11 +51,11 @@ export class ProgressTracker {
 
 	/**
 	 * Create a progress bar for percentage tracking
-	 * @param {number} total - Total number of items
-	 * @param {number} current - Current progress
-	 * @param {string} label - Progress label
-	 * @param {string} [color] - Bar color
-	 * @returns {string} Formatted progress bar string
+	 * @param total - Total number of items
+	 * @param current - Current progress
+	 * @param label - Progress label
+	 * @param [color] - Bar color
+	 * @returns Formatted progress bar string
 	 */
 	public createProgressBar(total: number, current: number, label: string, color = 'cyan'): string {
 		const percentage = Math.round((current / total) * 100);
@@ -75,10 +75,10 @@ export class ProgressTracker {
 
 	/**
 	 * Calculate ETA string
-	 * @param {number} startTime - Start time in milliseconds
-	 * @param {number} current - Current progress
-	 * @param {number} total - Total items
-	 * @returns {string} Formatted ETA string
+	 * @param startTime - Start time in milliseconds
+	 * @param current - Current progress
+	 * @param total - Total items
+	 * @returns Formatted ETA string
 	 */
 	public static calculateEta(startTime: number, current: number, total: number): string {
 		if (current <= 0) return 'calculating...';
@@ -90,8 +90,8 @@ export class ProgressTracker {
 
 	/**
 	 * Format milliseconds into human readable duration
-	 * @param {number} ms - Duration in milliseconds
-	 * @returns {string} Formatted duration string
+	 * @param ms - Duration in milliseconds
+	 * @returns Formatted duration string
 	 */
 	public static formatDuration(ms: number): string {
 		const seconds = Math.floor((ms / 1000) % 60);
@@ -108,7 +108,7 @@ export class ProgressTracker {
 
 	/**
 	 * Get summary of all completed items
-	 * @returns {Record<string, number>} Summary counts by status
+	 * @returns Summary counts by status
 	 */
 	public getSummary(): Record<string, number> {
 		const summary: Record<string, number> = {};

@@ -16,9 +16,9 @@ import type {ReportPrediction} from '../../types/index.ts';
 
 /**
  * Predict command implementation
- * @param {string} configPath - Path to the configuration file
- * @param {boolean} quickTest - Whether to run with limited symbols and forecast window
- * @param {string} [symbolList] - Optional list of symbols to predict
+ * @param configPath - Path to the configuration file
+ * @param quickTest - Whether to run with limited symbols and forecast window
+ * @param [symbolList] - Optional list of symbols to predict
  */
 export async function predictCommand(configPath: string, quickTest = false, symbolList?: string): Promise<void> {
 	await runCommand(

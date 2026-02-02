@@ -24,9 +24,9 @@ export class HtmlGenerator {
 
 	/**
 	 * Generate a comprehensive HTML report for all predictions
-	 * @param {ReportPrediction[]} predictions - Array of prediction results
-	 * @param {Config} appConfig - Full application configuration
-	 * @returns {Promise<string>} Path to the generated report
+	 * @param predictions - Array of prediction results
+	 * @param appConfig - Full application configuration
+	 * @returns Path to the generated report
 	 */
 	public async generateReport(predictions: ReportPrediction[], appConfig: Config): Promise<string> {
 		const context = {
@@ -47,9 +47,9 @@ export class HtmlGenerator {
 
 	/**
 	 * Render the full HTML document
-	 * @param {ReportPrediction[]} predictions - Prediction data
-	 * @param {Config} appConfig - App configuration
-	 * @returns {string} HTML string
+	 * @param predictions - Prediction data
+	 * @param appConfig - App configuration
+	 * @returns HTML string
 	 */
 	private renderHtml(predictions: ReportPrediction[], appConfig: Config): string {
 		const generatedAt = new Date().toLocaleString();
@@ -217,9 +217,9 @@ export class HtmlGenerator {
 
 	/**
 	 * Render a card for a single stock
-	 * @param {ReportPrediction} p - Prediction data
-	 * @param {Config} appConfig - App configuration
-	 * @returns {string} HTML component string
+	 * @param p - Prediction data
+	 * @param appConfig - App configuration
+	 * @returns HTML component string
 	 */
 	private renderStockCard(p: ReportPrediction, appConfig: Config): string {
 		const signalClass = `signal-${p.signal.toLowerCase()}`;
@@ -275,9 +275,9 @@ export class HtmlGenerator {
 
 	/**
 	 * Render the Chart.js initialization script for a stock
-	 * @param {ReportPrediction} p - Prediction data
-	 * @param {Config} appConfig - Application configuration
-	 * @returns {string} JavaScript code string
+	 * @param p - Prediction data
+	 * @param appConfig - Application configuration
+	 * @returns JavaScript code string
 	 */
 	private renderChartScript(p: ReportPrediction, appConfig: Config): string {
 		// Full History Chart Data - limited by config

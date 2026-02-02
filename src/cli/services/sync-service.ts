@@ -11,9 +11,9 @@ import type {Config} from '../../config/schema.ts';
 export const SyncService = {
 	/**
 	 * Synchronizes data for a list of symbols
-	 * @param {Array<{symbol: string, name: string}>} symbols - Array of symbols to sync
-	 * @param {Config} config - Application configuration
-	 * @param {boolean} quickTest - Whether to limit the data points for verification
+	 * @param symbols - Array of symbols to sync
+	 * @param config - Application configuration
+	 * @param quickTest - Whether to limit the data points for verification
 	 */
 	syncSymbols: async (symbols: {symbol: string; name: string}[], config: Config, quickTest = false): Promise<void> => {
 		const dataSource = new YahooFinanceDataSource(config.dataSource);

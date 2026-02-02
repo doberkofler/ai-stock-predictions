@@ -8,7 +8,7 @@ import {SyncService} from '../services/sync-service.ts';
 
 /**
  * Sync command implementation
- * @param {string} configPath - Path to the configuration file
+ * @param configPath - Path to the configuration file
  */
 export async function syncCommand(configPath: string): Promise<void> {
 	await runCommand(

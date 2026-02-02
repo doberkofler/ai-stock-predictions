@@ -30,10 +30,10 @@ export class ModelPersistence {
 
 	/**
 	 * Save model and metadata to filesystem
-	 * @param {string} symbol - Stock symbol
-	 * @param {LstmModel} model - LSTM model instance
-	 * @param {PerformanceMetrics} metrics - Training performance metrics
-	 * @returns {Promise<void>}
+	 * @param symbol - Stock symbol
+	 * @param model - LSTM model instance
+	 * @param metrics - Training performance metrics
+	 * @returns
 	 */
 	public async saveModel(symbol: string, model: LstmModel, metrics: PerformanceMetrics): Promise<void> {
 		const context = {
@@ -75,9 +75,9 @@ export class ModelPersistence {
 
 	/**
 	 * Load model and metadata from filesystem
-	 * @param {string} symbol - Stock symbol
-	 * @param {Config} appConfig - Application configuration
-	 * @returns {Promise<LstmModel | null>} LSTM model instance or null if not found
+	 * @param symbol - Stock symbol
+	 * @param appConfig - Application configuration
+	 * @returns LSTM model instance or null if not found
 	 */
 	public async loadModel(symbol: string, appConfig: Config): Promise<LstmModel | null> {
 		const context = {
@@ -129,8 +129,8 @@ export class ModelPersistence {
 
 	/**
 	 * Check if a model exists for a symbol
-	 * @param {string} symbol - Stock symbol
-	 * @returns {boolean} True if model exists
+	 * @param symbol - Stock symbol
+	 * @returns True if model exists
 	 */
 	public modelExists(symbol: string): boolean {
 		const metadataPath = join(this.modelsPath, symbol, 'metadata.json');
@@ -140,8 +140,8 @@ export class ModelPersistence {
 
 	/**
 	 * Get model metadata for a symbol
-	 * @param {string} symbol - Stock symbol
-	 * @returns {Promise<ModelMetadata | null>} Model metadata or null if not found
+	 * @param symbol - Stock symbol
+	 * @returns Model metadata or null if not found
 	 */
 	public async getModelMetadata(symbol: string): Promise<ModelMetadata | null> {
 		const context = {
@@ -175,8 +175,8 @@ export class ModelPersistence {
 
 	/**
 	 * Delete a model for a symbol
-	 * @param {string} symbol - Stock symbol
-	 * @returns {Promise<void>}
+	 * @param symbol - Stock symbol
+	 * @returns
 	 */
 	public async deleteModel(symbol: string): Promise<void> {
 		const context = {
@@ -195,7 +195,7 @@ export class ModelPersistence {
 
 	/**
 	 * Delete all models in the models directory
-	 * @returns {Promise<void>}
+	 * @returns
 	 */
 	public async deleteAllModels(): Promise<void> {
 		const context = {

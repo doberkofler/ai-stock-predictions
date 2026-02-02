@@ -15,8 +15,8 @@ import defaults from '../../constants/defaults.json' with {type: 'json'};
 
 /**
  * Adds symbols to the database and synchronizes data
- * @param {string} configPath - Path to the config file
- * @param {string} symbolsStr - Comma-separated symbols
+ * @param configPath - Path to the config file
+ * @param symbolsStr - Comma-separated symbols
  */
 export async function symbolAddCommand(configPath: string, symbolsStr: string): Promise<void> {
 	await runCommand(
@@ -69,8 +69,8 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 
 /**
  * Removes symbols from the database
- * @param {string} configPath - Path to the config file
- * @param {string} symbolsStr - Comma-separated symbols
+ * @param configPath - Path to the config file
+ * @param symbolsStr - Comma-separated symbols
  */
 export async function symbolRemoveCommand(configPath: string, symbolsStr: string): Promise<void> {
 	await runCommand(
@@ -94,7 +94,7 @@ export async function symbolRemoveCommand(configPath: string, symbolsStr: string
 
 /**
  * Adds default symbols and synchronizes data
- * @param {string} configPath - Path to the config file
+ * @param configPath - Path to the config file
  */
 export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 	await runCommand(
@@ -123,7 +123,7 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 
 /**
  * Lists all symbols in the database
- * @param {string} configPath - Path to the config file
+ * @param configPath - Path to the config file
  */
 export async function symbolListCommand(configPath: string): Promise<void> {
 	await runCommand(

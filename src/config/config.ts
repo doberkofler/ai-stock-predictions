@@ -13,8 +13,8 @@ import {ensureDir} from 'fs-extra';
 
 /**
  * Get configuration file path
- * @param {string} [configPath] - Optional custom path
- * @returns {string} Resolved configuration file path
+ * @param [configPath] - Optional custom path
+ * @returns Resolved configuration file path
  */
 export function getConfigFilePath(configPath?: string): string {
 	return join(process.cwd(), configPath ?? 'config.yaml');
@@ -22,9 +22,9 @@ export function getConfigFilePath(configPath?: string): string {
 
 /**
  * Load and validate configuration from file
- * @param {string} [configPath] - Optional custom path
+ * @param [configPath] - Optional custom path
  * @throws {Error} If configuration file doesn't exist or is invalid
- * @returns {Config} Validated configuration object
+ * @returns Validated configuration object
  */
 export function loadConfig(configPath?: string): Config {
 	const resolvedPath = getConfigFilePath(configPath);
@@ -52,8 +52,8 @@ export function loadConfig(configPath?: string): Config {
 
 /**
  * Save configuration to file with validation
- * @param {Config} config - Configuration object to save
- * @param {string} [configPath] - Optional custom path
+ * @param config - Configuration object to save
+ * @param [configPath] - Optional custom path
  * @throws {Error} If configuration is invalid or file cannot be written
  */
 export async function saveConfig(config: Config, configPath?: string): Promise<void> {
@@ -78,8 +78,8 @@ export async function saveConfig(config: Config, configPath?: string): Promise<v
 
 /**
  * Check if configuration file exists
- * @param {string} [configPath] - Optional custom path
- * @returns {boolean} True if configuration file exists
+ * @param [configPath] - Optional custom path
+ * @returns True if configuration file exists
  */
 export function configExists(configPath?: string): boolean {
 	return existsSync(getConfigFilePath(configPath));
@@ -87,7 +87,7 @@ export function configExists(configPath?: string): boolean {
 
 /**
  * Get default configuration
- * @returns {Config} Default configuration object
+ * @returns Default configuration object
  */
 export function getDefaultConfig(): Config {
 	return {...DefaultConfig};

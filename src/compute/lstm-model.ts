@@ -45,7 +45,7 @@ export class LstmModel {
 
 	/**
 	 * Build the LSTM model architecture
-	 * @returns {tf.LayersModel} Compiled TensorFlow.js model
+	 * @returns Compiled TensorFlow.js model
 	 */
 	private buildModel(): tf.LayersModel {
 		// Suppress persistent TFJS orthogonal initializer warnings
@@ -101,8 +101,8 @@ export class LstmModel {
 
 	/**
 	 * Preprocess stock data into sequences for LSTM training
-	 * @param {StockDataPoint[]} data - Historical stock data
-	 * @returns {{inputs: tf.Tensor3D, labels: tf.Tensor2D, min: number, max: number}} Normalized tensors
+	 * @param data - Historical stock data
+	 * @returns Normalized tensors
 	 */
 	private preprocessData(data: StockDataPoint[]): {inputs: tf.Tensor3D; labels: tf.Tensor2D; min: number; max: number} {
 		const prices = data.map((d) => d.close);
@@ -131,10 +131,10 @@ export class LstmModel {
 
 	/**
 	 * Train the LSTM model
-	 * @param {StockDataPoint[]} data - Historical stock data
-	 * @param {Config} _appConfig - Application configuration
-	 * @param {(epoch: number, loss: number) => void} onProgress - Progress callback
-	 * @returns {Promise<PerformanceMetrics>} Final training metrics
+	 * @param data - Historical stock data
+	 * @param _appConfig - Application configuration
+	 * @param onProgress - Progress callback
+	 * @returns Final training metrics
 	 */
 	public async train(data: StockDataPoint[], _appConfig: Config, onProgress?: (epoch: number, loss: number) => void): Promise<PerformanceMetrics> {
 		if (data.length < this.config.windowSize + 5) {
@@ -209,9 +209,9 @@ export class LstmModel {
 
 	/**
 	 * Evaluate model performance on the dataset
-	 * @param {StockDataPoint[]} data - Dataset to evaluate against
-	 * @param {Config} _appConfig - Application configuration
-	 * @returns {Promise<PerformanceMetrics>} Final evaluation metrics
+	 * @param data - Dataset to evaluate against
+	 * @param _appConfig - Application configuration
+	 * @returns Final evaluation metrics
 	 */
 	public async evaluate(data: StockDataPoint[], _appConfig: Config): Promise<PerformanceMetrics> {
 		if (!this.model) {
@@ -236,9 +236,9 @@ export class LstmModel {
 
 	/**
 	 * Predict future prices
-	 * @param {StockDataPoint[]} data - Historical data context
-	 * @param {number} days - Number of days to predict
-	 * @returns {Promise<number[]>} Predicted prices
+	 * @param data - Historical data context
+	 * @param days - Number of days to predict
+	 * @returns Predicted prices
 	 */
 	public async predict(data: StockDataPoint[], days: number): Promise<number[]> {
 		if (!this.model) {
@@ -276,7 +276,7 @@ export class LstmModel {
 
 	/**
 	 * Get the internal TensorFlow.js model
-	 * @returns {tf.LayersModel | null} The model instance
+	 * @returns The model instance
 	 */
 	public getModel(): tf.LayersModel | null {
 		return this.model;
@@ -284,8 +284,8 @@ export class LstmModel {
 
 	/**
 	 * Set internal model and metadata (used after loading)
-	 * @param {tf.LayersModel} model - TensorFlow model
-	 * @param {ModelMetadata} metadata - Associated metadata
+	 * @param model - TensorFlow model
+	 * @param metadata - Associated metadata
 	 */
 	public setModel(model: tf.LayersModel, metadata: ModelMetadata): void {
 		this.model = model;
@@ -294,7 +294,7 @@ export class LstmModel {
 
 	/**
 	 * Get model metadata
-	 * @returns {ModelMetadata | null} The metadata instance
+	 * @returns The metadata instance
 	 */
 	public getMetadata(): ModelMetadata | null {
 		return this.metadata;
@@ -302,7 +302,7 @@ export class LstmModel {
 
 	/**
 	 * Check if model is trained
-	 * @returns {boolean} True if trained
+	 * @returns True if trained
 	 */
 	public isTrained(): boolean {
 		return this.model !== null;

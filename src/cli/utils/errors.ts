@@ -70,10 +70,10 @@ export class ContextualError extends Error {
 export const ErrorHandler = {
 	/**
 	 * Create a retry error
-	 * @param {string} operation - Operation that failed
-	 * @param {number} attempts - Number of retry attempts
-	 * @param {Error} originalError - Original error that caused retries
-	 * @returns {Error} Retry error
+	 * @param operation - Operation that failed
+	 * @param attempts - Number of retry attempts
+	 * @param originalError - Original error that caused retries
+	 * @returns Retry error
 	 */
 	createRetryError: (operation: string, attempts: number, originalError: Error): Error => {
 		return new Error(`Operation "${operation}" failed after ${attempts} attempts. Last error: ${originalError.message}`);
@@ -82,9 +82,9 @@ export const ErrorHandler = {
 	/**
 	 * Wrap async function with error handling
 	 * @template T
-	 * @param {function(): Promise<T>} fn - Async function to wrap
-	 * @param {ErrorContext} context - Error context
-	 * @returns {Promise<T>} Wrapped function promise
+	 * @param fn - Async function to wrap
+	 * @param context - Error context
+	 * @returns Wrapped function promise
 	 */
 	wrapAsync: async <T>(fn: () => Promise<T>, context: ErrorContext): Promise<T> => {
 		try {
@@ -100,9 +100,9 @@ export const ErrorHandler = {
 	/**
 	 * Wrap synchronous function with error handling
 	 * @template T
-	 * @param {function(): T} fn - Synchronous function to wrap
-	 * @param {ErrorContext} context - Error context
-	 * @returns {T} Result of the function
+	 * @param fn - Synchronous function to wrap
+	 * @param context - Error context
+	 * @returns Result of the function
 	 */
 	wrapSync: <T>(fn: () => T, context: ErrorContext): T => {
 		try {

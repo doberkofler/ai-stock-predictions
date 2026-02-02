@@ -14,10 +14,10 @@ import type {StockDataPoint, PredictionResult, TradingSignal} from '../types/ind
 export class PredictionEngine {
 	/**
 	 * Generate price prediction for a specific symbol
-	 * @param {LstmModel} model - Trained LSTM model
-	 * @param {StockDataPoint[]} historicalData - Recent historical data for context
-	 * @param {Config} appConfig - Application configuration
-	 * @returns {Promise<PredictionResult>} Prediction results
+	 * @param model - Trained LSTM model
+	 * @param historicalData - Recent historical data for context
+	 * @param appConfig - Application configuration
+	 * @returns Prediction results
 	 */
 	public async predict(model: LstmModel, historicalData: StockDataPoint[], appConfig: Config): Promise<PredictionResult> {
 		const metadata = model.getMetadata();
@@ -77,9 +77,9 @@ export class PredictionEngine {
 
 	/**
 	 * Generate a trading signal based on prediction results
-	 * @param {PredictionResult} prediction - Prediction results
-	 * @param {Config['prediction']} predictionConfig - Prediction and trading configuration
-	 * @returns {TradingSignal} Trading signal
+	 * @param prediction - Prediction results
+	 * @param predictionConfig - Prediction and trading configuration
+	 * @returns Trading signal
 	 */
 	public generateSignal(prediction: PredictionResult, predictionConfig: Config['prediction']): TradingSignal {
 		let action: TradingSignal['action'] = 'HOLD';

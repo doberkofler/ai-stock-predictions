@@ -28,7 +28,7 @@ export class UiService {
 	/**
 	 * Log decorative or status text.
 	 * Only shows in interactive terminals to prevent cluttering test/CI logs.
-	 * @param {string} message - The message to log.
+	 * @param message - The message to log.
 	 */
 	public log(message: string): void {
 		if (this.isInteractive) {
@@ -38,7 +38,7 @@ export class UiService {
 
 	/**
 	 * Always log errors regardless of environment to ensure critical issues are visible.
-	 * @param {string} message - The error message to log.
+	 * @param message - The error message to log.
 	 */
 	public error(message: string): void {
 		console.error(message);
@@ -46,8 +46,8 @@ export class UiService {
 
 	/**
 	 * Returns a real animated spinner if TTY, or a non-op spinner for non-interactive environments.
-	 * @param {string} text - The initial text for the spinner.
-	 * @returns {Ora | MockOra} The spinner instance.
+	 * @param text - The initial text for the spinner.
+	 * @returns The spinner instance.
 	 */
 	public spinner(text: string): Ora | MockOra {
 		if (this.isInteractive) {

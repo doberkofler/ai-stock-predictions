@@ -11,7 +11,7 @@ import {ProgressTracker} from '../utils/progress.ts';
 
 /**
  * Export command implementation
- * @param {string} exportPath - Path where to save the export file
+ * @param exportPath - Path where to save the export file
  */
 export async function exportCommand(exportPath = 'export.json'): Promise<void> {
 	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Export ==='));

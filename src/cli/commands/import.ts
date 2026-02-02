@@ -22,7 +22,7 @@ const ExportSchema = z.object({
 
 /**
  * Import command implementation
- * @param {string} importPath - Path to the JSON file to import
+ * @param importPath - Path to the JSON file to import
  */
 export async function importCommand(importPath = 'export.json'): Promise<void> {
 	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Import ==='));
