@@ -18,11 +18,11 @@ describe('LstmModel', () => {
 	};
 
 	const mockAppConfig: Config = {
-		prediction: {days: 1, trainSplit: 0.8},
-		training: {incremental: true, retrain: false, minNewDataPoints: 5},
+		prediction: {days: 1},
+		training: {minNewDataPoints: 5},
 		trading: {buyThreshold: 0.05, sellThreshold: -0.05, minConfidence: 0.6},
 		api: {timeout: 5000, retries: 3, rateLimit: 100},
-		output: {directory: 'output', template: 'default', includeCharts: true, chartsType: 'both'},
+		output: {directory: 'output'},
 		ml: mockMlConfig,
 	};
 

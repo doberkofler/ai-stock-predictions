@@ -59,6 +59,7 @@ export class PredictionEngine {
 				predictionDate: new Date(),
 				days: appConfig.prediction.days,
 				historicalData: recentData,
+				fullHistory: historicalData,
 				predictedData: predictedPrices.map((price, i) => {
 					const date = new Date();
 					date.setDate(date.getDate() + i + 1);

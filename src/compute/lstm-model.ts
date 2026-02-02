@@ -15,7 +15,6 @@ export type PerformanceMetrics = {
 	accuracy: number;
 	isValid: boolean;
 	dataPoints: number;
-	modelType: string;
 	windowSize: number;
 };
 
@@ -204,7 +203,6 @@ export class LstmModel {
 			accuracy: 1 - finalLoss, // Simplified accuracy for LSTM
 			isValid: finalLoss < 1,
 			dataPoints: data.length,
-			modelType: 'lstm',
 			windowSize: this.config.windowSize,
 		};
 	}
@@ -232,7 +230,6 @@ export class LstmModel {
 			accuracy: 1 - loss,
 			isValid: loss < 1,
 			dataPoints: data.length,
-			modelType: 'lstm',
 			windowSize: this.config.windowSize,
 		};
 	}

@@ -71,6 +71,7 @@ export type PredictionResult = {
 	predictionDate: Date;
 	days: number;
 	historicalData: StockDataPoint[];
+	fullHistory: StockDataPoint[];
 	predictedData: {date: string; price: number}[];
 	predictedPrices: number[]; // Added back for compatibility
 	confidence: number;
@@ -143,7 +144,6 @@ export type ProgressStatus =
  * ML configuration
  */
 export type MlConfig = {
-	modelType: 'lstm' | 'regression';
 	windowSize: number;
 	epochs: number;
 	learningRate: number;
@@ -182,9 +182,6 @@ export type DatabaseConfig = {
  */
 export type OutputConfig = {
 	directory: string;
-	template: string;
-	includeCharts: boolean;
-	chartsType: 'line' | 'candlestick' | 'both';
 };
 
 /**

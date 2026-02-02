@@ -114,7 +114,6 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 						await modelPersistence.saveModel(symbol, model, {
 							...performance,
 							dataPoints: stockData.length,
-							modelType: config.ml.modelType,
 							windowSize: config.ml.windowSize,
 						});
 						const perfMsg = performance.isValid ? `(Loss: ${performance.loss.toFixed(6)})` : `(Loss: ${performance.loss.toFixed(6)} - Forced save)`;

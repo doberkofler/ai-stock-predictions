@@ -10,15 +10,12 @@ import {z} from 'zod';
  */
 const PredictionSchema = z.object({
 	days: z.number().min(1, 'Prediction days must be at least 1').max(365, 'Prediction days cannot exceed 365').default(30),
-	trainSplit: z.number().min(0.5, 'Training split must be at least 50%').max(0.9, 'Training split cannot exceed 90%').default(0.8),
 });
 
 /**
  * Training configuration schema
  */
 const TrainingSchema = z.object({
-	incremental: z.boolean().default(true),
-	retrain: z.boolean().default(false),
 	minNewDataPoints: z.number().min(10, 'Minimum new data points must be at least 10').max(1000, 'Minimum new data points cannot exceed 1000').default(50),
 });
 
@@ -45,16 +42,12 @@ const ApiSchema = z.object({
  */
 const OutputSchema = z.object({
 	directory: z.string().min(1, 'Output directory cannot be empty').default('output'),
-	template: z.string().min(1, 'Output template cannot be empty').default('default'),
-	includeCharts: z.boolean().default(true),
-	chartsType: z.enum(['line', 'candlestick', 'both']).default('both'),
 });
 
 /**
  * Machine Learning configuration schema
  */
 const MlSchema = z.object({
-	modelType: z.enum(['lstm', 'regression']).default('lstm'),
 	windowSize: z.number().min(10, 'ML window size must be at least 10').max(100, 'ML window size cannot exceed 100').default(30),
 	epochs: z.number().min(10, 'ML epochs must be at least 10').max(200, 'ML epochs cannot exceed 200').default(50),
 	learningRate: z.number().min(0.0001, 'ML learning rate must be at least 0.0001').max(0.1, 'ML learning rate cannot exceed 0.1').default(0.001),
@@ -87,11 +80,8 @@ export type Config = z.infer<typeof ConfigSchema>;
 export const DefaultConfig: Config = {
 	prediction: {
 		days: 30,
-		trainSplit: 0.8,
 	},
 	training: {
-		incremental: true,
-		retrain: false,
 		minNewDataPoints: 50,
 	},
 	trading: {
@@ -106,12 +96,8 @@ export const DefaultConfig: Config = {
 	},
 	output: {
 		directory: 'output',
-		template: 'default',
-		includeCharts: true,
-		chartsType: 'both',
 	},
 	ml: {
-		modelType: 'lstm',
 		windowSize: 30,
 		epochs: 50,
 		learningRate: 0.001,
