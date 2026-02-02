@@ -14,11 +14,12 @@ import {join} from 'node:path';
 
 /**
  * Train command implementation
- * Trains models from scratch for all configured symbols
+ * Trains models from scratch for all symbols in the database or specified list
  * @param {string} configPath - Path to the configuration file
  * @param {boolean} [quickTest] - Run with limited symbols and data for verification
+ * @param {string} [symbolList] - Comma-separated list of symbols to train
  */
-export async function trainCommand(configPath: string, quickTest = false): Promise<void> {
+export async function trainCommand(configPath: string, quickTest = false, symbolList?: string): Promise<void> {
 	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Model Training ==='));
 	console.log(chalk.dim('Optimizing TensorFlow.js LSTM neural networks for the specified portfolio.\n'));
 	const startTime = Date.now();
@@ -29,22 +30,46 @@ export async function trainCommand(configPath: string, quickTest = false): Promi
 		process.exit(0);
 	});
 
-	const spinner = ora('Loading configuration').start();
-
 	try {
 		// Load configuration
 		const config = loadConfig(configPath);
-		spinner.succeed('Configuration loaded');
 
 		// Initialize components
 		const storage = new SqliteStorage();
 		const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 		const progress = new ProgressTracker();
 
-		let symbolsToProcess = config.symbols;
+		// Data-aware filtering: Only process symbols that have data in the database
+		const availableSymbols = await storage.getAvailableSymbols();
+
+		let symbolsToProcess: {symbol: string; name: string}[] = [];
+
+		if (symbolList) {
+			const requestedSymbols = symbolList.split(',').map((s) => s.trim().toUpperCase());
+			for (const sym of requestedSymbols) {
+				if (!availableSymbols.includes(sym)) {
+					console.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'gather' first.`));
+					process.exit(1);
+				}
+				const name = storage.getSymbolName(sym) ?? sym;
+				symbolsToProcess.push({symbol: sym, name});
+			}
+		} else {
+			for (const sym of availableSymbols) {
+				const name = storage.getSymbolName(sym) ?? sym;
+				symbolsToProcess.push({symbol: sym, name});
+			}
+		}
+
+		if (symbolsToProcess.length === 0) {
+			console.log(chalk.yellow('No stock data found in database.'));
+			console.log(chalk.yellow('\n💡 Suggestion: Run "ai-stock-predictions gather" first to fetch market data.'));
+			return;
+		}
+
 		if (quickTest) {
-			symbolsToProcess = symbolsToProcess.slice(0, 3);
-			console.log(chalk.yellow('⚠️  Quick test mode active: Processing only the first 3 symbols and 50 data points'));
+			symbolsToProcess = symbolsToProcess.slice(0, 0 + 3);
+			console.log(chalk.yellow(`⚠️  Quick test mode active: Processing only the first ${symbolsToProcess.length} symbols and 50 data points`));
 		}
 
 		console.log(chalk.blue(`\n🧠 Training models for ${symbolsToProcess.length} symbols`));
@@ -55,13 +80,14 @@ export async function trainCommand(configPath: string, quickTest = false): Promi
 			if (!symbolEntry) continue;
 			const {symbol, name} = symbolEntry;
 
-			const symbolSpinner = ora(`Processing ${name} (${symbol}) (${i + 1}/${symbolsToProcess.length})`).start();
+			const prefix = chalk.dim(`[${i + 1}/${symbolsToProcess.length}]`);
+			const symbolSpinner = ora(`${prefix} Processing ${name} (${symbol})`).start();
 
 			try {
 				// Check if data exists
 				let stockData = await storage.getStockData(symbol);
 				if (!stockData || stockData.length < config.ml.windowSize) {
-					symbolSpinner.fail(`${name} (${symbol}) ✗ (insufficient data)`);
+					symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
 					progress.complete(symbol, 'error');
 					continue;
 				}
@@ -71,21 +97,22 @@ export async function trainCommand(configPath: string, quickTest = false): Promi
 				}
 
 				// Always create a fresh model
-				symbolSpinner.text = `Creating fresh ${name} (${symbol}) model...`;
+				symbolSpinner.text = `${prefix} Creating fresh ${name} (${symbol}) model...`;
 				const model = new LstmModel(config.ml);
 
 				// Train model
 				const trainingStartTime = Date.now();
+				const dataPointCount = stockData.length;
 				const trainingProgress = (epoch: number, loss: number) => {
 					const bar = progress.createProgressBar(config.ml.epochs, epoch, `Training ${name} (${symbol})`);
 					const eta = ProgressTracker.calculateEta(trainingStartTime, epoch, config.ml.epochs);
-					symbolSpinner.text = `${bar} (Loss: ${loss.toFixed(6)}, ETA: ${eta})`;
+					symbolSpinner.text = `${prefix} ${bar} [${dataPointCount} pts] (Loss: ${loss.toFixed(6)}, ETA: ${eta})`;
 				};
 
 				await model.train(stockData, config, trainingProgress);
 
 				// Validate and save model
-				symbolSpinner.text = `Validating ${name} (${symbol}) model...`;
+				symbolSpinner.text = `${prefix} Validating ${name} (${symbol}) model...`;
 				const performance = await model.evaluate(stockData, config);
 
 				if (performance.isValid || quickTest) {
@@ -96,14 +123,14 @@ export async function trainCommand(configPath: string, quickTest = false): Promi
 						windowSize: config.ml.windowSize,
 					});
 					const perfMsg = performance.isValid ? `(Loss: ${performance.loss.toFixed(6)})` : `(Loss: ${performance.loss.toFixed(6)} - Forced save)`;
-					symbolSpinner.succeed(`${name} (${symbol}) ${perfMsg}`);
+					symbolSpinner.succeed(`${prefix} ${name} (${symbol}) ${perfMsg}`);
 					progress.complete(symbol, 'trained', performance.loss);
 				} else {
-					symbolSpinner.warn(`${name} (${symbol}) ⚠️ (Poor performance, model not saved)`);
+					symbolSpinner.warn(`${prefix} ${name} (${symbol}) ⚠️ (Poor performance, model not saved)`);
 					progress.complete(symbol, 'poor-performance');
 				}
 			} catch (error) {
-				symbolSpinner.fail(`${name} (${symbol}) ✗`);
+				symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);
 				progress.complete(symbol, 'error');
 
 				if (error instanceof Error) {
@@ -130,7 +157,6 @@ export async function trainCommand(configPath: string, quickTest = false): Promi
 		console.log(chalk.cyan(`Process completed in ${ProgressTracker.formatDuration(Date.now() - startTime)}.`));
 		console.log(chalk.cyan('Next: Run "ai-stock-predictions predict" to generate predictions.'));
 	} catch (error) {
-		spinner.fail('Training failed');
 		if (error instanceof Error) {
 			console.error(chalk.red(`Error: ${error.message}`));
 		} else {

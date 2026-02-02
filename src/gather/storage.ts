@@ -316,6 +316,46 @@ export class SqliteStorage {
 	}
 
 	/**
+	 * Delete a symbol and all its quotes and metadata
+	 * @param {string} symbol - Stock symbol
+	 * @returns {void}
+	 */
+	public deleteSymbol(symbol: string): void {
+		const context = {
+			operation: 'delete-symbol',
+			symbol,
+			step: 'sqlite-delete',
+		};
+
+		ErrorHandler.wrapSync(() => {
+			this.historicalDb.prepare('DELETE FROM quotes WHERE symbol = ?').run(symbol);
+			this.historicalDb.prepare('DELETE FROM symbols WHERE symbol = ?').run(symbol);
+			this.modelsDb.prepare('DELETE FROM metadata WHERE symbol = ?').run(symbol);
+		}, context);
+	}
+
+	/**
+	 * Check if a symbol exists in the database
+	 * @param {string} symbol - Stock symbol
+	 * @returns {boolean} True if symbol exists
+	 */
+	public symbolExists(symbol: string): boolean {
+		const stmt = this.historicalDb.prepare('SELECT 1 FROM symbols WHERE symbol = ?');
+		return stmt.get(symbol) !== undefined;
+	}
+
+	/**
+	 * Get the number of quotes for a symbol
+	 * @param {string} symbol - Stock symbol
+	 * @returns {number} Number of quotes
+	 */
+	public getQuoteCount(symbol: string): number {
+		const stmt = this.historicalDb.prepare('SELECT COUNT(*) as count FROM quotes WHERE symbol = ?');
+		const row = stmt.get(symbol) as {count: number} | undefined;
+		return row?.count ?? 0;
+	}
+
+	/**
 	 * Get data update timestamp for a symbol
 	 * @param {string} symbol - Stock symbol
 	 * @returns {Promise<Date | null>} Last update timestamp or null if not found
@@ -453,7 +493,7 @@ export class SqliteStorage {
 	}
 
 	/**
-	 * Clear all quotes and symbols from the historical database
+	 * Clear all quotes, symbols and model metadata from the databases
 	 * @returns {Promise<void>}
 	 */
 	public clearAllData(): Promise<void> {
@@ -465,6 +505,7 @@ export class SqliteStorage {
 		ErrorHandler.wrapSync(() => {
 			this.historicalDb.exec('DELETE FROM quotes');
 			this.historicalDb.exec('DELETE FROM symbols');
+			this.modelsDb.exec('DELETE FROM metadata');
 		}, context);
 
 		return Promise.resolve();

@@ -84,8 +84,10 @@ For every modification, the agent MUST execute:
 - [x] Polished CLI progress messaging (removed redundant checkmarks)
 - [x] Implemented `--quick-test` mode (3 symbols, 50 data points) for rapid verification
 - [x] Merged `retrain` functionality into `train --init` for a cleaner CLI interface
-- [x] Added `gather --init` to allow clearing data before gathering
+- [x] Optimized `--quick-test` mode (3 symbols, 50 data points)
 - [x] Added command execution titles and human-readable process duration
+- [x] Implemented dynamic backend loading for cross-platform portability (Windows fix)
+
 - [ ] Integration Tests
 - [ ] Documentation (Finalized instructions)
 

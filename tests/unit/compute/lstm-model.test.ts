@@ -63,7 +63,6 @@ describe('LstmModel', () => {
 	}));
 
 	const mockAppConfig: Config = {
-		symbols: [{symbol: 'AAPL', name: 'Apple Inc.'}],
 		prediction: {days: 1, trainSplit: 0.8},
 		training: {incremental: true, retrain: false, minNewDataPoints: 5},
 		trading: {buyThreshold: 0.05, sellThreshold: -0.05, minConfidence: 0.6},
@@ -89,7 +88,7 @@ describe('LstmModel', () => {
 		expect(tf.sequential).toHaveBeenCalled();
 		expect(model.isTrained()).toBe(true);
 		expect(model.getMetadata()).toBeDefined();
-		expect(model.getMetadata()?.symbol).toBe('AAPL');
+		expect(model.getMetadata()?.symbol).toBe('UNKNOWN');
 	});
 
 	it('should throw error if insufficient data for training', async () => {

@@ -134,7 +134,7 @@ export class LstmModel {
 					validationLoss: history.history.val_loss?.at(-1) as number,
 					meanAbsoluteError: history.history.mae?.at(-1) as number,
 				},
-				symbol: appConfig.symbols[0]?.symbol ?? 'UNKNOWN', // Fallback for symbol
+				symbol: 'UNKNOWN', // This will be set by the caller or during loading
 			};
 
 			// Clean up tensors

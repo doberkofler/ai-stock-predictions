@@ -71,15 +71,23 @@ export class ProgressTracker {
 	 * @param {number} total - Total number of items
 	 * @param {number} current - Current progress
 	 * @param {string} label - Progress label
+	 * @param {string} [color] - Bar color
 	 * @returns {string} Formatted progress bar string
 	 */
-	public createProgressBar(total: number, current: number, label: string): string {
+	public createProgressBar(total: number, current: number, label: string, color = 'cyan'): string {
 		const percentage = Math.round((current / total) * 100);
 		const barLength = 20;
-		const filledLength = Math.round((barLength * current) / total);
+		const filledLength = Math.max(0, Math.min(barLength, Math.round((barLength * current) / total)));
 		const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength);
 
-		return `${chalk.cyan(label)} [${bar}] ${percentage}% (${current}/${total})`;
+		let colorFn = chalk.cyan;
+		if (color === 'blue') {
+			colorFn = chalk.blue;
+		} else if (color === 'green') {
+			colorFn = chalk.green;
+		}
+
+		return `${colorFn(label)} [${bar}] ${percentage}% (${current}/${total})`;
 	}
 
 	/**

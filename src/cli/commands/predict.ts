@@ -17,19 +17,18 @@ import type {ReportPrediction} from '../../types/index.ts';
 
 /**
  * Predict command implementation
- * Generates predictions for all configured symbols and creates HTML reports
+ * Generates predictions for symbols with trained models or specified list
  * @param {string} configPath - Path to the configuration file
+ * @param {string} [symbolList] - Comma-separated list of symbols to predict
  */
-export async function predictCommand(configPath: string): Promise<void> {
+export async function predictCommand(configPath: string, symbolList?: string): Promise<void> {
 	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Price Estimation ==='));
 	console.log(chalk.dim('Generating multi-day trend forecasts and rendering the interactive HTML report.\n'));
 	const startTime = Date.now();
-	const spinner = ora('Loading configuration').start();
 
 	try {
 		// Load configuration
 		const config = loadConfig(configPath);
-		spinner.succeed('Configuration loaded');
 
 		// Initialize components
 		const storage = new SqliteStorage();
@@ -38,17 +37,39 @@ export async function predictCommand(configPath: string): Promise<void> {
 		const htmlGenerator = new HtmlGenerator(config.output);
 		const progress = new ProgressTracker();
 
-		// Filter symbols to only those that have data in the database
+		// Model-aware filtering: Only process symbols that have trained models
 		const availableSymbolsInDb = await storage.getAvailableSymbols();
-		const symbolsToProcess = config.symbols.filter((s) => availableSymbolsInDb.includes(s.symbol));
 
-		if (symbolsToProcess.length === 0) {
-			spinner.warn('No stock data found in database. Run "gather" first.');
-			return;
+		const symbolsToProcess: {symbol: string; name: string}[] = [];
+
+		if (symbolList) {
+			const requestedSymbols = symbolList.split(',').map((s) => s.trim().toUpperCase());
+			for (const sym of requestedSymbols) {
+				const model = await modelPersistence.loadModel(sym, config);
+				if (!model) {
+					console.error(chalk.red(`\n❌ Error: No trained model found for '${sym}'. Run 'train' first.`));
+					process.exit(1);
+				}
+				if (!availableSymbolsInDb.includes(sym)) {
+					console.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'gather' first.`));
+					process.exit(1);
+				}
+				const name = storage.getSymbolName(sym) ?? sym;
+				symbolsToProcess.push({symbol: sym, name});
+			}
+		} else {
+			for (const sym of availableSymbolsInDb) {
+				const model = await modelPersistence.loadModel(sym, config);
+				if (model) {
+					const name = storage.getSymbolName(sym) ?? sym;
+					symbolsToProcess.push({symbol: sym, name});
+				}
+			}
 		}
 
-		if (symbolsToProcess.length < config.symbols.length) {
-			console.log(chalk.yellow(`⚠️  Data found for only ${symbolsToProcess.length} out of ${config.symbols.length} symbols. Skipping others.`));
+		if (symbolsToProcess.length === 0) {
+			console.log(chalk.yellow('No trained models found. Please run "train" first.'));
+			return;
 		}
 
 		console.log(chalk.blue(`\n🔮 Generating predictions for ${symbolsToProcess.length} symbols`));
@@ -65,7 +86,8 @@ export async function predictCommand(configPath: string): Promise<void> {
 			if (!symbolEntry) continue;
 			const {symbol, name} = symbolEntry;
 
-			const symbolSpinner = ora(`Predicting ${name} (${symbol}) (${i + 1}/${symbolsToProcess.length})`).start();
+			const prefix = chalk.dim(`[${i + 1}/${symbolsToProcess.length}]`);
+			const symbolSpinner = ora(`${prefix} Predicting ${name} (${symbol})`).start();
 
 			try {
 				// Check if data and model exist
@@ -73,19 +95,19 @@ export async function predictCommand(configPath: string): Promise<void> {
 				const model = await modelPersistence.loadModel(symbol, config);
 
 				if (!stockData || stockData.length < config.ml.windowSize) {
-					symbolSpinner.fail(`${name} (${symbol}) ✗ (insufficient data)`);
+					symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
 					progress.complete(symbol, 'error');
 					continue;
 				}
 
 				if (!model) {
-					symbolSpinner.fail(`${name} (${symbol}) ✗ (no model found)`);
+					symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗ (no model found)`);
 					progress.complete(symbol, 'error');
 					continue;
 				}
 
 				// Generate prediction
-				symbolSpinner.text = `Predicting ${name} (${symbol})...`;
+				symbolSpinner.text = `${prefix} Predicting ${name} (${symbol}) [${stockData.length} pts]...`;
 				const prediction = await predictionEngine.predict(model, stockData, config);
 
 				// Generate trading signal
@@ -105,10 +127,10 @@ export async function predictCommand(configPath: string): Promise<void> {
 				} else if (signal.action === 'SELL') {
 					signalEmoji = '📉';
 				}
-				symbolSpinner.succeed(`${name} (${symbol}) ${signalEmoji} ${signal.action} (${(signal.confidence * 100).toFixed(0)}%)`);
+				symbolSpinner.succeed(`${prefix} ${name} (${symbol}) ${signalEmoji} ${signal.action} (${(signal.confidence * 100).toFixed(0)}%)`);
 				progress.complete(symbol, 'predicted', signal.confidence);
 			} catch (error) {
-				symbolSpinner.fail(`${name} (${symbol}) ✗`);
+				symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);
 				progress.complete(symbol, 'error');
 
 				if (error instanceof Error) {
@@ -174,7 +196,6 @@ export async function predictCommand(configPath: string): Promise<void> {
 			console.log(chalk.yellow('No predictions generated. Check data and models.'));
 		}
 	} catch (error) {
-		spinner.fail('Prediction failed');
 		if (error instanceof Error) {
 			console.error(chalk.red(`Error: ${error.message}`));
 		} else {

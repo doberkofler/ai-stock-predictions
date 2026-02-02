@@ -30,6 +30,7 @@ import {trainCommand} from './cli/commands/train.ts';
 import {predictCommand} from './cli/commands/predict.ts';
 import {exportCommand} from './cli/commands/export.ts';
 import {importCommand} from './cli/commands/import.ts';
+import {portfolioCommand} from './cli/commands/portfolio.ts';
 
 const program = new Command();
 
@@ -53,30 +54,31 @@ program
 program
 	.command('gather')
 	.description('Gather new stock data from Yahoo Finance API')
-	.option('--full', 'perform a full history refresh instead of an incremental update', false)
 	.option('--init', 'clear all existing data before gathering', false)
-	.action(async (options: {full: boolean; init: boolean}) => {
+	.action(async (options: {init: boolean}) => {
 		await initializeEnvironment();
 		const programOptions = program.opts<{config: string; quickTest: boolean}>();
-		await gatherCommand(programOptions.config, options.full, programOptions.quickTest, options.init);
+		await gatherCommand(programOptions.config, programOptions.quickTest, options.init);
 	});
 
 program
 	.command('train')
 	.description('Train models from scratch using all available data')
-	.action(async () => {
+	.option('-s, --symbols <list>', 'comma-separated list of symbols to train')
+	.action(async (options: {symbols?: string}) => {
 		await initializeEnvironment();
 		const programOptions = program.opts<{config: string; quickTest: boolean}>();
-		await trainCommand(programOptions.config, programOptions.quickTest);
+		await trainCommand(programOptions.config, programOptions.quickTest, options.symbols);
 	});
 
 program
 	.command('predict')
 	.description('Generate predictions and create HTML reports')
-	.action(async () => {
+	.option('-s, --symbols <list>', 'comma-separated list of symbols to predict')
+	.action(async (options: {symbols?: string}) => {
 		await initializeEnvironment();
-		const options = program.opts<{config: string}>();
-		await predictCommand(options.config);
+		const programOptions = program.opts<{config: string}>();
+		await predictCommand(programOptions.config, options.symbols);
 	});
 
 program
@@ -95,6 +97,19 @@ program
 	.action(async (path: string) => {
 		await initializeEnvironment();
 		await importCommand(path);
+	});
+
+program
+	.command('portfolio')
+	.description('Manage the list of symbols in the database')
+	.option('--add-defaults', 'add default symbols to the database', false)
+	.option('--add <list>', 'comma-separated list of symbols to add')
+	.option('--remove <list>', 'comma-separated list of symbols to remove')
+	.option('-l, --list', 'show detailed tabular list of all symbols', false)
+	.action(async (options: {addDefaults?: boolean; add?: string; remove?: string; list?: boolean}) => {
+		await initializeEnvironment();
+		const programOptions = program.opts<{config: string}>();
+		await portfolioCommand(programOptions.config, options);
 	});
 
 // Parse command line arguments

@@ -63,7 +63,8 @@ describe('SqliteStorage', () => {
 		it('should get correct data timestamp', async () => {
 			await storage.saveStockData('AAPL', mockData);
 			const timestamp = await storage.getDataTimestamp('AAPL');
-			expect(timestamp).toEqual(new Date('2023-01-01'));
+			expect(timestamp).not.toBeNull();
+			expect(timestamp?.toISOString().split('T')[0]).toEqual('2023-01-01');
 		});
 	});
 

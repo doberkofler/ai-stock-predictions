@@ -4,7 +4,7 @@
  */
 
 import * as tf from '@tensorflow/tfjs';
-import {ensureDir} from 'fs-extra';
+import {ensureDir, remove} from 'fs-extra';
 import {writeFile, readFile, existsSync} from 'node:fs';
 import {promisify} from 'node:util';
 import {join} from 'node:path';
@@ -156,6 +156,44 @@ export class ModelPersistence {
 				return metadata;
 			} catch (error) {
 				throw new ModelError(`Failed to load model metadata: ${error instanceof Error ? error.message : String(error)}`, symbol);
+			}
+		}, context);
+	}
+
+	/**
+	 * Delete a model for a symbol
+	 * @param {string} symbol - Stock symbol
+	 * @returns {Promise<void>}
+	 */
+	public async deleteModel(symbol: string): Promise<void> {
+		const context = {
+			operation: 'delete-model',
+			symbol,
+			step: 'model-deletion',
+		};
+
+		await ErrorHandler.wrapAsync(async () => {
+			const modelDir = join(this.modelsPath, symbol);
+			if (existsSync(modelDir)) {
+				await remove(modelDir);
+			}
+		}, context);
+	}
+
+	/**
+	 * Delete all models in the models directory
+	 * @returns {Promise<void>}
+	 */
+	public async deleteAllModels(): Promise<void> {
+		const context = {
+			operation: 'delete-all-models',
+			step: 'directory-deletion',
+		};
+
+		await ErrorHandler.wrapAsync(async () => {
+			if (existsSync(this.modelsPath)) {
+				await remove(this.modelsPath);
+				await ensureDir(this.modelsPath);
 			}
 		}, context);
 	}

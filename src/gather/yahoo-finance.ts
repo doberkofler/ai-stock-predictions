@@ -65,10 +65,11 @@ export class YahooFinanceDataSource {
 	 * Get historical data for a stock symbol
 	 * @param {string} symbol - Stock symbol
 	 * @param {Date} startDate - Start date for historical data
+	 * @param {number} [limit] - Optional limit for data points
 	 * @returns {Promise<FetchResult>} Object containing data and fetch metadata
 	 * @throws {DataSourceError} If API request fails or data is invalid
 	 */
-	public async getHistoricalData(symbol: string, startDate: Date): Promise<FetchResult> {
+	public async getHistoricalData(symbol: string, startDate: Date, limit?: number): Promise<FetchResult> {
 		const context = {
 			operation: 'fetch-historical-data',
 			symbol,
@@ -127,7 +128,12 @@ export class YahooFinanceDataSource {
 						quoteMap.set(quote.date, quote);
 					}
 
-					const deduplicatedQuotes = [...quoteMap.values()].toSorted((a, b) => a.date.localeCompare(b.date));
+					let deduplicatedQuotes = [...quoteMap.values()].toSorted((a, b) => a.date.localeCompare(b.date));
+
+					// Apply limit if specified (take the most recent N points)
+					if (limit && limit > 0 && deduplicatedQuotes.length > limit) {
+						deduplicatedQuotes = deduplicatedQuotes.slice(-limit);
+					}
 
 					// Validate the filtered and deduplicated data array
 					const validatedData = StockDataSchema.parse(deduplicatedQuotes);
@@ -161,10 +167,10 @@ export class YahooFinanceDataSource {
 	/**
 	 * Get current quote for a symbol
 	 * @param {string} symbol - Stock symbol
-	 * @returns {Promise<{price: number; currency: string}>} Current price and currency
+	 * @returns {Promise<{price: number; currency: string; name: string}>} Current price, currency and company name
 	 * @throws {DataSourceError} If API request fails
 	 */
-	public async getCurrentQuote(symbol: string): Promise<{price: number; currency: string}> {
+	public async getCurrentQuote(symbol: string): Promise<{price: number; currency: string; name: string}> {
 		const context = {
 			operation: 'fetch-current-quote',
 			symbol,
@@ -184,9 +190,11 @@ export class YahooFinanceDataSource {
 				])) as Record<string, unknown>;
 
 				if (typeof quote === 'object' && quote.regularMarketPrice != null && quote.currency != null) {
+					const name = (quote.longName as string) || (quote.shortName as string) || symbol;
 					return {
 						price: quote.regularMarketPrice as number,
 						currency: quote.currency as string,
+						name,
 					};
 				}
 

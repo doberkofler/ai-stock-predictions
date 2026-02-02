@@ -8,17 +8,18 @@ import ora from 'ora';
 import {loadConfig} from '../../config/config.ts';
 import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
+import {ModelPersistence} from '../../compute/persistence.ts';
 import {ProgressTracker} from '../utils/progress.ts';
+import {join} from 'node:path';
 
 /**
  * Gather command implementation
  * Fetches historical stock data for all configured symbols
  * @param {string} configPath - Path to the configuration file
- * @param {boolean} [full] - Perform a full refresh instead of incremental
  * @param {boolean} [quickTest] - Run with limited symbols for verification
  * @param {boolean} [init] - Clear all existing data before gathering
  */
-export async function gatherCommand(configPath: string, full = false, quickTest = false, init = false): Promise<void> {
+export async function gatherCommand(configPath: string, quickTest = false, init = false): Promise<void> {
 	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Gathering ==='));
 	console.log(chalk.dim('Fetching historical market data from Yahoo Finance and syncing the local database.\n'));
 	const startTime = Date.now();
@@ -29,34 +30,40 @@ export async function gatherCommand(configPath: string, full = false, quickTest 
 		process.exit(0);
 	});
 
-	const spinner = ora('Loading configuration').start();
-
 	try {
 		// Load configuration
 		const config = loadConfig(configPath);
-		spinner.succeed('Configuration loaded');
 
 		// Initialize components
 		const dataSource = new YahooFinanceDataSource(config.api);
 		const storage = new SqliteStorage();
 		const progress = new ProgressTracker();
 
-		if (init) {
-			spinner.text = 'Clearing existing data...';
+		if (init || quickTest) {
+			const spinner = ora(quickTest ? 'Clearing data for quick test...' : 'Clearing existing data...').start();
+			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 			await storage.clearAllData();
-			spinner.succeed('Existing data cleared');
+			await modelPersistence.deleteAllModels();
+			spinner.succeed(quickTest ? 'Database and models cleared for quick test' : 'Existing data and models cleared');
 		}
 
-		let symbolsToProcess = config.symbols;
+		let symbolsToProcess: {symbol: string; name: string}[] = [];
+		const dbSymbols = storage.getAllSymbols();
+
+		if (dbSymbols.length === 0) {
+			console.log(chalk.yellow('No symbols found in the database.'));
+			console.log(chalk.yellow('\n💡 Suggestion: Run "ai-stock-predictions portfolio --add-defaults" to populate the database.'));
+			return;
+		}
+
+		symbolsToProcess = dbSymbols;
+
 		if (quickTest) {
 			symbolsToProcess = symbolsToProcess.slice(0, 3);
 			console.log(chalk.yellow('⚠️  Quick test mode active: Processing only the first 3 symbols'));
 		}
 
 		console.log(chalk.blue(`\n📊 Gathering data for ${symbolsToProcess.length} symbols`));
-		if (full) {
-			console.log(chalk.yellow('⚠️  Performing full history refresh'));
-		}
 
 		// Process each symbol
 		for (let i = 0; i < symbolsToProcess.length; i++) {
@@ -64,7 +71,8 @@ export async function gatherCommand(configPath: string, full = false, quickTest 
 			if (!symbolEntry) continue;
 			const {symbol, name} = symbolEntry;
 
-			const symbolSpinner = ora(`Processing ${name} (${symbol}) (${i + 1}/${symbolsToProcess.length})`).start();
+			const prefix = chalk.dim(`[${i + 1}/${symbolsToProcess.length}]`);
+			const symbolSpinner = ora(`${prefix} Processing ${name} (${symbol})`).start();
 
 			try {
 				// Persist symbol name to database
@@ -74,12 +82,12 @@ export async function gatherCommand(configPath: string, full = false, quickTest 
 				let startDate: Date;
 				const lastStoredDate = await storage.getDataTimestamp(symbol);
 
-				if (full || !lastStoredDate) {
-					startDate = new Date('1900-01-01');
-				} else {
+				if (lastStoredDate) {
 					// Set to last stored date + 1 day
 					startDate = new Date(lastStoredDate);
 					startDate.setDate(startDate.getDate() + 1);
+				} else {
+					startDate = new Date('1900-01-01');
 				}
 
 				// Check if we already have today's data
@@ -87,33 +95,29 @@ export async function gatherCommand(configPath: string, full = false, quickTest 
 				today.setHours(0, 0, 0, 0);
 
 				if (startDate >= today) {
-					symbolSpinner.succeed(`${name} (${symbol}) (up to date)`);
+					symbolSpinner.succeed(`${prefix} ${name} (${symbol}) (up to date)`);
 					progress.complete(symbol, 'up-to-date');
 					continue;
 				}
 
 				// Fetch new data
-				symbolSpinner.text = `Fetching ${name} (${symbol}) data from ${startDate.toISOString().split('T')[0]}...`;
-				const result = await dataSource.getHistoricalData(symbol, startDate);
+				symbolSpinner.text = `${prefix} Fetching ${name} (${symbol}) data from ${startDate.toISOString().split('T')[0]}...`;
+				const result = await dataSource.getHistoricalData(symbol, startDate, quickTest ? 50 : undefined);
 
 				if (result.data.length === 0) {
-					symbolSpinner.succeed(`${name} (${symbol}) (no new data)`);
+					symbolSpinner.succeed(`${prefix} ${name} (${symbol}) (no new data)`);
 					progress.complete(symbol, 'up-to-date');
 					continue;
 				}
 
 				// Save data
-				symbolSpinner.text = `Saving ${name} (${symbol}) data...`;
+				symbolSpinner.text = `${prefix} Saving ${name} (${symbol}) data...`;
 				await storage.saveStockData(symbol, result.data);
 
-				let successMsg = `${name} (${symbol}) (${result.data.length} new points`;
+				let successMsg = `${prefix} ${name} (${symbol}) [${result.data.length} new pts]`;
 				if (result.omittedCount > 0) {
-					successMsg += `, ${result.omittedCount} omitted incomplete`;
+					successMsg += ` (${result.omittedCount} omitted)`;
 				}
-				if (result.oldestDate) {
-					successMsg += `, oldest: ${result.oldestDate.split('T')[0]}`;
-				}
-				successMsg += ')';
 
 				symbolSpinner.succeed(successMsg);
 				progress.complete(symbol, 'updated', result.data.length);
@@ -123,7 +127,7 @@ export async function gatherCommand(configPath: string, full = false, quickTest 
 					await new Promise((resolve) => setTimeout(resolve, config.api.rateLimit));
 				}
 			} catch (error) {
-				symbolSpinner.fail(`${name} (${symbol}) ✗`);
+				symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);
 				progress.complete(symbol, 'error');
 
 				if (error instanceof Error) {
@@ -150,7 +154,7 @@ export async function gatherCommand(configPath: string, full = false, quickTest 
 		console.log(chalk.cyan(`Process completed in ${ProgressTracker.formatDuration(Date.now() - startTime)}.`));
 		console.log(chalk.cyan('Next: Run "ai-stock-predictions train" to train the models.'));
 	} catch (error) {
-		spinner.fail('Data gathering failed');
+		console.error(chalk.red('\n❌ Data gathering failed'));
 		if (error instanceof Error) {
 			console.error(chalk.red(`Error: ${error.message}`));
 		} else {

@@ -53,14 +53,14 @@ export async function initCommand(configPath: string): Promise<void> {
 		console.log(chalk.cyan(`  ${resolvedPath}`));
 
 		console.log('\n' + chalk.bold('Default settings:'));
-		console.log(chalk.white(`  • ${defaultConfig.symbols.length} stock symbols configured`));
 		console.log(chalk.white(`  • ${defaultConfig.prediction.days} days prediction window`));
 		console.log(chalk.white(`  • ${defaultConfig.ml.windowSize} day LSTM window`));
 		console.log(chalk.white(`  • Output directory: ${defaultConfig.output.directory}`));
 
 		console.log('\n' + chalk.bold('Next steps:'));
 		console.log(chalk.cyan('  1. Review configuration in config.json'));
-		console.log(chalk.cyan('  2. Run: ai-stock-predictions gather'));
+		console.log(chalk.cyan('  2. Run: ai-stock-predictions portfolio --add-defaults'));
+		console.log(chalk.cyan('  3. Run: ai-stock-predictions gather'));
 		console.log(chalk.cyan('  3. Run: ai-stock-predictions train'));
 		console.log(chalk.cyan('  4. Run: ai-stock-predictions predict'));
 
