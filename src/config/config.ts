@@ -4,13 +4,12 @@
  */
 
 import chalk from 'chalk';
-import {ensureDir} from 'fs-extra';
-import {existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {parse, stringify} from 'yaml';
 
 import type {Config} from './schema.ts';
 
+import {FsUtils} from '../cli/utils/fs.ts';
 import {ConfigSchema, DefaultConfig} from './schema.ts';
 
 /**
@@ -19,8 +18,7 @@ import {ConfigSchema, DefaultConfig} from './schema.ts';
  * @returns True if configuration file exists
  */
 export function configExists(configPath?: string): boolean {
-	// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-	return existsSync(getConfigFilePath(configPath));
+	return FsUtils.exists(getConfigFilePath(configPath));
 }
 
 /**
@@ -48,16 +46,14 @@ export function getDefaultConfig(): Config {
  */
 export function loadConfig(configPath?: string): Config {
 	const resolvedPath = getConfigFilePath(configPath);
-	// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-	if (!existsSync(resolvedPath)) {
+	if (!FsUtils.exists(resolvedPath)) {
 		throw new Error(
 			`${chalk.red('Configuration file not found')}: ${resolvedPath}\n` + `Run ${chalk.cyan('ai-stock-predictions init')} to create a configuration file.`,
 		);
 	}
 
 	try {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-		const content = readFileSync(resolvedPath, 'utf8');
+		const content = FsUtils.readTextSync(resolvedPath);
 		const rawConfig = parse(content) as unknown;
 		return ConfigSchema.parse(rawConfig);
 	} catch (error) {
@@ -85,12 +81,11 @@ export async function saveConfig(config: Config, configPath?: string): Promise<v
 		const validatedConfig = ConfigSchema.parse(config);
 
 		// Ensure directory exists
-		await ensureDir(dirname(resolvedPath));
+		await FsUtils.ensureDir(dirname(resolvedPath));
 
 		// Write configuration file with YAML comments
 		const yamlContent = stringify(validatedConfig);
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-		writeFileSync(resolvedPath, yamlContent, 'utf8');
+		await FsUtils.writeText(resolvedPath, yamlContent);
 	} catch (error) {
 		if (error instanceof Error) {
 			throw new Error(`${chalk.red('Failed to save configuration file')}: ${resolvedPath}\n` + `Error: ${error.message}`);

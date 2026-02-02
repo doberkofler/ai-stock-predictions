@@ -22,15 +22,15 @@ import {ui} from '../utils/ui.ts';
 export async function symbolAddCommand(configPath: string, symbolsStr: string): Promise<void> {
 	await runCommand(
 		{
-			title: 'Add Symbols',
-			description: 'Adding new symbols to the portfolio and synchronizing historical data.',
 			configPath,
+			description: 'Adding new symbols to the portfolio and synchronizing historical data.',
+			title: 'Add Symbols',
 		},
 		async ({config}) => {
 			const storage = new SqliteStorage();
 			const dataSource = new YahooFinanceDataSource(config.dataSource);
 			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());
-			const addedSymbols: {name: string; symbol: string;}[] = [];
+			const addedSymbols: {name: string; symbol: string}[] = [];
 
 			for (const symbol of symbols) {
 				const spinner = ui.spinner(`Adding symbol ${symbol}...`).start();
@@ -38,7 +38,7 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 				if (storage.symbolExists(symbol)) {
 					spinner.info(`Symbol ${symbol} already exists in the database`);
 					const name = storage.getSymbolName(symbol) ?? symbol;
-					addedSymbols.push({symbol, name});
+					addedSymbols.push({name, symbol});
 					continue;
 				}
 
@@ -53,7 +53,7 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 					const quote = await dataSource.getCurrentQuote(symbol);
 					storage.saveSymbol(symbol, quote.name);
 					spinner.succeed(`Added ${quote.name} (${symbol}) to the database`);
-					addedSymbols.push({symbol, name: quote.name});
+					addedSymbols.push({name: quote.name, symbol});
 				} catch (error) {
 					spinner.fail(`Failed to add symbol ${symbol}`);
 					if (error instanceof Error) ui.error(chalk.red(`  Error: ${error.message}`));
@@ -75,13 +75,13 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 	await runCommand(
 		{
-			title: 'Add Default Symbols',
-			description: 'Populating the database with default symbols and syncing data.',
 			configPath,
+			description: 'Populating the database with default symbols and syncing data.',
+			title: 'Add Default Symbols',
 		},
 		async ({config}) => {
 			const storage = new SqliteStorage();
-			const addedSymbols: {name: string; symbol: string;}[] = [];
+			const addedSymbols: {name: string; symbol: string}[] = [];
 
 			for (const entry of defaults) {
 				if (!storage.symbolExists(entry.symbol)) {
@@ -104,8 +104,8 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 export async function symbolListCommand(configPath: string): Promise<void> {
 	await runCommand(
 		{
-			title: 'Portfolio List',
 			configPath,
+			title: 'Portfolio List',
 		},
 		async () => {
 			const storage = new SqliteStorage();
@@ -123,7 +123,9 @@ export async function symbolListCommand(configPath: string): Promise<void> {
 			ui.log(chalk.bold.dim(header));
 			ui.log(chalk.dim('─'.repeat(header.length)));
 
-			for (const s of symbols.toSorted((a, b) => a.symbol.localeCompare(b.symbol))) {
+			const sortedSymbols = symbols.toSorted((a, b) => a.symbol.localeCompare(b.symbol));
+
+			for (const s of sortedSymbols) {
 				const count = storage.getQuoteCount(s.symbol);
 				const lastDate = await storage.getDataTimestamp(s.symbol);
 				const metadata = await modelPersistence.getModelMetadata(s.symbol);
@@ -150,9 +152,9 @@ export async function symbolListCommand(configPath: string): Promise<void> {
 export async function symbolRemoveCommand(configPath: string, symbolsStr: string): Promise<void> {
 	await runCommand(
 		{
-			title: 'Remove Symbols',
-			description: 'Removing symbols and associated data/models from the portfolio.',
 			configPath,
+			description: 'Removing symbols and associated data/models from the portfolio.',
+			title: 'Remove Symbols',
 		},
 		async () => {
 			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());

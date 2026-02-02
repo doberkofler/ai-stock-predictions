@@ -7,6 +7,7 @@ import type {Config} from '../config/schema.ts';
 import type {PredictionResult, StockDataPoint, TradingSignal} from '../types/index.ts';
 import type {LstmModel} from './lstm-model.ts';
 
+import {DateUtils} from '../cli/utils/date.ts';
 import {ErrorHandler, PredictionError} from '../cli/utils/errors.ts';
 
 /**
@@ -26,8 +27,8 @@ export class PredictionEngine {
 
 		const context = {
 			operation: 'generate-prediction',
-			symbol,
 			step: 'data-preparation',
+			symbol,
 		};
 
 		return ErrorHandler.wrapAsync(async () => {
@@ -46,32 +47,36 @@ export class PredictionEngine {
 			// Multi-step prediction
 			const predictedPrices = await model.predict(recentData, appConfig.prediction.days);
 
-			const lastPrice = historicalData.at(-1)?.close ?? 0;
+			const lastActualPoint = historicalData.at(-1);
+			const lastPrice = lastActualPoint?.close ?? 0;
 			const targetPrice = predictedPrices.at(-1) ?? 0;
 			const priceChange = targetPrice - lastPrice;
 			const percentChange = lastPrice === 0 ? 0 : priceChange / lastPrice;
 
+			// Generate future dates starting from the last actual point's date
+			const baseDate = lastActualPoint ? new Date(lastActualPoint.date) : new Date();
+			const futureDates = DateUtils.generateSequence(baseDate, appConfig.prediction.days);
+
 			return {
-				symbol,
+				confidence: 0.8, // Placeholder
 				currentPrice: lastPrice,
-				predictedPrice: targetPrice,
-				priceChange,
-				percentChange,
-				predictionDate: new Date(),
 				days: appConfig.prediction.days,
-				historicalData: recentData,
 				fullHistory: historicalData,
+				historicalData: recentData,
+				meanAbsoluteError: metadata?.metrics.meanAbsoluteError ?? 0,
+				percentChange,
+				priceChange,
 				predictedData: predictedPrices.map((price, i) => {
-					const date = new Date();
-					date.setDate(date.getDate() + i + 1);
+					const date = futureDates.at(i) ?? '';
 					return {
-						date: date.toISOString().split('T')[0] ?? '',
+						date,
 						price,
 					};
 				}),
+				predictedPrice: targetPrice,
 				predictedPrices,
-				confidence: 0.8, // Placeholder
-				meanAbsoluteError: metadata?.metrics.meanAbsoluteError ?? 0,
+				predictionDate: new Date(),
+				symbol,
 			};
 		}, context);
 	}
@@ -93,11 +98,11 @@ export class PredictionEngine {
 		}
 
 		return {
-			symbol: prediction.symbol,
 			action,
 			confidence,
 			delta: prediction.percentChange,
 			reason: action === 'HOLD' ? 'Neutral trend or low confidence' : `${action} signal based on ${prediction.percentChange.toFixed(2)}% expected change`,
+			symbol: prediction.symbol,
 			timestamp: new Date(),
 		};
 	}

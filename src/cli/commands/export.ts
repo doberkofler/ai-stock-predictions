@@ -3,22 +3,22 @@
  */
 
 import chalk from 'chalk';
-import {writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
-import ora from 'ora';
 
 import {SqliteStorage} from '../../gather/storage.ts';
-import {ProgressTracker} from '../utils/progress.ts';
+import {DateUtils} from '../utils/date.ts';
+import {FsUtils} from '../utils/fs.ts';
+import {ui} from '../utils/ui.ts';
 
 /**
  * Export command implementation
  * @param exportPath - Path where to save the export file
  */
 export async function exportCommand(exportPath = 'export.json'): Promise<void> {
-	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Export ==='));
-	console.log(chalk.dim('Serializing relational SQLite databases into a portable JSON format.\n'));
+	ui.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Export ==='));
+	ui.log(chalk.dim('Serializing relational SQLite databases into a portable JSON format.\n'));
 	const startTime = Date.now();
-	const spinner = ora('Exporting databases...').start();
+	const spinner = ui.spinner('Exporting databases...').start();
 
 	try {
 		const storage = new SqliteStorage();
@@ -41,17 +41,18 @@ export async function exportCommand(exportPath = 'export.json'): Promise<void> {
 		};
 
 		const resolvedPath = join(process.cwd(), exportPath);
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-		await writeFile(resolvedPath, JSON.stringify(exportData, null, 2), 'utf8');
+		await FsUtils.writeJson(resolvedPath, exportData);
 
 		storage.close();
 		spinner.succeed(`Export complete! Saved to: ${resolvedPath}`);
-		console.log(chalk.cyan(`Process completed in ${ProgressTracker.formatDuration(Date.now() - startTime)}.`));
+		ui.log(chalk.cyan(`Process completed in ${DateUtils.formatDuration(Date.now() - startTime)}.`));
 	} catch (error) {
+		/* v8 ignore start */
 		spinner.fail('Export failed');
 		if (error instanceof Error) {
-			console.error(chalk.red(`Error: ${error.message}`));
+			ui.error(chalk.red(`Error: ${error.message}`));
 		}
 		process.exit(1);
+		/* v8 ignore stop */
 	}
 }

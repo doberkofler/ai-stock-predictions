@@ -50,7 +50,9 @@ export class LstmModel {
 	 */
 	private buildModel(): tf.LayersModel {
 		// Suppress persistent TFJS orthogonal initializer warnings
+		// eslint-disable-next-line no-console -- Justification: Temporary override to silence specific library noise.
 		const originalWarn = console.warn;
+		// eslint-disable-next-line no-console -- Justification: Temporary override to silence specific library noise.
 		console.warn = (...args: unknown[]): void => {
 			if (typeof args[0] === 'string' && args[0].includes('Orthogonal initializer')) {
 				return;
@@ -64,9 +66,9 @@ export class LstmModel {
 			// LSTM Layer 1
 			model.add(
 				tf.layers.lstm({
-					units: 50,
-					returnSequences: true,
 					inputShape: [this.config.windowSize, 1],
+					returnSequences: true,
+					units: 50,
 				}),
 			);
 			model.add(tf.layers.dropout({rate: 0.2}));
@@ -74,8 +76,8 @@ export class LstmModel {
 			// LSTM Layer 2
 			model.add(
 				tf.layers.lstm({
-					units: 50,
 					returnSequences: false,
+					units: 50,
 				}),
 			);
 			model.add(tf.layers.dropout({rate: 0.2}));
@@ -83,19 +85,20 @@ export class LstmModel {
 			// Dense Output Layer
 			model.add(
 				tf.layers.dense({
-					units: 1,
 					activation: 'linear',
+					units: 1,
 				}),
 			);
 
 			model.compile({
-				optimizer: tf.train.adam(this.config.learningRate),
 				loss: 'meanSquaredError',
 				metrics: ['mae'],
+				optimizer: tf.train.adam(this.config.learningRate),
 			});
 
 			return model;
 		} finally {
+			// eslint-disable-next-line no-console -- Justification: Restoring original console.warn.
 			console.warn = originalWarn;
 		}
 	}
@@ -105,7 +108,7 @@ export class LstmModel {
 	 * @param data - Historical stock data
 	 * @returns Normalized tensors
 	 */
-	private preprocessData(data: StockDataPoint[]): {inputs: tf.Tensor3D; labels: tf.Tensor2D; max: number; min: number;} {
+	private preprocessData(data: StockDataPoint[]): {inputs: tf.Tensor3D; labels: tf.Tensor2D; max: number; min: number} {
 		const prices = data.map((d) => d.close);
 		const min = Math.min(...prices);
 		const max = Math.max(...prices);
@@ -125,8 +128,8 @@ export class LstmModel {
 		return {
 			inputs: tf.tensor3d(inputs),
 			labels: tf.tensor2d(labels),
-			min,
 			max,
+			min,
 		};
 	}
 
@@ -150,11 +153,7 @@ export class LstmModel {
 		const patience = 5;
 
 		const history = await this.model.fit(inputs, labels, {
-			epochs: this.config.epochs,
 			batchSize: this.config.batchSize,
-			validationSplit: 0.1,
-			shuffle: true,
-			verbose: 0,
 			callbacks: {
 				onEpochEnd: (epoch: number, logs?: tf.Logs) => {
 					if (onProgress && logs) {
@@ -177,22 +176,26 @@ export class LstmModel {
 					}
 				},
 			},
+			epochs: this.config.epochs,
+			shuffle: true,
+			validationSplit: 0.1,
+			verbose: 0,
 		});
 
 		const finalLoss = Array.isArray(history.history.loss) ? (history.history.loss.at(-1) as number) : 0;
 
 		this.metadata = {
-			version: '1.0.0',
-			trainedAt: new Date(),
 			dataPoints: data.length,
 			loss: finalLoss,
-			windowSize: this.config.windowSize,
 			metrics: {
 				finalLoss,
-				validationLoss: (history.history.val_loss?.at(-1) as number) || 0,
 				meanAbsoluteError: (history.history.mae?.at(-1) as number) || 0,
+				validationLoss: (history.history.val_loss?.at(-1) as number) || 0,
 			},
 			symbol: 'UNKNOWN', // This will be set by the caller or during loading
+			trainedAt: new Date(),
+			version: '1.0.0',
+			windowSize: this.config.windowSize,
 		};
 
 		// Cleanup tensors
@@ -200,10 +203,10 @@ export class LstmModel {
 		labels.dispose();
 
 		return {
-			loss: finalLoss,
 			accuracy: 1 - finalLoss, // Simplified accuracy for LSTM
-			isValid: finalLoss < 1,
 			dataPoints: data.length,
+			isValid: finalLoss < 1,
+			loss: finalLoss,
 			windowSize: this.config.windowSize,
 		};
 	}
@@ -227,10 +230,10 @@ export class LstmModel {
 		labels.dispose();
 
 		return {
-			loss,
 			accuracy: 1 - loss,
-			isValid: loss < 1,
 			dataPoints: data.length,
+			isValid: loss < 1,
+			loss,
 			windowSize: this.config.windowSize,
 		};
 	}
@@ -246,7 +249,7 @@ export class LstmModel {
 			throw new Error('Model not trained or loaded');
 		}
 
-		const {inputs, min, max} = this.preprocessData(data);
+		const {inputs, max, min} = this.preprocessData(data);
 		const predictions: number[] = [];
 
 		// Start with the last window

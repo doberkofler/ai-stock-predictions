@@ -119,5 +119,17 @@ describe('PredictionEngine', () => {
 			const signal = engine.generateSignal(prediction, {...mockAppConfig.prediction, minConfidence: 0.99});
 			expect(signal.action).toBe('HOLD');
 		});
+
+		it('should generate HOLD signal when change is below threshold', () => {
+			const prediction: any = {
+				symbol: 'AAPL',
+				currentPrice: 100,
+				predictedPrice: 101,
+				percentChange: 0.01,
+			};
+
+			const signal = engine.generateSignal(prediction, mockAppConfig.prediction);
+			expect(signal.action).toBe('HOLD');
+		});
 	});
 });

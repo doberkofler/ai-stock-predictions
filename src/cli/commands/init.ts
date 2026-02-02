@@ -3,11 +3,11 @@
  */
 
 import chalk from 'chalk';
-import {mkdir, rm, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
 import {configExists, getConfigFilePath, getDefaultConfig} from '../../config/config.ts';
 import {initializeEnvironment} from '../../env.ts';
+import {FsUtils} from '../utils/fs.ts';
 import {ui} from '../utils/ui.ts';
 
 /**
@@ -28,10 +28,8 @@ export async function initCommand(configPath: string, force = false): Promise<vo
 	try {
 		if (force) {
 			spinner.text = 'Wiping existing data and models...';
-			 
-			await rm(join(process.cwd(), 'data'), {force: true, recursive: true});
-			 
-			await rm(join(process.cwd(), 'output'), {force: true, recursive: true});
+			await FsUtils.deletePath(join(process.cwd(), 'data'));
+			await FsUtils.deletePath(join(process.cwd(), 'output'));
 			spinner.text = 'Data wiped successfully.';
 		} else if (configExists(configPath)) {
 			const resolvedPath = getConfigFilePath(configPath);
@@ -46,8 +44,7 @@ export async function initCommand(configPath: string, force = false): Promise<vo
 		const directories = [join(process.cwd(), 'data'), join(process.cwd(), 'data', 'models'), join(process.cwd(), 'output')];
 
 		for (const dir of directories) {
-			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-			await mkdir(dir, {recursive: true});
+			await FsUtils.ensureDir(dir);
 		}
 
 		// Save default configuration
@@ -87,8 +84,7 @@ prediction:
   minConfidence: ${defaultConfig.prediction.minConfidence}        # Minimum required model confidence for a valid signal
 `;
 
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-		await writeFile(resolvedPath, yamlContent, 'utf8');
+		await FsUtils.writeText(resolvedPath, yamlContent);
 		spinner.succeed('Initialization complete!');
 
 		ui.log('\n' + chalk.green('✅ AI Stock Predictions CLI initialized successfully!'));

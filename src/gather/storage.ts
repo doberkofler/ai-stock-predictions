@@ -4,7 +4,6 @@
  */
 
 import Database from 'better-sqlite3';
-import {existsSync, mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {z} from 'zod';
 
@@ -12,6 +11,7 @@ import type {ModelMetadata} from '../compute/lstm-model.ts';
 import type {StockDataPoint} from '../types/index.ts';
 
 import {ErrorHandler} from '../cli/utils/errors.ts';
+import {FsUtils} from '../cli/utils/fs.ts';
 
 /**
  * Stock data point schema for validation
@@ -101,12 +101,7 @@ export class SqliteStorage {
 
 	public constructor() {
 		this.dataDir = join(process.cwd(), 'data');
-
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-		if (!existsSync(this.dataDir)) {
-			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-			mkdirSync(this.dataDir, {recursive: true});
-		}
+		FsUtils.ensureDirSync(this.dataDir);
 
 		this.historicalDb = new Database(join(this.dataDir, 'historical_data.db'));
 		this.modelsDb = new Database(join(this.dataDir, 'models.db'));

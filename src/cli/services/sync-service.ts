@@ -7,6 +7,7 @@ import type {MockOra} from '../utils/ui.ts';
 
 import {SqliteStorage} from '../../gather/storage.ts';
 import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
+import {DateUtils} from '../utils/date.ts';
 import {ProgressTracker} from '../utils/progress.ts';
 import {ui} from '../utils/ui.ts';
 
@@ -100,17 +101,9 @@ async function syncSingleSymbol(
 
 	// Calculate start date
 	const lastStoredDate = await storage.getDataTimestamp(symbol);
-	let startDate: Date;
+	const startDate = lastStoredDate ? DateUtils.addDays(lastStoredDate, 1) : new Date('1900-01-01');
 
-	if (lastStoredDate) {
-		startDate = new Date(lastStoredDate);
-		startDate.setDate(startDate.getDate() + 1);
-	} else {
-		startDate = new Date('1900-01-01');
-	}
-
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
+	const today = DateUtils.getStartOfToday();
 
 	if (startDate >= today) {
 		spinner.succeed(`${prefix} ${name} (${symbol}) (up to date)`);

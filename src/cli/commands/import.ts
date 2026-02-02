@@ -3,22 +3,22 @@
  */
 
 import chalk from 'chalk';
-import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
-import ora from 'ora';
 import {z} from 'zod';
 
 import {HistoricalRowSchema, MetadataRowSchema, SqliteStorage, SymbolRowSchema} from '../../gather/storage.ts';
-import {ProgressTracker} from '../utils/progress.ts';
+import {DateUtils} from '../utils/date.ts';
+import {FsUtils} from '../utils/fs.ts';
+import {ui} from '../utils/ui.ts';
 
 /**
  * Export data schema for validation
  */
 const ExportSchema = z.object({
-	version: z.string(),
-	symbols: z.array(SymbolRowSchema).optional(),
 	historical_data: z.array(HistoricalRowSchema),
 	models_metadata: z.array(MetadataRowSchema),
+	symbols: z.array(SymbolRowSchema).optional(),
+	version: z.string(),
 });
 
 /**
@@ -26,16 +26,14 @@ const ExportSchema = z.object({
  * @param importPath - Path to the JSON file to import
  */
 export async function importCommand(importPath = 'export.json'): Promise<void> {
-	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Import ==='));
-	console.log(chalk.dim('Hydrating the relational SQLite databases from a serialized JSON backup.\n'));
+	ui.log(chalk.bold.blue('\n=== AI Stock Predictions: Data Import ==='));
+	ui.log(chalk.dim('Hydrating the relational SQLite databases from a serialized JSON backup.\n'));
 	const startTime = Date.now();
-	const spinner = ora('Importing databases...').start();
+	const spinner = ui.spinner('Importing databases...').start();
 
 	try {
 		const resolvedPath = join(process.cwd(), importPath);
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
-		const fileContent = await readFile(resolvedPath, 'utf8');
-		const rawData = JSON.parse(fileContent) as unknown;
+		const rawData = await FsUtils.readJson(resolvedPath);
 
 		spinner.text = 'Validating import data...';
 		const validatedData = ExportSchema.parse(rawData);
@@ -55,12 +53,14 @@ export async function importCommand(importPath = 'export.json'): Promise<void> {
 
 		storage.close();
 		spinner.succeed(`Import complete! Overwritten from: ${resolvedPath}`);
-		console.log(chalk.cyan(`Process completed in ${ProgressTracker.formatDuration(Date.now() - startTime)}.`));
+		ui.log(chalk.cyan(`Process completed in ${DateUtils.formatDuration(Date.now() - startTime)}.`));
 	} catch (error) {
+		/* v8 ignore start */
 		spinner.fail('Import failed');
 		if (error instanceof Error) {
-			console.error(chalk.red(`Error: ${error.message}`));
+			ui.error(chalk.red(`Error: ${error.message}`));
 		}
 		process.exit(1);
+		/* v8 ignore stop */
 	}
 }

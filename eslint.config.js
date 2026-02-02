@@ -52,6 +52,7 @@ export default tseslint.config(
 			'jsdoc/no-types': 'error',
 			'jsdoc/require-param-type': 'off',
 			'jsdoc/require-returns-type': 'off',
+			'no-console': 'error',
 
 			// sonarjs
 			'sonarjs/cognitive-complexity': ['error', 18],

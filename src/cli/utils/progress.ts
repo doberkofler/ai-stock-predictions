@@ -5,6 +5,8 @@
 
 import chalk from 'chalk';
 
+import {DateUtils} from './date.ts';
+
 /**
  * Progress status types
  */
@@ -39,12 +41,12 @@ export class ProgressTracker {
 	 * Mark an item as completed with its status
 	 * @param item - Item identifier (e.g., stock symbol)
 	 * @param status - Completion status
-	 * @param [details] - Additional details (e.g., loss value, data points)
+	 * @param details - Additional details (e.g., loss value, data points)
 	 */
 	public complete(item: string, status: ProgressStatus, details?: number | string): void {
 		this.progress.set(item, {
-			status,
 			details: details ?? undefined,
+			status,
 			timestamp: new Date(),
 		});
 	}
@@ -54,7 +56,7 @@ export class ProgressTracker {
 	 * @param total - Total number of items
 	 * @param current - Current progress
 	 * @param label - Progress label
-	 * @param [color] - Bar color
+	 * @param color - Bar color
 	 * @returns Formatted progress bar string
 	 */
 	public createProgressBar(total: number, current: number, label: string, color = 'cyan'): string {
@@ -85,25 +87,7 @@ export class ProgressTracker {
 		const elapsed = Date.now() - startTime;
 		const remaining = (elapsed / current) * (total - current);
 
-		return ProgressTracker.formatDuration(remaining);
-	}
-
-	/**
-	 * Format milliseconds into human readable duration
-	 * @param ms - Duration in milliseconds
-	 * @returns Formatted duration string
-	 */
-	public static formatDuration(ms: number): string {
-		const seconds = Math.floor((ms / 1000) % 60);
-		const minutes = Math.floor((ms / (1000 * 60)) % 60);
-		const hours = Math.floor(ms / (1000 * 60 * 60));
-
-		const parts = [];
-		if (hours > 0) parts.push(`${hours}h`);
-		if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-		parts.push(`${seconds}s`);
-
-		return parts.join(' ');
+		return DateUtils.formatDuration(remaining);
 	}
 
 	/**

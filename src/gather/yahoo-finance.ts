@@ -8,6 +8,7 @@ import {z} from 'zod';
 
 import type {ApiConfig, StockDataPoint} from '../types/index.ts';
 
+import {DateUtils} from '../cli/utils/date.ts';
 import {DataSourceError, ErrorHandler} from '../cli/utils/errors.ts';
 import {StockDataPointSchema, YahooQuoteSchema} from '../types/index.ts';
 
@@ -70,7 +71,7 @@ export class YahooFinanceDataSource {
 					// Make API request with timeout
 					const response = (await Promise.race([
 						this.api.chart(symbol, {
-							period1: startDate.toISOString().split('T')[0] ?? '',
+							period1: DateUtils.formatIso(startDate),
 							interval: '1d',
 						}),
 						new Promise((_resolve, reject) => {
@@ -123,7 +124,7 @@ export class YahooFinanceDataSource {
 		for (const quote of rawQuotes) {
 			if (quote.open != null && quote.high != null && quote.low != null && quote.close != null && quote.volume != null && quote.adjclose != null) {
 				const dateObj = quote.date instanceof Date ? quote.date : new Date(quote.date);
-				const dateStr = dateObj.toISOString().split('T')[0];
+				const dateStr = DateUtils.formatIso(dateObj);
 
 				if (dateStr) {
 					validQuotes.push({
@@ -183,9 +184,9 @@ export class YahooFinanceDataSource {
 				const name = quote.longName ?? quote.shortName ?? symbol;
 
 				return {
-					price: quote.regularMarketPrice,
 					currency: quote.currency,
 					name,
+					price: quote.regularMarketPrice,
 				};
 			} catch (error) {
 				throw new DataSourceError(`Failed to fetch current quote: ${error instanceof Error ? error.message : String(error)}`, symbol);

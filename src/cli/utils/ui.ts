@@ -22,7 +22,8 @@ class UiService {
 
 	public constructor() {
 		// Detect if we are in a real interactive terminal and not in a test environment
-		this.isInteractive = process.stdout.isTTY && process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true';
+		/* v8 ignore next 2 */
+		this.isInteractive = process.stdout.isTTY && process.env.NODE_ENV !== 'test' && !process.env.VITEST && !process.env.CI;
 	}
 
 	/**
@@ -32,6 +33,7 @@ class UiService {
 	 */
 	public log(message: string): void {
 		if (this.isInteractive) {
+			// eslint-disable-next-line no-console -- Justification: UI service is the designated abstraction for terminal communication.
 			console.log(message);
 		}
 	}
@@ -41,7 +43,10 @@ class UiService {
 	 * @param message - The error message to log.
 	 */
 	public error(message: string): void {
-		console.error(message);
+		if (this.isInteractive) {
+			// eslint-disable-next-line no-console -- Justification: UI service is the designated abstraction for terminal communication.
+			console.error(message);
+		}
 	}
 
 	/**
@@ -56,13 +61,13 @@ class UiService {
 
 		// Return a no-op implementation that satisfies the common Ora interface
 		const mock: MockOra = {
+			fail: () => mock,
+			info: () => mock,
 			start: () => mock,
 			stop: () => mock,
 			succeed: () => mock,
-			fail: () => mock,
-			warn: () => mock,
-			info: () => mock,
 			text: text,
+			warn: () => mock,
 		};
 		return mock;
 	}

@@ -53,7 +53,9 @@ export async function initializeEnvironment(): Promise<void> {
 		}
 	} catch {
 		// Fallback to CPU backend if native bindings are unavailable (common on Windows without build tools)
+		// eslint-disable-next-line no-console -- Justification: Global fallback notification.
 		console.warn('\n⚠️  TensorFlow native Node.js backend not found. Falling back to JavaScript CPU implementation.');
+		// eslint-disable-next-line no-console -- Justification: Global fallback notification.
 		console.warn('💡 To speed up training dramatically, try installing build tools or using a compatible environment.\n');
 	}
 }

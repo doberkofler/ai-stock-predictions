@@ -58,3 +58,14 @@ Impact: Better DX.
 ### Model Drift Detection
 Description: Lower confidence automatically if recent (last 5 days) real prices differ significantly from the model's past predictions.
 Impact: Smart risk management.
+
+### HTML Templating
+Description: Simplify the HTML generation by splitting it into multiple modules. The HTML could be stored in an external file and the JavaScript code as well.
+The files could then be read and then combined. We should take advantage of eslint and lint the html and the js.
+
+Maybe we should move the default yaml config (yamlContent) to a separate file.
+
+Why can the commands init, import and export not use the `runCommand` abstraction?
+
+
+
