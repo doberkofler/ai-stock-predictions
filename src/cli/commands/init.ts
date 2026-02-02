@@ -1,33 +1,41 @@
 /**
- * Initialize command - Creates default configuration file
- * Sets up project structure and creates config.json with default values
+ * Initialize command - Creates default configuration file and resets data
  */
 
 import chalk from 'chalk';
-import ora from 'ora';
-import {ensureDir} from 'fs-extra';
+import {ensureDir, remove} from 'fs-extra';
 import {join} from 'node:path';
+import {writeFile} from 'node:fs/promises';
 import {getDefaultConfig, configExists, getConfigFilePath} from '../../config/config.ts';
-import {ProgressTracker} from '../utils/progress.ts';
+import {ui} from '../utils/ui.ts';
+import {initializeEnvironment} from '../../env.ts';
 
 /**
  * Initialize command implementation
  * Creates configuration file and necessary directories
  * @param {string} configPath - Path to the configuration file
+ * @param {boolean} force - Whether to overwrite existing config and wipe all data
  */
-export async function initCommand(configPath: string): Promise<void> {
-	console.log(chalk.bold.blue('\n=== AI Stock Predictions: Initialization ==='));
-	console.log(chalk.dim('Setting up project structure and creating the default configuration file.\n'));
+export async function initCommand(configPath: string, force = false): Promise<void> {
+	await initializeEnvironment();
+
+	ui.log(chalk.bold.blue('\n=== AI Stock Predictions: Initialization ==='));
+	ui.log(chalk.dim('Setting up project structure and creating the default configuration file.\n'));
+
 	const startTime = Date.now();
-	const spinner = ora('Initializing AI Stock Predictions CLI').start();
+	const spinner = ui.spinner('Initializing AI Stock Predictions CLI').start();
 
 	try {
-		// Check if config already exists
-		if (configExists(configPath)) {
+		if (force) {
+			spinner.text = 'Wiping existing data and models...';
+			await remove(join(process.cwd(), 'data'));
+			await remove(join(process.cwd(), 'output'));
+			spinner.text = 'Data wiped successfully.';
+		} else if (configExists(configPath)) {
 			const resolvedPath = getConfigFilePath(configPath);
 			spinner.warn('Configuration file already exists');
-			console.log(chalk.yellow(`Configuration file found at: ${resolvedPath}`));
-			console.log(chalk.blue('To reinitialize, remove the existing config file first.'));
+			ui.log(chalk.yellow(`Configuration file found at: ${resolvedPath}`));
+			ui.log(chalk.blue('To reinitialize and wipe data, use the --force flag.'));
 			return;
 		}
 
@@ -44,7 +52,6 @@ export async function initCommand(configPath: string): Promise<void> {
 		const defaultConfig = getDefaultConfig();
 		const resolvedPath = getConfigFilePath(configPath);
 
-		// Use manual string construction to add comprehensive comments to config.yaml
 		const yamlContent = `# ==========================================
 # AI Stock Predictions Configuration
 # ==========================================
@@ -77,38 +84,25 @@ prediction:
   minConfidence: ${defaultConfig.prediction.minConfidence}        # Minimum required model confidence for a valid signal
 `;
 
-		const {writeFile} = await import('node:fs/promises');
 		await writeFile(resolvedPath, yamlContent, 'utf8');
-
 		spinner.succeed('Initialization complete!');
 
-		// Display success message
-		console.log('\n' + chalk.green('✅ AI Stock Predictions CLI initialized successfully!'));
-		console.log('\n' + chalk.bold('Configuration file created:'));
-		console.log(chalk.cyan(`  ${resolvedPath}`));
+		ui.log('\n' + chalk.green('✅ AI Stock Predictions CLI initialized successfully!'));
+		ui.log('\n' + chalk.bold('Configuration file created:'));
+		ui.log(chalk.cyan(`  ${resolvedPath}`));
 
-		console.log('\n' + chalk.bold('Default settings:'));
-		console.log(chalk.white(`  • ${defaultConfig.prediction.days} days prediction window`));
-		console.log(chalk.white(`  • ${defaultConfig.model.windowSize} day LSTM window`));
-		console.log(chalk.white(`  • Output directory: ${defaultConfig.prediction.directory}`));
+		ui.log('\n' + chalk.bold('Next steps:'));
+		ui.log(chalk.cyan('  1. Review configuration in config.yaml'));
+		ui.log(chalk.cyan('  2. Run: ai-stock-predictions symbol-add-defaults'));
+		ui.log(chalk.cyan('  3. Run: ai-stock-predictions train'));
+		ui.log(chalk.cyan('  4. Run: ai-stock-predictions predict'));
 
-		console.log('\n' + chalk.bold('Next steps:'));
-		console.log(chalk.cyan('  1. Review configuration in config.yaml'));
-		console.log(chalk.cyan('  2. Run: ai-stock-predictions portfolio --add-defaults'));
-		console.log(chalk.cyan('  3. Run: ai-stock-predictions gather'));
-		console.log(chalk.cyan('  4. Run: ai-stock-predictions train'));
-		console.log(chalk.cyan('  5. Run: ai-stock-predictions predict'));
-
-		console.log('\n' + chalk.dim(`Process completed in ${ProgressTracker.formatDuration(Date.now() - startTime)}.`));
-		console.log('\n' + chalk.dim('Edit config.yaml to customize symbols, thresholds, and other options.'));
+		ui.log(chalk.cyan(`\nProcess completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s.`));
 	} catch (error) {
 		spinner.fail('Initialization failed');
 		if (error instanceof Error) {
-			console.error(chalk.red(`Error: ${error.message}`));
-			process.exit(1);
-		} else {
-			console.error(chalk.red('Unknown error occurred during initialization'));
-			process.exit(1);
+			ui.error(chalk.red(`Error: ${error.message}`));
 		}
+		process.exit(1);
 	}
 }

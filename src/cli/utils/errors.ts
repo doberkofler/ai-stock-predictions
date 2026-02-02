@@ -8,13 +8,6 @@ import chalk from 'chalk';
 /**
  * Custom error classes for different error types
  */
-export class ConfigurationError extends Error {
-	public constructor(message: string) {
-		super(chalk.red(`Configuration Error: ${message}`));
-		this.name = 'ConfigurationError';
-	}
-}
-
 export class DataSourceError extends Error {
 	public constructor(
 		message: string,
@@ -45,13 +38,6 @@ export class PredictionError extends Error {
 	}
 }
 
-export class OutputError extends Error {
-	public constructor(message: string) {
-		super(chalk.red(`Output Error: ${message}`));
-		this.name = 'OutputError';
-	}
-}
-
 /**
  * Error context information
  */
@@ -79,53 +65,9 @@ export class ContextualError extends Error {
 }
 
 /**
- * Error handler utility class
+ * Error handler utility functions
  */
-export class ErrorHandler {
-	/**
-	 * Marker property to satisfy extraneous-class rule
-	 */
-	public isErrorHandler = true;
-
-	/**
-	 * Handle and format errors consistently
-	 * @param {Error} error - Error to handle
-	 * @param {ErrorContext} [context] - Additional error context
-	 * @returns {never} Never returns, always exits process
-	 */
-	public static handle(error: Error, context?: ErrorContext): never {
-		if (error instanceof ContextualError) {
-			console.error(error.message);
-
-			if (error.originalError) {
-				console.error(chalk.dim(`Original error: ${error.originalError.message}`));
-			}
-		} else if (context) {
-			const contextualError = new ContextualError(error.message, context, error);
-			console.error(contextualError.message);
-		} else {
-			console.error(chalk.red(`Error: ${error.message}`));
-		}
-
-		// Log stack trace in debug mode
-		if (process.env.NODE_ENV === 'development' || process.env.DEBUG) {
-			console.error(chalk.dim('\nStack trace:'));
-			console.error(error.stack);
-		}
-
-		process.exit(1);
-	}
-
-	/**
-	 * Create a timeout error
-	 * @param {string} operation - Operation that timed out
-	 * @param {number} timeout - Timeout duration in milliseconds
-	 * @returns {Error} Timeout error
-	 */
-	public static createTimeoutError(operation: string, timeout: number): Error {
-		return new Error(`Operation "${operation}" timed out after ${timeout}ms`);
-	}
-
+export const ErrorHandler = {
 	/**
 	 * Create a retry error
 	 * @param {string} operation - Operation that failed
@@ -133,9 +75,9 @@ export class ErrorHandler {
 	 * @param {Error} originalError - Original error that caused retries
 	 * @returns {Error} Retry error
 	 */
-	public static createRetryError(operation: string, attempts: number, originalError: Error): Error {
+	createRetryError: (operation: string, attempts: number, originalError: Error): Error => {
 		return new Error(`Operation "${operation}" failed after ${attempts} attempts. Last error: ${originalError.message}`);
-	}
+	},
 
 	/**
 	 * Wrap async function with error handling
@@ -144,7 +86,7 @@ export class ErrorHandler {
 	 * @param {ErrorContext} context - Error context
 	 * @returns {Promise<T>} Wrapped function promise
 	 */
-	public static async wrapAsync<T>(fn: () => Promise<T>, context: ErrorContext): Promise<T> {
+	wrapAsync: async <T>(fn: () => Promise<T>, context: ErrorContext): Promise<T> => {
 		try {
 			return await fn();
 		} catch (error) {
@@ -153,7 +95,7 @@ export class ErrorHandler {
 			}
 			throw new ContextualError(String(error), context);
 		}
-	}
+	},
 
 	/**
 	 * Wrap synchronous function with error handling
@@ -162,7 +104,7 @@ export class ErrorHandler {
 	 * @param {ErrorContext} context - Error context
 	 * @returns {T} Result of the function
 	 */
-	public static wrapSync<T>(fn: () => T, context: ErrorContext): T {
+	wrapSync: <T>(fn: () => T, context: ErrorContext): T => {
 		try {
 			return fn();
 		} catch (error) {
@@ -171,60 +113,5 @@ export class ErrorHandler {
 			}
 			throw new ContextualError(String(error), context);
 		}
-	}
-}
-
-/**
- * Type guard for error objects
- * @param {unknown} error - Unknown error value
- * @returns {boolean} True if value is an Error instance
- */
-export function isError(error: unknown): error is Error {
-	return error instanceof Error;
-}
-
-/**
- * Type guard for custom error classes
- * @param {Error} error - Error instance
- * @returns {boolean} True if error is a known custom error type
- */
-export function isCustomError(error: Error): error is ConfigurationError | DataSourceError | ModelError | PredictionError | OutputError {
-	return (
-		error instanceof ConfigurationError ||
-		error instanceof DataSourceError ||
-		error instanceof ModelError ||
-		error instanceof PredictionError ||
-		error instanceof OutputError
-	);
-}
-
-/**
- * Get user-friendly error message
- * @param {Error} error - Error instance
- * @returns {string} User-friendly message
- */
-export function getUserFriendlyMessage(error: Error): string {
-	const {message} = error;
-
-	if (isCustomError(error)) {
-		return message;
-	}
-
-	if (message.includes('ENOENT')) {
-		return 'File not found. Please check the file path.';
-	}
-
-	if (message.includes('EACCES')) {
-		return 'Permission denied. Please check file permissions.';
-	}
-
-	if (message.includes('ENOTFOUND')) {
-		return 'Network error. Please check your internet connection.';
-	}
-
-	if (message.includes('timeout')) {
-		return 'Operation timed out. Please try again.';
-	}
-
-	return message;
-}
+	},
+};

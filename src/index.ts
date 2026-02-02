@@ -1,54 +1,88 @@
 import {Command} from 'commander';
 import {initCommand} from './cli/commands/init.ts';
-import {gatherCommand} from './cli/commands/gather.ts';
 import {trainCommand} from './cli/commands/train.ts';
 import {predictCommand} from './cli/commands/predict.ts';
 import {exportCommand} from './cli/commands/export.ts';
 import {importCommand} from './cli/commands/import.ts';
-import {portfolioCommand} from './cli/commands/portfolio.ts';
+import {symbolAddCommand, symbolRemoveCommand, symbolDefaultsCommand, symbolListCommand} from './cli/commands/symbols.ts';
+import {syncCommand} from './cli/commands/sync.ts';
 
 const program = new Command();
 
 program.name('ai-stock-predictions').description('AI-powered stock price prediction using LSTM neural networks').version('1.0.0');
 
 // Global options
-program
-	.option('-c, --config <path>', 'path to configuration file', 'config.yaml')
-	.option('--quick-test', 'run with limited data for rapid verification', false);
+program.option('-c, --config <path>', 'path to configuration file', 'config.yaml');
 
 program
 	.command('init')
 	.description('Initialize project structure and create default configuration')
-	.action(async () => {
-		const options = program.opts<{config: string}>();
-		await initCommand(options.config);
+	.option('-f, --force', 'overwrite existing configuration and wipe all data', false)
+	.action(async (options: {force: boolean}) => {
+		const programOptions = program.opts<{config: string}>();
+		await initCommand(programOptions.config, options.force);
 	});
 
 program
-	.command('gather')
-	.description('Gather new stock data from Yahoo Finance API')
-	.option('--init', 'clear all existing data before gathering', false)
-	.action(async (options: {init: boolean}) => {
-		const programOptions = program.opts<{config: string; quickTest: boolean}>();
-		await gatherCommand(programOptions.config, programOptions.quickTest, options.init);
+	.command('symbol-add')
+	.description('Add new symbols to the portfolio and sync historical data')
+	.argument('<symbols>', 'comma-separated list of symbols (e.g., AAPL,MSFT)')
+	.action(async (symbols: string) => {
+		const programOptions = program.opts<{config: string}>();
+		await symbolAddCommand(programOptions.config, symbols);
+	});
+
+program
+	.command('symbol-remove')
+	.description('Remove symbols and associated data/models from the portfolio')
+	.argument('<symbols>', 'comma-separated list of symbols to remove')
+	.action(async (symbols: string) => {
+		const programOptions = program.opts<{config: string}>();
+		await symbolRemoveCommand(programOptions.config, symbols);
+	});
+
+program
+	.command('symbol-defaults')
+	.description('Add default symbols and sync historical data')
+	.action(async () => {
+		const programOptions = program.opts<{config: string}>();
+		await symbolDefaultsCommand(programOptions.config);
+	});
+
+program
+	.command('symbol-list')
+	.description('Display detailed status of all symbols in the portfolio')
+	.action(async () => {
+		const programOptions = program.opts<{config: string}>();
+		await symbolListCommand(programOptions.config);
+	});
+
+program
+	.command('sync')
+	.description('Update historical market data for all symbols in the portfolio')
+	.action(async () => {
+		const programOptions = program.opts<{config: string}>();
+		await syncCommand(programOptions.config);
 	});
 
 program
 	.command('train')
-	.description('Train models from scratch using all available data')
-	.option('-s, --symbols <list>', 'comma-separated list of symbols to train')
-	.action(async (options: {symbols?: string}) => {
-		const programOptions = program.opts<{config: string; quickTest: boolean}>();
-		await trainCommand(programOptions.config, programOptions.quickTest, options.symbols);
+	.description('Train LSTM models for the symbols in the portfolio')
+	.option('-q, --quick-test', 'run with limited data and epochs for rapid verification', false)
+	.option('-s, --symbols <list>', 'comma-separated list of specific symbols to train')
+	.action(async (options: {quickTest: boolean; symbols?: string}) => {
+		const programOptions = program.opts<{config: string}>();
+		await trainCommand(programOptions.config, options.quickTest, options.symbols);
 	});
 
 program
 	.command('predict')
-	.description('Generate predictions and create HTML reports')
-	.option('-s, --symbols <list>', 'comma-separated list of symbols to predict')
-	.action(async (options: {symbols?: string}) => {
+	.description('Generate future price forecasts and HTML reports')
+	.option('-q, --quick-test', 'run with limited symbols and forecast window', false)
+	.option('-s, --symbols <list>', 'comma-separated list of specific symbols to predict')
+	.action(async (options: {quickTest: boolean; symbols?: string}) => {
 		const programOptions = program.opts<{config: string}>();
-		await predictCommand(programOptions.config, options.symbols);
+		await predictCommand(programOptions.config, options.quickTest, options.symbols);
 	});
 
 program
@@ -65,18 +99,6 @@ program
 	.argument('[path]', 'path to the import file', 'export.json')
 	.action(async (path: string) => {
 		await importCommand(path);
-	});
-
-program
-	.command('portfolio')
-	.description('Manage the list of symbols in the database')
-	.option('--add-defaults', 'add default symbols to the database', false)
-	.option('--add <list>', 'comma-separated list of symbols to add')
-	.option('--remove <list>', 'comma-separated list of symbols to remove')
-	.option('-l, --list', 'show detailed tabular list of all symbols', false)
-	.action(async (options: {addDefaults?: boolean; add?: string; remove?: string; list?: boolean}) => {
-		const programOptions = program.opts<{config: string}>();
-		await portfolioCommand(programOptions.config, options);
 	});
 
 // Parse command line arguments

@@ -5,15 +5,15 @@ config.yaml
 node_modules/
 
 # Build output
-./dist/
+/dist/
 
 # Runtime directories
-data
-export
-output
+/data/
+/export/
+/output/
 
 # Logs
-logs/
+./logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -75,3 +75,4 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+node_modules

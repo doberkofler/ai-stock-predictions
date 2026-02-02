@@ -16,29 +16,26 @@ import type {ReportPrediction} from '../../types/index.ts';
 
 /**
  * Predict command implementation
- * Generates predictions for symbols with trained models or specified list
  * @param {string} configPath - Path to the configuration file
- * @param {string} [symbolList] - Comma-separated list of symbols to predict
+ * @param {boolean} quickTest - Whether to run with limited symbols and forecast window
+ * @param {string} [symbolList] - Optional list of symbols to predict
  */
-export async function predictCommand(configPath: string, symbolList?: string): Promise<void> {
+export async function predictCommand(configPath: string, quickTest = false, symbolList?: string): Promise<void> {
 	await runCommand(
 		{
 			title: 'Price Estimation',
 			description: 'Generating multi-day trend forecasts and rendering the interactive HTML report.',
 			configPath,
 		},
-		async ({config, startTime}) => {
-			// Initialize components
+		async ({config}) => {
 			const storage = new SqliteStorage();
 			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 			const predictionEngine = new PredictionEngine();
 			const htmlGenerator = new HtmlGenerator(config.prediction);
 			const progress = new ProgressTracker();
 
-			// Model-aware filtering: Only process symbols that have trained models
 			const availableSymbolsInDb = await storage.getAvailableSymbols();
-
-			const symbolsToProcess: {symbol: string; name: string}[] = [];
+			let symbolsToProcess: {symbol: string; name: string}[] = [];
 
 			if (symbolList) {
 				const requestedSymbols = symbolList.split(',').map((s) => s.trim().toUpperCase());
@@ -49,7 +46,7 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 						process.exit(1);
 					}
 					if (!availableSymbolsInDb.includes(sym)) {
-						ui.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'gather' first.`));
+						ui.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'sync' first.`));
 						process.exit(1);
 					}
 					const name = storage.getSymbolName(sym) ?? sym;
@@ -70,29 +67,38 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 				return;
 			}
 
+			if (quickTest) {
+				symbolsToProcess = symbolsToProcess.slice(0, 3);
+				ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing 3 symbols and 5-day forecast`));
+			}
+
+			const effectiveConfig = quickTest
+				? {
+						...config,
+						prediction: {
+							...config.prediction,
+							days: 5,
+						},
+					}
+				: config;
+
 			ui.log(chalk.blue(`\n🔮 Generating predictions for ${symbolsToProcess.length} symbols`));
-			ui.log(chalk.dim(`Prediction window: ${config.prediction.days} days`));
-			ui.log(
-				chalk.dim(`Trading thresholds: Buy ${(config.prediction.buyThreshold * 100).toFixed(1)}%, Sell ${(config.prediction.sellThreshold * 100).toFixed(1)}%`),
-			);
+			ui.log(chalk.dim(`Prediction window: ${effectiveConfig.prediction.days} days`));
 
 			const predictions: ReportPrediction[] = [];
 
-			// Process each symbol
 			for (let i = 0; i < symbolsToProcess.length; i++) {
-				const symbolEntry = symbolsToProcess[i];
-				if (!symbolEntry) continue;
-				const {symbol, name} = symbolEntry;
-
+				const entry = symbolsToProcess[i];
+				if (!entry) continue;
+				const {symbol, name} = entry;
 				const prefix = chalk.dim(`[${i + 1}/${symbolsToProcess.length}]`);
 				const symbolSpinner = ui.spinner(`${prefix} Predicting ${name} (${symbol})`).start();
 
 				try {
-					// Check if data and model exist
 					const stockData = await storage.getStockData(symbol);
-					const model = await modelPersistence.loadModel(symbol, config);
+					const model = await modelPersistence.loadModel(symbol, effectiveConfig);
 
-					if (!stockData || stockData.length < config.model.windowSize) {
+					if (!stockData || stockData.length < effectiveConfig.model.windowSize) {
 						symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
 						progress.complete(symbol, 'error');
 						continue;
@@ -104,12 +110,9 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 						continue;
 					}
 
-					// Generate prediction
 					symbolSpinner.text = `${prefix} Predicting ${name} (${symbol}) [${stockData.length} pts]...`;
-					const prediction = await predictionEngine.predict(model, stockData, config);
-
-					// Generate trading signal
-					const signal = predictionEngine.generateSignal(prediction, config.prediction);
+					const prediction = await predictionEngine.predict(model, stockData, effectiveConfig);
+					const signal = predictionEngine.generateSignal(prediction, effectiveConfig.prediction);
 
 					predictions.push({
 						symbol,
@@ -130,67 +133,30 @@ export async function predictCommand(configPath: string, symbolList?: string): P
 				} catch (error) {
 					symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);
 					progress.complete(symbol, 'error');
-
-					if (error instanceof Error) {
-						ui.error(chalk.red(`  Error: ${error.message}`));
-					}
+					if (error instanceof Error) ui.error(chalk.red(`  Error: ${error.message}`));
 				}
 			}
 
-			// Generate HTML report
 			if (predictions.length > 0) {
 				const htmlSpinner = ui.spinner('Generating HTML report...').start();
-
 				try {
-					// Ensure output directory exists
-					await ensureDir(config.prediction.directory);
-
-					// Generate HTML report
-					const reportPath = await htmlGenerator.generateReport(predictions, config);
-
+					await ensureDir(effectiveConfig.prediction.directory);
+					const reportPath = await htmlGenerator.generateReport(predictions, effectiveConfig);
 					htmlSpinner.succeed('HTML report generated');
 					ui.log(chalk.green(`\n📄 Report saved to: ${reportPath}`));
 				} catch (error) {
 					htmlSpinner.fail('HTML report generation failed');
-					if (error instanceof Error) {
-						ui.error(chalk.red(`Error: ${error.message}`));
-					}
+					if (error instanceof Error) ui.error(chalk.red(`Error: ${error.message}`));
 				}
 			}
 
-			// Display summary
 			const summary = progress.getSummary();
-			const buySignals = predictions.filter((p) => p.signal === 'BUY').length;
-			const sellSignals = predictions.filter((p) => p.signal === 'SELL').length;
-			const holdSignals = predictions.filter((p) => p.signal === 'HOLD').length;
-
 			ui.log('\n' + chalk.bold('🔮 Prediction Summary:'));
 			ui.log(chalk.green(`  ✅ Predicted: ${summary.predicted ?? 0}`));
 			ui.log(chalk.red(`  ❌ Errors: ${summary.error ?? 0}`));
 			ui.log(chalk.dim(`  📊 Total symbols processed: ${symbolsToProcess.length}`));
 
-			if ((summary.predicted ?? 0) > 0) {
-				ui.log('\n' + chalk.bold('📈 Trading Signals:'));
-				ui.log(chalk.green(`  📈 BUY signals: ${buySignals}`));
-				ui.log(chalk.red(`  📉 SELL signals: ${sellSignals}`));
-				ui.log(chalk.blue(`  ➡️  HOLD signals: ${holdSignals}`));
-
-				const avgConfidence = predictions.reduce((sum, p) => sum + p.confidence, 0) / predictions.length;
-				ui.log(chalk.dim(`  📊 Average confidence: ${(avgConfidence * 100).toFixed(1)}%`));
-			}
-
-			if ((summary.error ?? 0) > 0) {
-				ui.log(`\n${chalk.yellow('⚠️  Some symbols failed to predict. Check errors above.')}`);
-			}
-
 			ui.log('\n' + chalk.green('✅ Prediction complete!'));
-			ui.log(chalk.cyan(`Process completed in ${ProgressTracker.formatDuration(Date.now() - startTime)}.`));
-
-			if (predictions.length > 0) {
-				ui.log(chalk.cyan(`Open the HTML report to view detailed predictions and charts.`));
-			} else {
-				ui.log(chalk.yellow('No predictions generated. Check data and models.'));
-			}
 		},
 		{},
 	);

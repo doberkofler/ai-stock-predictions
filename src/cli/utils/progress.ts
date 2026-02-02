@@ -3,8 +3,6 @@
  * Provides spinners, percentage tracking, and summary reporting
  */
 
-import ora from 'ora';
-import type {Ora} from 'ora';
 import chalk from 'chalk';
 
 /**
@@ -36,7 +34,6 @@ type ItemProgress = {
  */
 export class ProgressTracker {
 	private readonly progress: Map<string, ItemProgress> = new Map<string, ItemProgress>();
-	private completedItems = 0;
 
 	/**
 	 * Mark an item as completed with its status
@@ -49,20 +46,6 @@ export class ProgressTracker {
 			status,
 			details: details ?? undefined,
 			timestamp: new Date(),
-		});
-		this.completedItems++;
-	}
-
-	/**
-	 * Create a spinner for long-running operations
-	 * @param {string} text - Initial spinner text
-	 * @returns {Ora} Configured spinner instance
-	 */
-	public createSpinner(text: string): Ora {
-		return ora({
-			text,
-			spinner: 'dots',
-			color: 'cyan',
 		});
 	}
 
@@ -88,17 +71,6 @@ export class ProgressTracker {
 		}
 
 		return `${colorFn(label)} [${bar}] ${percentage}% (${current}/${total})`;
-	}
-
-	/**
-	 * Update spinner with progress bar
-	 * @param {Ora} spinner - Spinner instance
-	 * @param {number} current - Current progress
-	 * @param {number} total - Total progress
-	 * @param {string} label - Progress label
-	 */
-	public updateSpinnerWithProgress(spinner: Ora, current: number, total: number, label: string): void {
-		spinner.text = this.createProgressBar(total, current, label);
 	}
 
 	/**
@@ -146,76 +118,5 @@ export class ProgressTracker {
 		}
 
 		return summary;
-	}
-
-	/**
-	 * Get detailed status for all items
-	 * @returns {Array<{item: string; status: ProgressStatus; details?: string | number}>} Detailed progress
-	 */
-	public getDetailedProgress(): {
-		item: string;
-		status: ProgressStatus;
-		details: string | number | undefined;
-	}[] {
-		return [...this.progress.entries()].map(([item, progress]) => ({
-			item,
-			status: progress.status,
-			details: progress.details,
-		}));
-	}
-
-	/**
-	 * Display color-coded status
-	 * @param {ProgressStatus} status - Status to color
-	 * @returns {string} Color-coded status string
-	 */
-	public static getColoredStatus(status: ProgressStatus): string {
-		switch (status) {
-			case 'updated':
-			case 'trained':
-			case 'retrained':
-			case 'predicted':
-				return chalk.green(status);
-			case 'up-to-date':
-			case 'no-new-data':
-			case 'no-improvement':
-				return chalk.blue(status);
-			case 'poor-performance':
-				return chalk.yellow(status);
-			case 'error':
-				return chalk.red(status);
-			default:
-				return chalk.gray(status);
-		}
-	}
-
-	/**
-	 * Get status emoji
-	 * @param {ProgressStatus} status - Status to get emoji for
-	 * @returns {string} Status emoji
-	 */
-	public static getStatusEmoji(status: ProgressStatus): string {
-		switch (status) {
-			case 'updated':
-				return '✅';
-			case 'up-to-date':
-				return 'ℹ️';
-			case 'trained':
-				return '🎯';
-			case 'no-new-data':
-				return '➡️';
-			case 'poor-performance':
-				return '⚠️';
-			case 'error':
-				return '❌';
-			case 'retrained':
-				return '🔄';
-			case 'no-improvement':
-				return '↔️';
-			case 'predicted':
-				return '🔮';
-			default:
-				return '❓';
-		}
 	}
 }

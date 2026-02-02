@@ -13,10 +13,9 @@ import {runCommand} from '../utils/runner.ts';
 
 /**
  * Train command implementation
- * Trains models from scratch for all symbols in the database or specified list
  * @param {string} configPath - Path to the configuration file
- * @param {boolean} [quickTest] - Run with limited symbols and data for verification
- * @param {string} [symbolList] - Comma-separated list of symbols to train
+ * @param {boolean} quickTest - Whether to run with limited data and epochs
+ * @param {string} symbolList - Optional list of symbols to train
  */
 export async function trainCommand(configPath: string, quickTest = false, symbolList?: string): Promise<void> {
 	await runCommand(
@@ -26,21 +25,18 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 			configPath,
 		},
 		async ({config}) => {
-			// Initialize components
 			const storage = new SqliteStorage();
 			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 			const progress = new ProgressTracker();
 
-			// Data-aware filtering: Only process symbols that have data in the database
 			const availableSymbols = await storage.getAvailableSymbols();
-
 			let symbolsToProcess: {symbol: string; name: string}[] = [];
 
 			if (symbolList) {
 				const requestedSymbols = symbolList.split(',').map((s) => s.trim().toUpperCase());
 				for (const sym of requestedSymbols) {
 					if (!availableSymbols.includes(sym)) {
-						ui.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'gather' first.`));
+						ui.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'sync' first.`));
 						process.exit(1);
 					}
 					const name = storage.getSymbolName(sym) ?? sym;
@@ -55,13 +51,13 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 
 			if (symbolsToProcess.length === 0) {
 				ui.log(chalk.yellow('No stock data found in database.'));
-				ui.log(chalk.yellow('\n💡 Suggestion: Run "ai-stock-predictions gather" first to fetch market data.'));
+				ui.log(chalk.yellow('\n💡 Suggestion: Run "ai-stock-predictions sync" first to fetch market data.'));
 				return;
 			}
 
 			if (quickTest) {
 				symbolsToProcess = symbolsToProcess.slice(0, 3);
-				ui.log(chalk.yellow(`⚠️  Quick test mode active: Processing only the first ${symbolsToProcess.length} symbols, 1000 data points, and 5 epochs`));
+				ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing 3 symbols, 1000 data points, and 5 epochs`));
 			}
 
 			const effectiveConfig = quickTest
@@ -76,20 +72,16 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 
 			const tf = await import('@tensorflow/tfjs');
 			ui.log(chalk.dim(`TensorFlow.js backend: ${tf.getBackend()}`));
-
 			ui.log(chalk.blue(`\n🧠 Training models for ${symbolsToProcess.length} symbols`));
 
-			// Process each symbol
 			for (let i = 0; i < symbolsToProcess.length; i++) {
-				const symbolEntry = symbolsToProcess[i];
-				if (!symbolEntry) continue;
-				const {symbol, name} = symbolEntry;
-
+				const entry = symbolsToProcess[i];
+				if (!entry) continue;
+				const {symbol, name} = entry;
 				const prefix = chalk.dim(`[${i + 1}/${symbolsToProcess.length}]`);
 				const symbolSpinner = ui.spinner(`${prefix} Processing ${name} (${symbol})`).start();
 
 				try {
-					// Check if data exists
 					let stockData = await storage.getStockData(symbol);
 					if (!stockData || stockData.length < effectiveConfig.model.windowSize) {
 						symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
@@ -101,11 +93,9 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 						stockData = stockData.slice(-1000);
 					}
 
-					// Always create a fresh model
 					symbolSpinner.text = `${prefix} Creating fresh ${name} (${symbol}) model...`;
 					const model = new LstmModel(effectiveConfig.model);
 
-					// Train model
 					const trainingStartTime = Date.now();
 					const dataPointCount = stockData.length;
 					const trainingProgress = (epoch: number, loss: number) => {
@@ -116,7 +106,6 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 
 					await model.train(stockData, effectiveConfig, trainingProgress);
 
-					// Validate and save model
 					symbolSpinner.text = `${prefix} Validating ${name} (${symbol}) model...`;
 					const performance = await model.evaluate(stockData, effectiveConfig);
 
@@ -136,14 +125,10 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 				} catch (error) {
 					symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);
 					progress.complete(symbol, 'error');
-
-					if (error instanceof Error) {
-						ui.error(chalk.red(`  Error: ${error.message}`));
-					}
+					if (error instanceof Error) ui.error(chalk.red(`  Error: ${error.message}`));
 				}
 			}
 
-			// Display summary
 			const summary = progress.getSummary();
 			ui.log('\n' + chalk.bold('🧠 Training Summary:'));
 			ui.log(chalk.green(`  ✅ Trained: ${summary.trained ?? 0}`));
