@@ -62,7 +62,7 @@
 		"eslint-plugin-security": "^3.0.1",
 		"eslint-plugin-sonarjs": "^3.0.6",
 		"eslint-plugin-unicorn": "^62.0.0",
-		"knip": "^5.82.1",
+		"knip": "^5.83.0",
 		"prettier": "^3.8.1",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.54.0",
