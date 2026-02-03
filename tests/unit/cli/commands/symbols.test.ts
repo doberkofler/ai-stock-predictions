@@ -107,7 +107,7 @@ describe('symbols commands', () => {
 			await symbolAddCommand('config.jsonc', 'AAPL');
 
 			expect(mockStorage.saveSymbol).toHaveBeenCalledWith('AAPL', 'Apple Inc.');
-			expect(SyncService.syncSymbols).toHaveBeenCalled();
+			expect(SyncService.syncSymbols).not.toHaveBeenCalled();
 		});
 
 		it('should handle validation failure gracefully', async () => {
@@ -134,7 +134,7 @@ describe('symbols commands', () => {
 			await symbolDefaultsCommand('config.jsonc');
 
 			expect(mockStorage.saveSymbol).toHaveBeenCalled();
-			expect(SyncService.syncSymbols).toHaveBeenCalled();
+			expect(SyncService.syncSymbols).not.toHaveBeenCalled();
 		});
 
 		it('should handle symbol add error gracefully', async () => {

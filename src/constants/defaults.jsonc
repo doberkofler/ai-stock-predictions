@@ -1,9 +1,38 @@
 {
-	// Default symbols configuration
-	// This file contains market indices and stock symbols that are used for initialization
+	// ============================================================================
+	// DEFAULT SYMBOLS CONFIGURATION
+	// ============================================================================
+	//
+	// This file is the single source of truth for default market indices and
+	// stock symbols used during initialization.
+	//
+	// PRIORITY SYSTEM:
+	//   Priority 1:    Primary market index - automatically used for config.market.primaryIndex
+	//                  This index is used for: beta, correlation, regime detection, market returns
+	//                  Examples: ^GSPC (US), ^FTSE (UK), ^N225 (Japan), ^GDAXI (Germany)
+	//
+	//   Priority 10:   Volatility index - automatically used for config.market.volatilityIndex
+	//                  This index is used for: VIX level, volatility spread calculations
+	//                  Standard: ^VIX (CBOE Volatility Index for US markets)
+	//
+	//   Priority 2-9:  Optional market indices - for additional market context
+	//                  These are added to the database but not automatically configured
+	//
+	//   Priority 100+: Stock symbols - all have equal priority for parallel fetching
+	//                  These are the default stocks added via "symbol-add-defaults" command
+	//
+	// The 'init' command reads this file to:
+	//   1. Populate config.market.primaryIndex (from priority 1 INDEX)
+	//   2. Populate config.market.volatilityIndex (from type VOLATILITY)
+	//   3. Add all market indices to the database
+	//
+	// Users can later change these in config.jsonc to use different indices
+	// for their region or preference.
+	// ============================================================================
+
 	"defaultSymbols": [
 		// === MARKET INDICES (Priority 1-10) ===
-		// These are fetched first for market feature calculations
+		// Fetched first for market feature calculations
 		// The caret (^) prefix is Yahoo Finance's naming convention for indices
 
 		{"symbol": "^GSPC", "name": "S&P 500", "type": "INDEX", "priority": 1},

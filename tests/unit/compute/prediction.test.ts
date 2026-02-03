@@ -24,7 +24,8 @@ describe('PredictionEngine', () => {
 				includeVix: true,
 				includeVolatilitySpread: true,
 			},
-			indices: [],
+			primaryIndex: "^GSPC",
+			volatilityIndex: "^VIX",
 		},
 		model: {batchSize: 32, epochs: 2, learningRate: 0.001, windowSize: 10},
 		prediction: {

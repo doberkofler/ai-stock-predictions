@@ -66,7 +66,8 @@ const MarketSchema = z.object({
 		includeVix: true,
 		includeVolatilitySpread: true,
 	}),
-	indices: z.array(z.string()).default(['^GSPC', '^DJI', '^IXIC', '^VIX', '^FTSE', '^GDAXI', '^N225']).describe('Market indices to include'),
+	primaryIndex: z.string().min(1).default('^GSPC').describe('Primary market index for feature calculations (e.g., ^GSPC, ^FTSE, ^N225)'),
+	volatilityIndex: z.string().min(1).default('^VIX').describe('Volatility index for market fear gauge (standard: ^VIX)'),
 });
 
 /**
@@ -122,7 +123,8 @@ export const DefaultConfig: Config = {
 			includeVix: true,
 			includeVolatilitySpread: true,
 		},
-		indices: ['^GSPC', '^DJI', '^IXIC', '^VIX', '^FTSE', '^GDAXI', '^N225'],
+		primaryIndex: '^GSPC',
+		volatilityIndex: '^VIX',
 	},
 	model: {
 		batchSize: 128,

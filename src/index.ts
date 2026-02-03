@@ -26,7 +26,7 @@ program
 
 program
 	.command('symbol-add')
-	.description('Add new symbols to the portfolio and sync historical data')
+	.description('Add new symbols to the portfolio')
 	.argument('<symbols>', 'comma-separated list of symbols (e.g., AAPL,MSFT)')
 	.action(async (symbols: string) => {
 		const programOptions = program.opts<{config: string}>();
@@ -44,7 +44,7 @@ program
 
 program
 	.command('symbol-defaults')
-	.description('Add default symbols and sync historical data')
+	.description('Add default symbols to the portfolio')
 	.action(async () => {
 		const programOptions = program.opts<{config: string}>();
 		await symbolDefaultsCommand(programOptions.config);

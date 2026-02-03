@@ -10,7 +10,6 @@ import {getDefaultSymbols} from '../../constants/defaults-loader.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
 import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
 import {SymbolService} from '../services/symbol-service.ts';
-import {SyncService} from '../services/sync-service.ts';
 import {runCommand} from '../utils/runner.ts';
 import {ui} from '../utils/ui.ts';
 
@@ -23,7 +22,7 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 	await runCommand(
 		{
 			configPath,
-			description: 'Adding new symbols to the portfolio and synchronizing historical data.',
+			description: 'Adding new symbols to the portfolio.',
 			title: 'Add Symbols',
 		},
 		async ({config}) => {
@@ -64,7 +63,8 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 			}
 
 			if (addedSymbols.length > 0) {
-				await SyncService.syncSymbols(addedSymbols, config);
+				ui.log(chalk.green(`\n✅ Added ${addedSymbols.length} symbol(s)`));
+				ui.log(chalk.dim(`Next: Run 'sync' to download historical data`));
 			}
 		},
 		{},
@@ -79,9 +79,10 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 	await runCommand(
 		{
 			configPath,
-			description: 'Populating the database with default symbols and syncing data.',
+			description: 'Populating the database with default symbols.',
 			title: 'Add Default Symbols',
 		},
+		// eslint-disable-next-line @typescript-eslint/require-await
 		async ({config}) => {
 			if (!config) {
 				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
@@ -98,7 +99,7 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 			}
 
 			ui.log(chalk.green(`\n✅ Registered ${addedSymbols.length} default symbols`));
-			await SyncService.syncSymbols(addedSymbols, config);
+			ui.log(chalk.dim(`Next: Run 'sync' to download historical data`));
 		},
 		{},
 	);

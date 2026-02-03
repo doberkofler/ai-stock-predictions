@@ -17,7 +17,8 @@ describe('ConfigSchema', () => {
 					includeRegime: true,
 					includeVix: true,
 				},
-				indices: ['^GSPC', '^DJI', '^IXIC', '^VIX', '^FTSE', '^GDAXI', '^N225'],
+				primaryIndex: '^GSPC',
+				volatilityIndex: '^VIX',
 			},
 			model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
 			prediction: {

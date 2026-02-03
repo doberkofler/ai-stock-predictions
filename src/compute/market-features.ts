@@ -19,8 +19,8 @@ export class MarketFeatureEngineer {
 	 * Calculate all market features for a stock
 	 * @param symbol - Stock symbol
 	 * @param stockData - Stock historical data
-	 * @param marketData - Market index data (^GSPC)
-	 * @param vixData - VIX index data (^VIX)
+	 * @param marketData - Primary market index data (configured via config.market.primaryIndex)
+	 * @param vixData - Volatility index data (configured via config.market.volatilityIndex)
 	 * @returns Array of market features matching stock data length
 	 */
 	public calculateFeatures(symbol: string, stockData: StockDataPoint[], marketData: StockDataPoint[], vixData: StockDataPoint[]): MarketFeatures[] {
@@ -77,7 +77,7 @@ export class MarketFeatureEngineer {
 	}
 
 	/**
-	 * Calculate 20-day rolling correlation with S&P 500
+	 * Calculate 20-day rolling correlation with primary market index
 	 * @param stockData
 	 * @param marketData
 	 * @param index

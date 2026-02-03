@@ -30,32 +30,77 @@ A professional TypeScript CLI application for stock price prediction using Tenso
 
 The application is controlled via a simple set of CLI commands.
 
-### 1. Initialize
-Create the default `config.jsonc` and necessary directory structure:
+### Quick Start
+
+Complete workflow from initialization to predictions:
+```bash
+# 1. Initialize project and add market indices
+node src/index.ts init
+
+# 2. Add your stock symbols
+node src/index.ts symbol-add AAPL,NVDA,TSLA
+
+# 3. Download historical data for all symbols
+node src/index.ts sync
+
+# 4. Train models
+node src/index.ts train
+
+# 5. Generate predictions and report
+node src/index.ts predict
+```
+The report will be saved in the `output/` directory as `index.html`.
+
+### Command Details
+
+#### 1. Initialize
+Create the default `config.jsonc` and add market indices to the database:
 ```bash
 node src/index.ts init
 ```
+This automatically adds 7 market indices (^GSPC, ^VIX, ^DJI, ^IXIC, ^FTSE, ^GDAXI, ^N225) to the database.
 
-### 2. Gather Data
-Fetch historical stock data for all symbols in your configuration:
+#### 2. Add Symbols
+Add stock symbols to your portfolio:
+```bash
+node src/index.ts symbol-add AAPL,MSFT,GOOGL
+```
+Or add default symbols (top 100 global companies):
+```bash
+node src/index.ts symbol-defaults
+```
+
+#### 3. Sync Data
+Download historical data for ALL symbols in the database:
 ```bash
 node src/index.ts sync
 ```
+This command fetches data for both market indices and stocks.
 
-### 3. Train Models
+#### 4. Train Models
 Train fresh LSTM models using all available data:
 ```bash
 node src/index.ts train
 ```
 
-### 4. Predict & Report
-Generate predictions based on the latest gathered data and existing models:
+#### 5. Predict & Generate Report
+Generate predictions and interactive HTML report:
 ```bash
 node src/index.ts predict
 ```
-The report will be saved in the `output/` directory as `index.html`.
 
-### 5. Data Management
+### 6. Symbol Management
+List all symbols in your portfolio:
+```bash
+node src/index.ts symbol-list
+```
+
+Remove symbols from your portfolio:
+```bash
+node src/index.ts symbol-remove AAPL,MSFT
+```
+
+### 7. Data Management
 Export or import your relational databases to/from a single JSON file:
 ```bash
 node src/index.ts export [path]

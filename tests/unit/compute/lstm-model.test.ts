@@ -34,7 +34,8 @@ describe('LstmModel', () => {
 				includeVix: true,
 				includeVolatilitySpread: true,
 			},
-			indices: [],
+			primaryIndex: "^GSPC",
+			volatilityIndex: "^VIX",
 		},
 		model: mockMlConfig,
 		prediction: {

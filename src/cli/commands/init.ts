@@ -55,12 +55,32 @@ export async function initCommand(configPath: string, force = false): Promise<vo
 		const defaultConfig = getDefaultConfig();
 		const resolvedPath = getConfigFilePath(configPath);
 
+		// Validate that configured indices exist in defaults.jsonc
+		const indices = getMarketIndices();
+		const primaryIndex = indices.find((idx) => idx.symbol === defaultConfig.market.primaryIndex);
+		const volatilityIndex = indices.find((idx) => idx.symbol === defaultConfig.market.volatilityIndex);
+
+		if (!primaryIndex) {
+			spinner.fail('Configuration error');
+			throw new Error(
+				`Primary index '${defaultConfig.market.primaryIndex}' not found in defaults.jsonc.\n` +
+					`Available indices: ${indices.map((idx) => idx.symbol).join(', ')}`,
+			);
+		}
+
+		if (!volatilityIndex) {
+			spinner.fail('Configuration error');
+			throw new Error(
+				`Volatility index '${defaultConfig.market.volatilityIndex}' not found in defaults.jsonc.\n` +
+					`Available indices: ${indices.map((idx) => idx.symbol).join(', ')}`,
+			);
+		}
+
 		await saveConfig(defaultConfig, configPath);
 
 		// Initialize database with default indices from defaults.jsonc
 		spinner.text = 'Initializing database with market indices...';
 		const storage = new SqliteStorage();
-		const indices = getMarketIndices();
 
 		for (const idx of indices) {
 			storage.saveSymbol(idx.symbol, idx.name, idx.type, idx.priority);
@@ -75,9 +95,10 @@ export async function initCommand(configPath: string, force = false): Promise<vo
 
 		ui.log('\n' + chalk.bold('Next steps:'));
 		ui.log(chalk.cyan('  1. Review configuration in config.jsonc'));
-		ui.log(chalk.cyan('  2. Run: ai-stock-predictions symbol-add-defaults'));
-		ui.log(chalk.cyan('  3. Run: ai-stock-predictions train'));
-		ui.log(chalk.cyan('  4. Run: ai-stock-predictions predict'));
+		ui.log(chalk.cyan('  2. Run: ai-stock-predictions symbol-add <SYMBOLS>'));
+		ui.log(chalk.cyan('  3. Run: ai-stock-predictions sync'));
+		ui.log(chalk.cyan('  4. Run: ai-stock-predictions train'));
+		ui.log(chalk.cyan('  5. Run: ai-stock-predictions predict'));
 
 		ui.log(chalk.cyan(`\nProcess completed in ${Math.floor((Date.now() - startTime) / 1000)}s.`));
 	} catch (error) {

@@ -22,14 +22,17 @@ export const SyncService = {
 	 * @param config - Application configuration
 	 * @param quickTest - Whether to limit the data points for verification
 	 */
+	// eslint-disable-next-line sonarjs/cognitive-complexity -- Complex but well-structured sync flow with validation
 	syncSymbols: async (symbols: {name: string; symbol: string}[], config: Config, quickTest = false): Promise<void> => {
 		const dataSource = new YahooFinanceDataSource(config.dataSource);
 		const storage = new SqliteStorage();
 		const progress = new ProgressTracker();
 
-		// Filter out indices to sync them first
-		const marketIndices = symbols.filter((s) => s.symbol === '^GSPC' || s.symbol === '^VIX');
-		const otherSymbols = symbols.filter((s) => s.symbol !== '^GSPC' && s.symbol !== '^VIX');
+		// Filter out configured market indices to sync them first
+		const primaryIndexSymbol = config.market.primaryIndex;
+		const volatilityIndexSymbol = config.market.volatilityIndex;
+		const marketIndices = symbols.filter((s) => s.symbol === primaryIndexSymbol || s.symbol === volatilityIndexSymbol);
+		const otherSymbols = symbols.filter((s) => s.symbol !== primaryIndexSymbol && s.symbol !== volatilityIndexSymbol);
 		const sortedSymbols = [...marketIndices, ...otherSymbols];
 
 		ui.log(chalk.blue(`\n📊 Syncing data for ${symbols.length} symbols`));
@@ -42,13 +45,32 @@ export const SyncService = {
 			try {
 				const stockData = await syncSingleSymbol(symbol, name, storage, dataSource, progress, spinner as Ora, config, quickTest, prefix);
 
-				// Calculate market features if it is a STOCK or ETF and we have market data
-				if (config.market.featureConfig.enabled && symbol !== '^GSPC' && symbol !== '^VIX' && !symbol.startsWith('^')) {
-					spinner.text = `${prefix} Calculating market features for ${name} (${symbol})...`;
-					const marketData = await storage.getStockData('^GSPC');
-					const vixData = await storage.getStockData('^VIX');
+				// Calculate market features if it is a STOCK or ETF (not an index) and we have market data
+				const isPrimaryIndex = symbol === config.market.primaryIndex;
+				const isVolatilityIndex = symbol === config.market.volatilityIndex;
+				const isOtherIndex = symbol.startsWith('^');
 
-					if (marketData && vixData && stockData) {
+				if (config.market.featureConfig.enabled && !isPrimaryIndex && !isVolatilityIndex && !isOtherIndex) {
+					spinner.text = `${prefix} Calculating market features for ${name} (${symbol})...`;
+					const marketData = await storage.getStockData(config.market.primaryIndex);
+					const vixData = await storage.getStockData(config.market.volatilityIndex);
+
+					// Validate that required indices exist in database
+					if (!marketData || marketData.length === 0) {
+						throw new Error(
+							`Primary market index '${config.market.primaryIndex}' not found in database.\n` +
+								`Run: ai-stock-predictions symbol-add ${config.market.primaryIndex}`,
+						);
+					}
+
+					if (!vixData || vixData.length === 0) {
+						throw new Error(
+							`Volatility index '${config.market.volatilityIndex}' not found in database.\n` +
+								`Run: ai-stock-predictions symbol-add ${config.market.volatilityIndex}`,
+						);
+					}
+
+					if (stockData) {
 						const features = dataSource.calculateMarketFeatures(symbol, stockData, marketData, vixData);
 						storage.saveMarketFeatures(symbol, features);
 					}

@@ -220,7 +220,7 @@ async function getSymbolsToProcess(storage: SqliteStorage, symbolList?: string, 
  */
 function logNoStocksAvailable(): void {
 	ui.log(chalk.yellow('No stock symbols found in database.'));
-	ui.log(chalk.yellow('Market indices (^GSPC, ^DJI, etc.) are used for context only and cannot be trained.'));
+	ui.log(chalk.yellow('Market indices (symbols starting with ^) are used for context only and cannot be trained.'));
 	ui.log(chalk.yellow('\n💡 Suggestion: Run "ai-stock-predictions symbol-add AAPL" to add stocks for training.'));
 }
 

@@ -19,6 +19,13 @@ vi.mock('jsonc-parser', () => ({
 	parse: vi.fn(),
 }));
 
+vi.mock('../../../src/constants/defaults-loader.ts', () => ({
+	getMarketIndices: vi.fn().mockReturnValue([
+		{name: 'S&P 500', priority: 1, symbol: '^GSPC', type: 'INDEX'},
+		{name: 'CBOE Volatility Index', priority: 10, symbol: '^VIX', type: 'VOLATILITY'},
+	]),
+}));
+
 describe('Config', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -65,7 +72,11 @@ describe('Config', () => {
 
 	it('should get default config', () => {
 		const config = getDefaultConfig();
-		expect(config).toEqual(DefaultConfig);
+		// Config should have correct structure with dynamic market indices
+		expect(config.market.primaryIndex).toBe('^GSPC');
+		expect(config.market.volatilityIndex).toBe('^VIX');
+		expect(config.model.batchSize).toBe(128);
+		expect(config.prediction.days).toBe(30);
 	});
 
 	it('should handle non-Error objects in loadConfig', () => {

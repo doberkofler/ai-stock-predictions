@@ -55,8 +55,8 @@ export class YahooFinanceDataSource {
 	 * Calculate market features for a symbol using provided index data
 	 * @param symbol - Stock symbol
 	 * @param stockData - Stock historical data
-	 * @param marketData - Market index data (^GSPC)
-	 * @param vixData - VIX index data (^VIX)
+	 * @param marketData - Primary market index data (configured via config.market.primaryIndex)
+	 * @param vixData - Volatility index data (configured via config.market.volatilityIndex)
 	 * @returns Array of market features
 	 */
 	public calculateMarketFeatures(symbol: string, stockData: StockDataPoint[], marketData: StockDataPoint[], vixData: StockDataPoint[]): MarketFeatures[] {
