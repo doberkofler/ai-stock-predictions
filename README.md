@@ -4,7 +4,7 @@ A professional TypeScript CLI application for stock price prediction using Tenso
 
 ## 🚀 Features
 
--   **Market Context**: LSTM models now incorporate broad market indicators (S&P 500 returns, VIX volatility, Beta, Correlation) for more robust predictions.
+-   **Market Context**: LSTM models incorporate 8 market features (market returns, relative returns, beta, correlation, VIX, volatility spread, market regime, distance from MA) for more robust predictions.
 -   **Modular Architecture**: Clean separation between Data Gathering, Computing, and Output generation.
 -   **Native Performance**: Uses `@tensorflow/tfjs-node` for hardware-accelerated training.
 -   **Incremental Updates**: Efficiently fetches only missing historical data using the modern Yahoo Finance `chart()` API.
@@ -67,6 +67,37 @@ node src/index.ts import [path]
 All settings are managed via `config.jsonc` (JSON with comments). You can also specify a custom configuration file:
 ```bash
 node src/index.ts --config my-portfolio.jsonc sync
+```
+
+### Market Feature Configuration
+
+The LSTM model can use 8 market context features (all enabled by default):
+- `includeMarketReturn`: Daily S&P 500 percentage change
+- `includeRelativeReturn`: Stock return minus market return
+- `includeBeta`: 30-day rolling market sensitivity
+- `includeCorrelation`: 20-day rolling correlation with S&P 500
+- `includeVix`: Current VIX volatility index level
+- `includeVolatilitySpread`: Stock volatility minus market volatility
+- `includeRegime`: Market regime (BULL/BEAR/NEUTRAL) based on moving averages
+- `includeDistanceFromMA`: S&P 500 % distance from 200-day MA
+
+To disable specific features, edit `config.jsonc`:
+```jsonc
+{
+  "market": {
+    "featureConfig": {
+      "enabled": true,
+      "includeMarketReturn": true,
+      "includeRelativeReturn": true,
+      "includeBeta": true,
+      "includeCorrelation": true,
+      "includeVix": true,
+      "includeVolatilitySpread": false,  // Disable this feature
+      "includeRegime": true,
+      "includeDistanceFromMA": true
+    }
+  }
+}
 ```
 
 ### Quick Test Mode

@@ -116,4 +116,65 @@ describe('trainCommand', () => {
 		// Should only process 3 symbols
 		expect(mockStorage.getStockData).toHaveBeenCalledTimes(3);
 	});
+
+	it('should handle training errors gracefully', async () => {
+		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL']);
+		mockStorage.getSymbolName.mockReturnValue('Apple Inc.');
+		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+		viMockTrain.mockRejectedValueOnce(new Error('Training failed'));
+
+		await trainCommand('config.jsonc');
+
+		expect(mockPersistence.saveModel).not.toHaveBeenCalled();
+	});
+
+	it('should handle invalid model evaluation', async () => {
+		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL']);
+		mockStorage.getSymbolName.mockReturnValue('Apple Inc.');
+		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+		viMockEvaluate.mockReturnValueOnce({isValid: false, loss: 0.5});
+
+		await trainCommand('config.jsonc');
+
+		expect(mockPersistence.saveModel).not.toHaveBeenCalled();
+	});
+
+	it('should filter out indices from training', async () => {
+		mockStorage.getAvailableSymbols.mockResolvedValue(['^GSPC', '^DJI', 'AAPL', 'MSFT']);
+		mockStorage.getSymbolName.mockReturnValue('Company');
+		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+
+		await trainCommand('config.jsonc');
+
+		// Should only train 2 stocks (AAPL, MSFT), not the 2 indices (^GSPC, ^DJI)
+		expect(mockStorage.getStockData).toHaveBeenCalledTimes(2);
+		expect(mockStorage.getStockData).toHaveBeenCalledWith('AAPL');
+		expect(mockStorage.getStockData).toHaveBeenCalledWith('MSFT');
+		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^GSPC');
+		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^DJI');
+	});
+
+	it('should show warning when no stocks are available (only indices)', async () => {
+		mockStorage.getAvailableSymbols.mockResolvedValue(['^GSPC', '^DJI', '^VIX']);
+		mockStorage.getSymbolName.mockReturnValue('Index Name');
+
+		await trainCommand('config.jsonc');
+
+		// Should not attempt to train any symbols
+		expect(mockStorage.getStockData).not.toHaveBeenCalled();
+		expect(mockPersistence.saveModel).not.toHaveBeenCalled();
+	});
+
+	it('should log warning when explicitly requested index is filtered out', async () => {
+		mockStorage.getAvailableSymbols.mockResolvedValue(['^DJI', 'AAPL']);
+		mockStorage.getSymbolName.mockReturnValue('Company');
+		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+
+		await trainCommand('config.jsonc', false, '^DJI,AAPL');
+
+		// Should only train AAPL
+		expect(mockStorage.getStockData).toHaveBeenCalledTimes(1);
+		expect(mockStorage.getStockData).toHaveBeenCalledWith('AAPL');
+		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^DJI');
+	});
 });

@@ -35,8 +35,12 @@ export const FeatureConfigSchema = z.object({
 	enabled: z.boolean().default(true).describe('Enable market features in model training'),
 	includeBeta: z.boolean().default(true).describe('Include beta calculation'),
 	includeCorrelation: z.boolean().default(true).describe('Include index correlation'),
+	includeDistanceFromMA: z.boolean().default(true).describe('Include S&P 500 % distance from 200-day MA'),
+	includeMarketReturn: z.boolean().default(true).describe('Include daily percentage change of S&P 500'),
 	includeRegime: z.boolean().default(true).describe('Include market regime classification'),
+	includeRelativeReturn: z.boolean().default(true).describe('Include stock return minus market return'),
 	includeVix: z.boolean().default(true).describe('Include VIX level'),
+	includeVolatilitySpread: z.boolean().default(true).describe('Include stock volatility minus market volatility'),
 });
 
 export type FeatureConfig = z.infer<typeof FeatureConfigSchema>;

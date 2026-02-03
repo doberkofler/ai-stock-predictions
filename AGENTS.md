@@ -76,37 +76,9 @@ For every modification, the agent MUST execute:
 3. `npx vitest run [relevant_tests]`
 4. `npx prettier --write [path]`
 
-## 6. Implementation Progress
+## 6. Current Status
 
-### Core Project
-
-- [x] Project Foundation (ES2024, Vitest 4, Node.js 24)
-- [x] Configuration System (JSONC format with Zod validation, defaults)
-- [x] CLI Framework (6 commands: init, sync, train, predict, export, import)
-- [x] Core Utilities (progress tracking, error handling)
-- [x] Data Gathering Module (Yahoo Finance API, SQLite storage)
-- [x] Compute Module (Implemented and type-refactored)
-- [x] Output Module (Implemented)
-- [x] Serialization Tools (Export/Import commands)
-- [x] Unit Tests (100% of modules verified, Overall Statement Coverage: 96.1%)
-- [x] Corrected default symbol list and company names
-- [x] Polished CLI progress messaging (removed redundant checkmarks)
-- [x] Implemented `--quick-test` mode (3 symbols, 50 data points) for rapid verification
-- [x] Merged `retrain` functionality into `train --init` for a cleaner CLI interface
-- [x] Optimized `--quick-test` mode (3 symbols, 50 data points)
- - [x] Added command execution titles and human-readable process duration
- - [x] Implemented dynamic backend loading for cross-platform portability (Windows fix)
- - [x] Switched configuration format from YAML to JSONC (JSON with comments)
-
-### Market Features Implementation
-
-- [x] Part 1: Database & Storage - Added `type` and `priority` columns to symbols table, created `market_features` table with all 8 feature columns, implemented `saveMarketFeatures()` and `getMarketFeatures()` methods, added market features to delete/clear operations
-- [x] Part 2: Configuration - Added SymbolType, MarketFeatures, and FeatureConfig types, extended ConfigSchema with MarketSchema and ABTestingSchema, added 7 market indices to defaults.json
-- [x] Part 3: Market Feature Engine - Created `src/compute/market-features.ts` with MarketFeatureEngineer class, implemented all 8 feature calculations (marketReturn, relativeReturn, beta, indexCorrelation, vix, volatilitySpread, marketRegime, distanceFromMA)
-- [x] Part 4: Enhanced Model & Training - Added featureConfig parameter to LstmModel constructor, updated buildModel() to use dynamic feature count (64 units), updated train.ts and persistence.ts to pass featureConfig
-- [x] Part 5: Update init.ts for auto-adding market indices on initialization
-- [x] Part 6: Integration Testing with end-to-end verification
-- [x] Part 7: Documentation updates (README.md and AGENTS.md finalization)
+All core features and market features implementation completed (96.1% test coverage).
 
 ### Market Context Features
 
@@ -131,94 +103,15 @@ For every modification, the agent MUST execute:
 6. ^GDAXI - DAX Performance (INDEX, priority: 5)
 7. ^N225 - Nikkei 225 (INDEX, priority: 6)
 
-- [x] Integration Tests
-- [x] Documentation (Finalized instructions)
-
-## Current Status: Completed - Market Features Implementation
-
-### ✅ Completed - Core Project
-
-- All core functional modules (Gather, Compute, Output)
-- Transitioned to SQLite for historical data and model metadata
-- Implemented `export` and `import` commands for database portability
-- Implemented **Incremental Data Gathering** using the modern `chart()` API
-- Added strict **Null Filtering** for financial data integrity
-- Type refactoring (exclusive use of `type` over `interface`)
-- Elimination of `any` types in core modules
-- Strictest possible TypeScript and ESLint configuration (Zero Errors)
-- Global `--config` support with dynamic path resolution
-- Unit tests for all modules with >90% coverage
-- Updated default data range to 9999 years for maximum history
-- Fixed default symbol list (added company names and corrected Samsung ticker)
-- Integrated company names throughout the DB, logic, and HTML reports
-- Enhanced CLI feedback to show company names during gathering, training, and prediction
-- Cleaned up CLI output by removing redundant checkmarks
-- Enabled native hardware acceleration via `@tensorflow/tfjs-node`
-- Fixed training crashes related to Node.js 24 compatibility and date normalization
-- Added immediate exit on `Ctrl-C` (SIGINT) without saving incomplete state
-- Implemented `--init` flags for both `gather` and `train` to manage state effectively
-- Merged `retrain` functionality into `train --init` for a cleaner CLI interface
-- Optimized `--quick-test` mode (3 symbols, 50 data points)
-- Added command execution titles and human-readable process duration
-- Implemented dynamic backend loading for cross-platform portability (Windows fix)
-- **Switched configuration format from YAML to JSONC (JSON with comments) to eliminate format errors**
-
-### ✅ Completed - Market Features Implementation
-
-- [x] Part 1: Database & Storage (25 min) - Added `type` and `priority` columns to symbols table, created `market_features` table, implemented `saveMarketFeatures()` and `getMarketFeatures()` methods, added market features to delete/clear operations
-- [x] Part 2: Configuration (10 min) - Added SymbolType, MarketFeatures, and FeatureConfig types, extended ConfigSchema with Market/ABTesting sections, added 7 market indices to defaults.json
-- [x] Part 3: Market Feature Engine (35 min) - Created `src/compute/market-features.ts` with MarketFeatureEngineer class, implemented all 8 feature calculations (marketReturn, relativeReturn, beta, indexCorrelation, vix, volatilitySpread, marketRegime, distanceFromMA)
-- [x] Part 4: Enhanced Model & Training (60 min) - Added featureConfig parameter to LstmModel constructor, updated buildModel() to use dynamic feature count (64 units instead of 50), updated train/persistence.ts to pass featureConfig.
-- [x] Part 5: Verification & Documentation (10 min) - Verified market feature calculation and normalization.
-- [x] Part 6: Update init.ts for auto-adding market indices (10 min) - Modified init.ts to seed database with 7 default indices.
-- [x] Part 6: Integration Testing with end-to-end verification (20 min) - Verified data flow from sync -> features -> train -> predict.
-- [x] Part 7: Documentation updates (README.md and AGENTS.md finalization) (10 min) - Updated documentation.
-
-### 🔄 Market Context Features
-
-**8 Market Features Implemented:**
-
-1. **marketReturn** - Daily percentage change of S&P 500
-2. **relativeReturn** - Stock return minus market return (outperformance indicator)
-3. **beta** - 30-day rolling sensitivity to market
-4. **indexCorrelation** - 20-day rolling correlation with S&P 500
-5. **vix** - Current VIX level (volatility index)
-6. **volatilitySpread** - Stock volatility minus market volatility
-7. **marketRegime** - BULL/BEAR/NEUTRAL based on 200/50-day MAs
-8. **distanceFromMA** - S&P 500 % distance from 200-day MA
-
-**7 Market Indices Added:**
-
-1. ^GSPC - S&P 500 (INDEX, priority: 1)
-2. ^DJI - Dow Jones Industrial (INDEX, priority: 2)
-3. ^IXIC - NASDAQ Composite (INDEX, priority: 3)
-4. ^VIX - CBOE Volatility Index (VOLATILITY, priority: 10)
-5. ^FTSE - FTSE 100 (INDEX, priority: 4)
-6. ^GDAXI - DAX Performance (INDEX, priority: 5)
-7. ^N225 - Nikkei 225 (INDEX, priority: 6)
-
-Estimated Time Remaining: ~90 minutes
-Total Actual Time Elapsed: ~60 minutes
-
 ---
 
-## ML Engine Improvements (Future Work)
+## 7. ML Engine Improvements (Future Work)
 
 ### Implementation Priority
-**Phase 1 (Critical - Data Leakage & Confidence):**
-1. Fix validation strategy (walk-forward)
-2. Implement real confidence calculation
-3. Add basic technical indicators
 
-**Phase 2 (High Impact):**
-4. Hyperparameter optimization
-5. Model architecture variations
-6. Feature engineering expansion
-
-**Phase 3 (Advanced):**
-7. Ensemble methods
-8. Advanced regularization
-9. Performance tracking/backtesting
+**Phase 1 (Critical):** Fix validation strategy, implement real confidence calculation, add basic technical indicators  
+**Phase 2 (High Impact):** Hyperparameter optimization, model architecture variations, feature engineering expansion  
+**Phase 3 (Advanced):** Ensemble methods, advanced regularization, performance tracking/backtesting
 
 ---
 
@@ -376,22 +269,3 @@ Total Actual Time Elapsed: ~60 minutes
 - Model versioning: Track performance over time
 
 **Files to modify:** `src/compute/lstm-model.ts`, `src/cli/commands/train.ts`
-
----
-
-## Overall Implementation Priority
-
-**Phase 1 (Critical - Data Leakage & Confidence):**
-1. Fix validation strategy (walk-forward)
-2. Implement real confidence calculation
-3. Add basic technical indicators
-
-**Phase 2 (High Impact):**
-4. Hyperparameter optimization
-5. Model architecture variations
-6. Feature engineering expansion
-
-**Phase 3 (Advanced):**
-7. Ensemble methods
-8. Advanced regularization
-9. Performance tracking/backtesting

@@ -73,6 +73,23 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 }
 
 /**
+ * Apply quick test limit to symbols
+ * @param symbols
+ * @param quickTest
+ */
+function applyQuickTestLimit(symbols: {name: string; symbol: string}[], quickTest: boolean): {name: string; symbol: string}[] {
+	if (!quickTest) {
+		return symbols;
+	}
+
+	const maxSymbols = Math.min(3, symbols.length);
+	const limitedSymbols = symbols.slice(0, maxSymbols);
+	ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing ${maxSymbols} ${maxSymbols === 1 ? 'symbol' : 'symbols'}, 1000 data points, and 5 epochs`));
+
+	return limitedSymbols;
+}
+
+/**
  * Display final training summary
  * @param progress
  * @param total
@@ -124,6 +141,55 @@ async function executeTraining(
 }
 
 /**
+ * Filter symbols into indices and stocks
+ * @param symbols
+ */
+function filterSymbolsByType(symbols: {name: string; symbol: string}[]): {indices: {name: string; symbol: string}[]; stocks: {name: string; symbol: string}[]} {
+	const indices = symbols.filter((s) => s.symbol.startsWith('^'));
+	const stocks = symbols.filter((s) => !s.symbol.startsWith('^'));
+
+	return {indices, stocks};
+}
+
+/**
+ * Get all available symbols from storage
+ * @param availableSymbols
+ * @param storage
+ */
+function getAllAvailableSymbols(availableSymbols: string[], storage: SqliteStorage): {name: string; symbol: string}[] {
+	const symbols: {name: string; symbol: string}[] = [];
+
+	for (const sym of availableSymbols) {
+		const name = storage.getSymbolName(sym) ?? sym;
+		symbols.push({name, symbol: sym});
+	}
+
+	return symbols;
+}
+
+/**
+ * Get requested symbols from comma-separated list
+ * @param symbolList
+ * @param availableSymbols
+ * @param storage
+ */
+function getRequestedSymbols(symbolList: string, availableSymbols: string[], storage: SqliteStorage): {name: string; symbol: string}[] {
+	const requestedSymbols = symbolList.split(',').map((s) => s.trim().toUpperCase());
+	const symbols: {name: string; symbol: string}[] = [];
+
+	for (const sym of requestedSymbols) {
+		if (!availableSymbols.includes(sym)) {
+			ui.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'sync' first.`));
+			process.exit(1);
+		}
+		const name = storage.getSymbolName(sym) ?? sym;
+		symbols.push({name, symbol: sym});
+	}
+
+	return symbols;
+}
+
+/**
  * Filter and determine which symbols are available for training
  * @param storage
  * @param symbolList
@@ -132,31 +198,41 @@ async function executeTraining(
  */
 async function getSymbolsToProcess(storage: SqliteStorage, symbolList?: string, quickTest = false): Promise<{name: string; symbol: string}[]> {
 	const availableSymbols = await storage.getAvailableSymbols();
-	let symbols: {name: string; symbol: string}[] = [];
+	const symbols = symbolList ? getRequestedSymbols(symbolList, availableSymbols, storage) : getAllAvailableSymbols(availableSymbols, storage);
 
-	if (symbolList) {
-		const requestedSymbols = symbolList.split(',').map((s) => s.trim().toUpperCase());
-		for (const sym of requestedSymbols) {
-			if (!availableSymbols.includes(sym)) {
-				ui.error(chalk.red(`\n❌ Error: Symbol '${sym}' has no gathered data. Run 'sync' first.`));
-				process.exit(1);
-			}
-			const name = storage.getSymbolName(sym) ?? sym;
-			symbols.push({name, symbol: sym});
-		}
-	} else {
-		for (const sym of availableSymbols) {
-			const name = storage.getSymbolName(sym) ?? sym;
-			symbols.push({name, symbol: sym});
-		}
+	// Filter out indices (used for market context only, not for prediction)
+	const {indices, stocks} = filterSymbolsByType(symbols);
+
+	if (indices.length > 0 && symbolList) {
+		logSkippedIndices(indices);
 	}
 
-	if (quickTest) {
-		symbols = symbols.slice(0, 3);
-		ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing 3 symbols, 1000 data points, and 5 epochs`));
+	if (stocks.length === 0) {
+		logNoStocksAvailable();
+		return [];
 	}
 
-	return symbols;
+	return applyQuickTestLimit(stocks, quickTest);
+}
+
+/**
+ * Log no stocks available message
+ */
+function logNoStocksAvailable(): void {
+	ui.log(chalk.yellow('No stock symbols found in database.'));
+	ui.log(chalk.yellow('Market indices (^GSPC, ^DJI, etc.) are used for context only and cannot be trained.'));
+	ui.log(chalk.yellow('\n💡 Suggestion: Run "ai-stock-predictions symbol-add AAPL" to add stocks for training.'));
+}
+
+/**
+ * Log skipped indices message
+ * @param indices
+ */
+function logSkippedIndices(indices: {name: string; symbol: string}[]): void {
+	ui.log(chalk.yellow(`\n⚠️  Note: Skipping ${indices.length} market ${indices.length === 1 ? 'index' : 'indices'} (used for context only)`));
+	for (const idx of indices) {
+		ui.log(chalk.dim(`   - ${idx.name} (${idx.symbol})`));
+	}
 }
 
 /**

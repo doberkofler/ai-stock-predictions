@@ -31,7 +31,20 @@ describe('runCommand', () => {
 		const mockConfig = {
 			aBTesting: {enabled: false},
 			dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
-			market: {featureConfig: {enabled: true, includeBeta: true, includeCorrelation: true, includeRegime: true, includeVix: true}, indices: []},
+			market: {
+				featureConfig: {
+					enabled: true,
+					includeBeta: true,
+					includeCorrelation: true,
+					includeDistanceFromMA: true,
+					includeMarketReturn: true,
+					includeRegime: true,
+					includeRelativeReturn: true,
+					includeVix: true,
+					includeVolatilitySpread: true,
+				},
+				indices: [],
+			},
 			model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
 			prediction: {buyThreshold: 0.05, contextDays: 15, days: 30, directory: 'output', historyChartDays: 1825, minConfidence: 0.6, sellThreshold: -0.05},
 			training: {minNewDataPoints: 50},
@@ -80,6 +93,16 @@ describe('runCommand', () => {
 		await runCommand({configPath: 'config.jsonc', title: 'Test'}, vi.fn(), {});
 
 		expect(ui.error).toHaveBeenCalledWith(expect.stringContaining('Error: Load failed'));
+		expect(process.exit).toHaveBeenCalledWith(1);
+	});
+
+	it('should handle non-Error exceptions', async () => {
+		vi.mocked(configExists).mockReturnValue(false);
+		const handler = vi.fn().mockRejectedValue('string error');
+
+		await runCommand({configPath: 'config.jsonc', title: 'Test'}, handler, {});
+
+		expect(ui.error).toHaveBeenCalledWith(expect.stringContaining('Unknown error occurred during Test'));
 		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 });

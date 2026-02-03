@@ -12,8 +12,12 @@
 			"enabled": true,
 			"includeBeta": true,
 			"includeCorrelation": true,
+			"includeDistanceFromMA": true,
+			"includeMarketReturn": true,
 			"includeRegime": true,
-			"includeVix": true
+			"includeRelativeReturn": true,
+			"includeVix": true,
+			"includeVolatilitySpread": true
 		},
 		"indices": [
 			"^GSPC",

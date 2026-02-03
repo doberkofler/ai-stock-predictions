@@ -291,6 +291,54 @@ export class LstmModel {
 	}
 
 	/**
+	 * Build a feature row for a single data point
+	 * @param f - Market features for this date
+	 */
+	private buildFeatureRow(f: MarketFeatures | undefined): number[] {
+		const row: number[] = [];
+
+		// Market returns (normalized to [-10%, +10%] → [0, 1])
+		if (this.featureConfig?.includeMarketReturn) {
+			row.push(this.normalizeValue(f?.marketReturn ?? 0, -0.1, 0.1));
+		}
+		if (this.featureConfig?.includeRelativeReturn) {
+			row.push(this.normalizeValue(f?.relativeReturn ?? 0, -0.1, 0.1));
+		}
+
+		// Beta and correlation
+		if (this.featureConfig?.includeBeta) {
+			row.push(this.normalizeValue(f?.beta ?? 1, 0, 3));
+		}
+		if (this.featureConfig?.includeCorrelation) {
+			row.push(this.normalizeValue(f?.indexCorrelation ?? 0, -1, 1));
+		}
+
+		// Volatility metrics
+		if (this.featureConfig?.includeVix) {
+			row.push(this.normalizeValue(f?.vix ?? 20, 10, 50));
+		}
+		if (this.featureConfig?.includeVolatilitySpread) {
+			row.push(this.normalizeValue(f?.volatilitySpread ?? 0, -0.5, 0.5));
+		}
+
+		// Market regime and positioning
+		if (this.featureConfig?.includeRegime) {
+			let regimeVal = 0.5;
+			if (f?.marketRegime === 'BULL') {
+				regimeVal = 1;
+			} else if (f?.marketRegime === 'BEAR') {
+				regimeVal = 0;
+			}
+			row.push(regimeVal);
+		}
+		if (this.featureConfig?.includeDistanceFromMA) {
+			row.push(this.normalizeValue(f?.distanceFromMA ?? 0, -0.2, 0.2));
+		}
+
+		return row;
+	}
+
+	/**
 	 * Build the LSTM model architecture
 	 * @returns Compiled TensorFlow.js model
 	 */
@@ -390,6 +438,12 @@ export class LstmModel {
 			return 0;
 		}
 		let count = 0;
+		if (this.featureConfig.includeMarketReturn) {
+			count++;
+		}
+		if (this.featureConfig.includeRelativeReturn) {
+			count++;
+		}
 		if (this.featureConfig.includeBeta) {
 			count++;
 		}
@@ -399,7 +453,13 @@ export class LstmModel {
 		if (this.featureConfig.includeVix) {
 			count++;
 		}
+		if (this.featureConfig.includeVolatilitySpread) {
+			count++;
+		}
 		if (this.featureConfig.includeRegime) {
+			count++;
+		}
+		if (this.featureConfig.includeDistanceFromMA) {
 			count++;
 		}
 		return count;
@@ -477,26 +537,7 @@ export class LstmModel {
 
 		for (const point of data) {
 			const f = featuresByDate.get(point.date);
-			const row: number[] = [];
-
-			if (this.featureConfig.includeBeta) {
-				row.push(this.normalizeValue(f?.beta ?? 1, 0, 3));
-			}
-			if (this.featureConfig.includeCorrelation) {
-				row.push(this.normalizeValue(f?.indexCorrelation ?? 0, -1, 1));
-			}
-			if (this.featureConfig.includeVix) {
-				row.push(this.normalizeValue(f?.vix ?? 20, 10, 50));
-			}
-			if (this.featureConfig.includeRegime) {
-				let regimeVal = 0.5;
-				if (f?.marketRegime === 'BULL') {
-					regimeVal = 1;
-				} else if (f?.marketRegime === 'BEAR') {
-					regimeVal = 0;
-				}
-				row.push(regimeVal);
-			}
+			const row = this.buildFeatureRow(f);
 			featureMatrix.push(row);
 		}
 		return featureMatrix;

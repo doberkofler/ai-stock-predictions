@@ -136,5 +136,15 @@ describe('symbols commands', () => {
 			expect(mockStorage.saveSymbol).toHaveBeenCalled();
 			expect(SyncService.syncSymbols).toHaveBeenCalled();
 		});
+
+		it('should handle symbol add error gracefully', async () => {
+			mockStorage.symbolExists.mockReturnValue(false);
+			mockDataSource.validateSymbol.mockResolvedValue(true);
+			mockDataSource.getCurrentQuote.mockRejectedValue(new Error('Network error'));
+
+			await symbolAddCommand('config.jsonc', 'AAPL');
+
+			expect(mockStorage.saveSymbol).not.toHaveBeenCalled();
+		});
 	});
 });
