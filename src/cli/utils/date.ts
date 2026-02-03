@@ -8,15 +8,6 @@
  */
 export const DateUtils = {
 	/**
-	 * Format a date as YYYY-MM-DD
-	 * @param date - Date object to format
-	 * @returns Formatted date string
-	 */
-	formatIso: (date: Date): string => {
-		return date.toISOString().split('T')[0] ?? '';
-	},
-
-	/**
 	 * Add days to a date
 	 * @param date - Base date
 	 * @param days - Number of days to add
@@ -26,16 +17,6 @@ export const DateUtils = {
 		const newDate = new Date(date);
 		newDate.setDate(newDate.getDate() + days);
 		return newDate;
-	},
-
-	/**
-	 * Get the start of today (00:00:00.000)
-	 * @returns Date object for today at midnight
-	 */
-	getStartOfToday: (): Date => {
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		return today;
 	},
 
 	/**
@@ -57,6 +38,15 @@ export const DateUtils = {
 	},
 
 	/**
+	 * Format a date as YYYY-MM-DD
+	 * @param date - Date object to format
+	 * @returns Formatted date string
+	 */
+	formatIso: (date: Date): string => {
+		return date.toISOString().split('T')[0] ?? '';
+	},
+
+	/**
 	 * Generate a sequence of ISO date strings starting from a base date
 	 * @param start - Starting date
 	 * @param count - Number of dates to generate
@@ -68,5 +58,15 @@ export const DateUtils = {
 			d.setDate(d.getDate() + i + 1);
 			return d.toISOString().split('T')[0] ?? '';
 		});
+	},
+
+	/**
+	 * Get the start of today (00:00:00.000)
+	 * @returns Date object for today at midnight
+	 */
+	getStartOfToday: (): Date => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		return today;
 	},
 };

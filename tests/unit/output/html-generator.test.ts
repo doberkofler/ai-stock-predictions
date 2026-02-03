@@ -1,8 +1,10 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {HtmlGenerator} from '../../../src/output/html-generator.ts';
+import * as fs from 'node:fs/promises';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import type {Config} from '../../../src/config/schema.ts';
 import type {ReportPrediction} from '../../../src/types/index.ts';
-import * as fs from 'node:fs/promises';
+
+import {HtmlGenerator} from '../../../src/output/html-generator.ts';
 
 vi.mock('node:fs/promises', () => ({
 	mkdir: vi.fn().mockResolvedValue(undefined),
@@ -12,71 +14,82 @@ vi.mock('node:fs/promises', () => ({
 describe('HtmlGenerator', () => {
 	let generator: HtmlGenerator;
 	const mockOutputConfig = {
-		days: 2,
-		historyChartDays: 10,
-		contextDays: 5,
-		directory: 'test-output',
 		buyThreshold: 0.05,
-		sellThreshold: -0.05,
+		contextDays: 5,
+		days: 2,
+		directory: 'test-output',
+		historyChartDays: 10,
 		minConfidence: 0.6,
+		sellThreshold: -0.05,
 	};
 
 	const mockPredictions: ReportPrediction[] = [
 		{
-			symbol: 'AAPL',
+			confidence: 0.8,
 			name: 'Apple Inc.',
 			prediction: {
-				symbol: 'AAPL',
+				confidence: 0.8,
 				currentPrice: 150,
-				predictedPrice: 160,
-				priceChange: 10,
-				percentChange: 0.06,
-				predictionDate: new Date(),
 				days: 2,
+				fullHistory: [{adjClose: 150, close: 150, date: '2022-12-30', high: 152, low: 147, open: 148, volume: 1000}],
 				historicalData: [],
-				fullHistory: [{date: '2022-12-30', open: 148, high: 152, low: 147, close: 150, volume: 1000, adjClose: 150}],
+				meanAbsoluteError: 0.05,
+				percentChange: 0.06,
 				predictedData: [
 					{date: '2023-01-01', price: 155},
 					{date: '2023-01-02', price: 160},
 				],
+				predictedPrice: 160,
 				predictedPrices: [155, 160],
-				confidence: 0.8,
-				meanAbsoluteError: 0.05,
+				predictionDate: new Date(),
+				priceChange: 10,
+				symbol: 'AAPL',
 			},
 			signal: 'BUY',
-			confidence: 0.8,
+			symbol: 'AAPL',
 		},
 		{
-			symbol: 'MSFT',
+			confidence: 0.7,
 			name: 'Microsoft Corporation',
 			prediction: {
-				symbol: 'MSFT',
+				confidence: 0.7,
 				currentPrice: 300,
-				predictedPrice: 280,
-				priceChange: -20,
-				percentChange: -0.06,
-				predictionDate: new Date(),
 				days: 2,
+				fullHistory: [{adjClose: 300, close: 300, date: '2022-12-30', high: 310, low: 295, open: 305, volume: 1000}],
 				historicalData: [],
-				fullHistory: [{date: '2022-12-30', open: 305, high: 310, low: 295, close: 300, volume: 1000, adjClose: 300}],
+				meanAbsoluteError: 0.1,
+				percentChange: -0.06,
 				predictedData: [
 					{date: '2023-01-01', price: 290},
 					{date: '2023-01-02', price: 280},
 				],
+				predictedPrice: 280,
 				predictedPrices: [290, 280],
-				confidence: 0.7,
-				meanAbsoluteError: 0.1,
+				predictionDate: new Date(),
+				priceChange: -20,
+				symbol: 'MSFT',
 			},
 			signal: 'SELL',
-			confidence: 0.7,
+			symbol: 'MSFT',
 		},
 	];
 
 	const mockAppConfig: Config = {
+		aBTesting: {enabled: false},
+		dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
+		market: {
+			featureConfig: {
+				enabled: true,
+				includeBeta: true,
+				includeCorrelation: true,
+				includeRegime: true,
+				includeVix: true,
+			},
+			indices: [],
+		},
+		model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
 		prediction: mockOutputConfig,
 		training: {minNewDataPoints: 50},
-		dataSource: {timeout: 10000, retries: 3, rateLimit: 1000},
-		model: {windowSize: 30, epochs: 50, learningRate: 0.001, batchSize: 128},
 	};
 
 	beforeEach(() => {

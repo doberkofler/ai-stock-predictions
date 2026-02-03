@@ -1,4 +1,5 @@
-import {describe, it, expect} from 'vitest';
+import {describe, expect, it} from 'vitest';
+
 import {DateUtils} from '../../../../src/cli/utils/date.ts';
 
 describe('DateUtils', () => {

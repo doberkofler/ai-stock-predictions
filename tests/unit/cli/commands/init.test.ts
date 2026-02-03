@@ -1,27 +1,19 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {parse} from 'jsonc-parser';
+
 import {initCommand} from '../../../../src/cli/commands/init.ts';
 import {FsUtils} from '../../../../src/cli/utils/fs.ts';
 import {configExists} from '../../../../src/config/config.ts';
+import {ConfigSchema} from '../../../../src/config/schema.ts';
 
 vi.mock('../../../../src/cli/utils/fs.ts');
-vi.mock('../../../../src/config/config.ts', () => ({
-	configExists: vi.fn(),
-	getConfigFilePath: vi.fn().mockReturnValue('config.yaml'),
-	getDefaultConfig: vi.fn().mockReturnValue({
-		dataSource: {timeout: 10000, retries: 3, rateLimit: 1000},
-		training: {minNewDataPoints: 50},
-		model: {windowSize: 30, epochs: 50, learningRate: 0.001, batchSize: 128},
-		prediction: {
-			days: 30,
-			historyChartDays: 1825,
-			contextDays: 15,
-			directory: 'output',
-			buyThreshold: 0.05,
-			sellThreshold: -0.05,
-			minConfidence: 0.6,
-		},
-	}),
-}));
+vi.mock('../../../../src/config/config.ts', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../../../../src/config/config.ts')>();
+	return {
+		...actual,
+		configExists: vi.fn(),
+	};
+});
 
 vi.mock('../../../../src/cli/utils/fs.ts', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('../../../../src/cli/utils/fs.ts')>();
@@ -29,10 +21,10 @@ vi.mock('../../../../src/cli/utils/fs.ts', async (importOriginal) => {
 		...actual,
 		FsUtils: {
 			...actual.FsUtils,
-			readText: vi.fn().mockResolvedValue('template content {{dataSource.timeout}}'),
-			writeText: vi.fn().mockResolvedValue(undefined),
-			ensureDir: vi.fn().mockResolvedValue(undefined),
 			deletePath: vi.fn().mockResolvedValue(undefined),
+			ensureDir: vi.fn().mockResolvedValue(undefined),
+			readText: vi.fn().mockResolvedValue('template content'),
+			writeText: vi.fn().mockResolvedValue(undefined),
 		},
 	};
 });
@@ -42,7 +34,7 @@ vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
 		try {
 			await handler({config: undefined, startTime: Date.now()}, commandOptions);
-		} catch (error) {
+		} catch {
 			process.exit(1);
 		}
 	}),
@@ -93,5 +85,21 @@ describe('initCommand', () => {
 
 		await initCommand('config.yaml');
 		expect(process.exit).toHaveBeenCalledWith(1);
+	});
+
+	it('should generate a valid configuration file', async () => {
+		vi.mocked(configExists).mockReturnValue(false);
+
+		// Use the real writeText to capture the content
+		let capturedJsonc = '';
+		vi.mocked(FsUtils.writeText).mockImplementation((_path, content) => {
+			capturedJsonc = content;
+			return Promise.resolve();
+		});
+
+		await initCommand('config.jsonc');
+
+		const parsed = parse(capturedJsonc);
+		expect(() => ConfigSchema.parse(parsed)).not.toThrow();
 	});
 });

@@ -1,33 +1,54 @@
-import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
-import {SqliteStorage} from '../../../src/gather/storage.ts';
-import type {StockDataPoint} from '../../../src/types/index.ts';
-import type {ModelMetadata} from '../../../src/compute/lstm-model.ts';
+import {rmSync} from 'node:fs';
+import {join} from 'node:path';
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 
-vi.mock('node:fs', () => ({
-	existsSync: vi.fn().mockReturnValue(true),
-	mkdirSync: vi.fn(),
-}));
+import type {ModelMetadata} from '../../../src/compute/lstm-model.ts';
+import type {MarketFeatures, StockDataPoint} from '../../../src/types/index.ts';
+
+import {SqliteStorage} from '../../../src/gather/storage.ts';
+
+const testDataDir = join(process.cwd(), 'data-test');
 
 describe('SqliteStorage', () => {
 	let storage: SqliteStorage;
 	const mockData: StockDataPoint[] = [
 		{
+			adjClose: 105,
+			close: 105,
 			date: '2023-01-01',
-			open: 100,
 			high: 110,
 			low: 90,
-			close: 105,
+			open: 100,
 			volume: 1000,
-			adjClose: 105,
 		},
 	];
 
+	beforeAll(() => {
+		try {
+			rmSync(testDataDir, {force: true, recursive: true});
+		} catch {
+			// Directory doesn't exist
+		}
+	});
+
+	afterAll(() => {
+		try {
+			rmSync(testDataDir, {force: true, recursive: true});
+		} catch {
+			// Directory doesn't exist
+		}
+	});
+
 	beforeEach(() => {
+		vi.spyOn(process, 'cwd').mockReturnValue(testDataDir);
 		storage = new SqliteStorage();
 	});
 
 	afterEach(() => {
-		storage.close();
+		if (storage) {
+			storage.close();
+		}
+		vi.restoreAllMocks();
 	});
 
 	describe('Symbol Operations', () => {
@@ -101,13 +122,13 @@ describe('SqliteStorage', () => {
 	describe('Model Metadata Operations', () => {
 		it('should save and retrieve model metadata', async () => {
 			const mockMetadata: ModelMetadata = {
-				version: '1.0.0',
-				trainedAt: new Date(),
 				dataPoints: 100,
 				loss: 0.01,
-				windowSize: 30,
 				metrics: {mae: 0.05},
 				symbol: 'AAPL',
+				trainedAt: new Date(),
+				version: '1.0.0',
+				windowSize: 30,
 			};
 
 			await storage.saveModelMetadata('AAPL', mockMetadata);
@@ -125,7 +146,7 @@ describe('SqliteStorage', () => {
 
 	describe('Export/Import Operations', () => {
 		it('should export and import symbols correctly', async () => {
-			const symbols = [{symbol: 'AAPL', name: 'Apple Inc.'}];
+			const symbols = [{name: 'Apple Inc.', priority: 999, symbol: 'AAPL', type: 'STOCK'}];
 			await storage.overwriteSymbols(symbols);
 			expect(storage.getAllSymbols()).toEqual(symbols);
 		});
@@ -133,14 +154,14 @@ describe('SqliteStorage', () => {
 		it('should export and import quotes correctly', async () => {
 			const quotes = [
 				{
-					symbol: 'AAPL',
+					adjClose: 105,
+					close: 105,
 					date: '2023-01-01',
-					open: 100,
 					high: 110,
 					low: 90,
-					close: 105,
+					open: 100,
+					symbol: 'AAPL',
 					volume: 1000,
-					adjClose: 105,
 				},
 			];
 			await storage.overwriteHistoricalData(quotes);
@@ -150,13 +171,13 @@ describe('SqliteStorage', () => {
 		it('should export and import metadata correctly', async () => {
 			const metadata = [
 				{
-					symbol: 'AAPL',
-					version: '1.0.0',
-					trainedAt: '2023-01-01T00:00:00.000Z',
 					dataPoints: 100,
 					loss: 0.01,
-					windowSize: 30,
 					metrics: JSON.stringify({mae: 0.05}),
+					symbol: 'AAPL',
+					trainedAt: '2023-01-01T00:00:00.000Z',
+					version: '1.0.0',
+					windowSize: 30,
 				},
 			];
 			await storage.overwriteModelsMetadata(metadata);
@@ -173,6 +194,62 @@ describe('SqliteStorage', () => {
 			const symbols = await storage.getAvailableSymbols();
 			expect(symbols).toHaveLength(0);
 			expect(storage.getAllSymbols()).toHaveLength(0);
+		});
+	});
+
+	describe('Market Features Operations', () => {
+		it('should save and retrieve market features', async () => {
+			const mockFeatures: MarketFeatures[] = [
+				{
+					beta: 1.2,
+					date: '2023-01-01',
+					distanceFromMA: 0.05,
+					indexCorrelation: 0.8,
+					marketRegime: 'BULL',
+					marketReturn: 0.01,
+					relativeReturn: 0.005,
+					symbol: 'AAPL',
+					vix: 20,
+					volatilitySpread: 0.02,
+				},
+			];
+
+			await storage.saveMarketFeatures('AAPL', mockFeatures);
+			const features = await storage.getMarketFeatures('AAPL');
+			expect(features).not.toBeNull();
+			if (features) {
+				expect(features).toHaveLength(1);
+				expect(features[0]?.marketReturn).toBe(0.01);
+				expect(features[0]?.marketRegime).toBe('BULL');
+			}
+		});
+
+		it('should return null for non-existent market features', async () => {
+			const features = await storage.getMarketFeatures('NONEXISTENT');
+			expect(features).toBeNull();
+		});
+
+		it('should delete market features when symbol is deleted', async () => {
+			const mockFeatures: MarketFeatures[] = [
+				{
+					beta: 1.2,
+					date: '2023-01-01',
+					distanceFromMA: 0.05,
+					indexCorrelation: 0.8,
+					marketRegime: 'BULL',
+					marketReturn: 0.01,
+					relativeReturn: 0.005,
+					symbol: 'AAPL',
+					vix: 20,
+					volatilitySpread: 0.02,
+				},
+			];
+
+			await storage.saveMarketFeatures('AAPL', mockFeatures);
+			storage.deleteSymbol('AAPL');
+
+			const features = await storage.getMarketFeatures('AAPL');
+			expect(features).toBeNull();
 		});
 	});
 });

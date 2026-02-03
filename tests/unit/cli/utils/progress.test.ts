@@ -1,6 +1,7 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {ProgressTracker} from '../../../../src/cli/utils/progress.ts';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import {DateUtils} from '../../../../src/cli/utils/date.ts';
+import {ProgressTracker} from '../../../../src/cli/utils/progress.ts';
 
 vi.mock('../../../../src/cli/utils/date.ts', () => ({
 	DateUtils: {
@@ -48,10 +49,17 @@ describe('ProgressTracker', () => {
 	});
 
 	it('should calculate ETA', () => {
-		const startTime = Date.now() - 1000;
+		vi.useFakeTimers();
+		const now = Date.now();
+		vi.setSystemTime(now);
+
+		const startTime = now - 1000;
 		const eta = ProgressTracker.calculateEta(startTime, 50, 100);
+
 		expect(eta).toBe('1000ms');
 		expect(DateUtils.formatDuration).toHaveBeenCalled();
+
+		vi.useRealTimers();
 	});
 
 	it('should return calculating for zero progress in ETA', () => {

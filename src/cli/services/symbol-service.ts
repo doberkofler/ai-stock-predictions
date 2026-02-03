@@ -8,6 +8,15 @@ import {SqliteStorage} from '../../gather/storage.ts';
  */
 export const SymbolService = {
 	/**
+	 * Gets all symbols currently in the database
+	 * @returns Array of symbol entries
+	 */
+	getAllSymbols: (): {name: string; symbol: string;}[] => {
+		const storage = new SqliteStorage();
+		return storage.getAllSymbols();
+	},
+
+	/**
 	 * Removes a symbol and all its associated data and models
 	 * @param symbol - The symbol to remove
 	 */
@@ -17,14 +26,5 @@ export const SymbolService = {
 
 		storage.deleteSymbol(symbol);
 		await modelPersistence.deleteModel(symbol);
-	},
-
-	/**
-	 * Gets all symbols currently in the database
-	 * @returns Array of symbol entries
-	 */
-	getAllSymbols: (): {name: string; symbol: string;}[] => {
-		const storage = new SqliteStorage();
-		return storage.getAllSymbols();
 	},
 };

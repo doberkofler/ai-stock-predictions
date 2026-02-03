@@ -12,9 +12,11 @@
 		"lint": "eslint src --ext .ts",
 		"knip": "knip",
 		"typecheck": "tsc --noEmit",
+		"fix": "npm run format && eslint . --ext .ts --fix",
 		"format": "prettier --write src/**/*.ts",
 		"format:check": "prettier --check src/**/*.ts",
-		"ci": "npm run typecheck && npm run lint && npm run knip && npm run test:coverage"
+		"ci": "npm run typecheck && npm run lint && npm run test:coverage && npm run knip",
+		"example": "node src/index.ts init --force && node src/index.ts symbol-add APPL && node src/index.ts sync && node src/index.ts train --quick-test && node src/index.ts predict --quick-test "
 	},
 	"keywords": [
 		"stock",
@@ -37,9 +39,9 @@
 		"better-sqlite3": "^12.6.2",
 		"chalk": "^5.6.2",
 		"commander": "^14.0.3",
+		"jsonc-parser": "^3.3.1",
 		"ora": "^9.1.0",
 		"yahoo-finance2": "^3.13.0",
-		"yaml": "^2.8.2",
 		"zod": "^4.3.6"
 	},
 	"optionalDependencies": {

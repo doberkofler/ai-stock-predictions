@@ -22,8 +22,29 @@ class UiService {
 
 	public constructor() {
 		// Detect if we are in a real interactive terminal and not in a test environment
-		/* v8 ignore next 2 */
-		this.isInteractive = process.stdout.isTTY && process.env.NODE_ENV !== 'test' && !process.env.VITEST && !process.env.CI;
+		/* v8 ignore start */
+		this.isInteractive = (process.stdout.isTTY || process.env.DEBUG_UI === 'true') && process.env.NODE_ENV !== 'test' && !process.env.VITEST && !process.env.CI;
+		/* v8 ignore stop */
+	}
+
+	/**
+	 * Helper to print a line only in interactive mode
+	 */
+	public divider(): void {
+		this.log('─────────────────────────────────────────────────────────────────────────────────────────────────');
+	}
+
+	/**
+	 * Always log errors regardless of environment to ensure critical issues are visible.
+	 * @param message - The error message to log.
+	 */
+	public error(message: string): void {
+		/* v8 ignore start */
+		if (this.isInteractive) {
+			// eslint-disable-next-line no-console -- Justification: UI service is the designated abstraction for terminal communication.
+			console.error(message);
+		}
+		/* v8 ignore stop */
 	}
 
 	/**
@@ -32,21 +53,12 @@ class UiService {
 	 * @param message - The message to log.
 	 */
 	public log(message: string): void {
+		/* v8 ignore start */
 		if (this.isInteractive) {
 			// eslint-disable-next-line no-console -- Justification: UI service is the designated abstraction for terminal communication.
 			console.log(message);
 		}
-	}
-
-	/**
-	 * Always log errors regardless of environment to ensure critical issues are visible.
-	 * @param message - The error message to log.
-	 */
-	public error(message: string): void {
-		if (this.isInteractive) {
-			// eslint-disable-next-line no-console -- Justification: UI service is the designated abstraction for terminal communication.
-			console.error(message);
-		}
+		/* v8 ignore stop */
 	}
 
 	/**
@@ -55,11 +67,14 @@ class UiService {
 	 * @returns The spinner instance.
 	 */
 	public spinner(text: string): MockOra | Ora {
+		/* v8 ignore start */
 		if (this.isInteractive) {
 			return ora(text);
 		}
+		/* v8 ignore stop */
 
 		// Return a no-op implementation that satisfies the common Ora interface
+		/* v8 ignore start */
 		const mock: MockOra = {
 			fail: () => mock,
 			info: () => mock,
@@ -70,13 +85,7 @@ class UiService {
 			warn: () => mock,
 		};
 		return mock;
-	}
-
-	/**
-	 * Helper to print a line only in interactive mode
-	 */
-	public divider(): void {
-		this.log('─────────────────────────────────────────────────────────────────────────────────────────────────');
+		/* v8 ignore stop */
 	}
 }
 

@@ -1,0 +1,53 @@
+{
+	// ==========================================
+	// AI Stock Predictions Configuration
+	// ==========================================
+
+	// Data Source: Controls how market data is fetched
+	"dataSource": {
+		"timeout": 10000,
+		"retries": 3,
+		"rateLimit": 1000,
+	},
+
+	// Training: Controls the synchronization and skip logic
+	"training": {
+		"minNewDataPoints": 50,
+	},
+
+	// Model: Neural network architecture and hyperparameters
+	"model": {
+		"windowSize": 30,
+		"epochs": 50,
+		"learningRate": 0.001,
+		"batchSize": 128,
+	},
+
+	// Prediction & Reporting: Controls forecasts and visual output
+	"prediction": {
+		"days": 30,
+		"historyChartDays": 1825,
+		"contextDays": 15,
+		"directory": "output",
+		"buyThreshold": 0.05,
+		"sellThreshold": -0.05,
+		"minConfidence": 0.6,
+	},
+
+	// Market Context Features
+	"market": {
+		"indices": ["^GSPC", "^DJI", "^IXIC", "^VIX", "^FTSE", "^GDAXI", "^N225"],
+		"featureConfig": {
+			"enabled": true,
+			"includeBeta": true,
+			"includeCorrelation": true,
+			"includeVix": true,
+			"includeRegime": true,
+		},
+	},
+
+	// Advanced: A/B Testing and experiments
+	"aBTesting": {
+		"enabled": false,
+	},
+}

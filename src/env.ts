@@ -25,6 +25,7 @@ export async function initializeEnvironment(): Promise<void> {
 		};
 	}
 
+	/* v8 ignore start */
 	// eslint-disable-next-line n/no-deprecated-api
 	if (!(util as unknown as Record<string, unknown>).isArray) {
 		// eslint-disable-next-line n/no-deprecated-api
@@ -32,6 +33,7 @@ export async function initializeEnvironment(): Promise<void> {
 			return Array.isArray(val);
 		};
 	}
+	/* v8 ignore stop */
 
 	try {
 		// Attempt to dynamic import the native Node.js backend for hardware acceleration
@@ -52,10 +54,12 @@ export async function initializeEnvironment(): Promise<void> {
 			});
 		}
 	} catch {
+		/* v8 ignore start */
 		// Fallback to CPU backend if native bindings are unavailable (common on Windows without build tools)
 		// eslint-disable-next-line no-console -- Justification: Global fallback notification.
 		console.warn('\n⚠️  TensorFlow native Node.js backend not found. Falling back to JavaScript CPU implementation.');
 		// eslint-disable-next-line no-console -- Justification: Global fallback notification.
 		console.warn('💡 To speed up training dramatically, try installing build tools or using a compatible environment.\n');
+		/* v8 ignore stop */
 	}
 }

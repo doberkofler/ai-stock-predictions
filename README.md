@@ -4,6 +4,7 @@ A professional TypeScript CLI application for stock price prediction using Tenso
 
 ## 🚀 Features
 
+-   **Market Context**: LSTM models now incorporate broad market indicators (S&P 500 returns, VIX volatility, Beta, Correlation) for more robust predictions.
 -   **Modular Architecture**: Clean separation between Data Gathering, Computing, and Output generation.
 -   **Native Performance**: Uses `@tensorflow/tfjs-node` for hardware-accelerated training.
 -   **Incremental Updates**: Efficiently fetches only missing historical data using the modern Yahoo Finance `chart()` API.
@@ -30,53 +31,51 @@ A professional TypeScript CLI application for stock price prediction using Tenso
 The application is controlled via a simple set of CLI commands.
 
 ### 1. Initialize
-Create the default `config.json` and necessary directory structure:
+Create the default `config.jsonc` and necessary directory structure:
 ```bash
-npm start init
+node src/index.ts init
 ```
 
 ### 2. Gather Data
 Fetch historical stock data for all symbols in your configuration:
 ```bash
-npm start gather
-# or perform a full refresh
-npm start gather -- --full
+node src/index.ts sync
 ```
 
 ### 3. Train Models
 Train fresh LSTM models using all available data:
 ```bash
-npm start train
+node src/index.ts train
 ```
 
 ### 4. Predict & Report
 Generate predictions based on the latest gathered data and existing models:
 ```bash
-npm start predict
+node src/index.ts predict
 ```
 The report will be saved in the `output/` directory as `index.html`.
 
 ### 5. Data Management
 Export or import your relational databases to/from a single JSON file:
 ```bash
-npm start export [path]
-npm start import [path]
+node src/index.ts export [path]
+node src/index.ts import [path]
 ```
 
 ## ⚙️ Configuration
 
-All settings are managed via `config.json`. You can also specify a custom configuration file:
+All settings are managed via `config.jsonc` (JSON with comments). You can also specify a custom configuration file:
 ```bash
-npm start -- --config my-portfolio.json gather
+node src/index.ts --config my-portfolio.jsonc sync
 ```
 
 ### Quick Test Mode
 For rapid verification of the entire pipeline, use the `--quick-test` flag:
 ```bash
-npm start gather -- --quick-test
-npm start train -- --quick-test
+node src/index.ts train --quick-test
+node src/index.ts predict --quick-test
 ```
-This limits the run to 3 symbols and the most recent 50 data points.
+This limits the run to 3 symbols and the most recent 50 data points for training.
 
 ## 🧪 Development
 

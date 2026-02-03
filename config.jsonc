@@ -1,0 +1,46 @@
+{
+	"aBTesting": {
+		"enabled": false
+	},
+	"dataSource": {
+		"rateLimit": 1000,
+		"retries": 3,
+		"timeout": 10000
+	},
+	"market": {
+		"featureConfig": {
+			"enabled": true,
+			"includeBeta": true,
+			"includeCorrelation": true,
+			"includeRegime": true,
+			"includeVix": true
+		},
+		"indices": [
+			"^GSPC",
+			"^DJI",
+			"^IXIC",
+			"^VIX",
+			"^FTSE",
+			"^GDAXI",
+			"^N225"
+		]
+	},
+	"model": {
+		"batchSize": 128,
+		"epochs": 50,
+		"learningRate": 0.001,
+		"windowSize": 30
+	},
+	"prediction": {
+		"buyThreshold": 0.05,
+		"contextDays": 15,
+		"days": 30,
+		"directory": "output",
+		"historyChartDays": 1825,
+		"minConfidence": 0.6,
+		"sellThreshold": -0.05
+	},
+	"training": {
+		"minNewDataPoints": 50
+	}
+}

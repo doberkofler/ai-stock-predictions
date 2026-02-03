@@ -38,6 +38,21 @@ export class ProgressTracker {
 	private readonly progress: Map<string, ItemProgress> = new Map<string, ItemProgress>();
 
 	/**
+	 * Calculate ETA string
+	 * @param startTime - Start time in milliseconds
+	 * @param current - Current progress
+	 * @param total - Total items
+	 * @returns Formatted ETA string
+	 */
+	public static calculateEta(startTime: number, current: number, total: number): string {
+		if (current <= 0) return 'calculating...';
+		const elapsed = Date.now() - startTime;
+		const remaining = (elapsed / current) * (total - current);
+
+		return DateUtils.formatDuration(remaining);
+	}
+
+	/**
 	 * Mark an item as completed with its status
 	 * @param item - Item identifier (e.g., stock symbol)
 	 * @param status - Completion status
@@ -73,21 +88,6 @@ export class ProgressTracker {
 		}
 
 		return `${colorFn(label)} [${bar}] ${percentage}% (${current}/${total})`;
-	}
-
-	/**
-	 * Calculate ETA string
-	 * @param startTime - Start time in milliseconds
-	 * @param current - Current progress
-	 * @param total - Total items
-	 * @returns Formatted ETA string
-	 */
-	public static calculateEta(startTime: number, current: number, total: number): string {
-		if (current <= 0) return 'calculating...';
-		const elapsed = Date.now() - startTime;
-		const remaining = (elapsed / current) * (total - current);
-
-		return DateUtils.formatDuration(remaining);
 	}
 
 	/**

@@ -1,7 +1,7 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import {syncCommand} from '../../../../src/cli/commands/sync.ts';
 import {SyncService} from '../../../../src/cli/services/sync-service.ts';
-import {SqliteStorage} from '../../../../src/gather/storage.ts';
 
 const mockStorage = {
 	getAllSymbols: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('../../../../src/cli/services/sync-service.ts', () => ({
 }));
 
 vi.mock('../../../../src/gather/storage.ts', () => ({
-	SqliteStorage: vi.fn().mockImplementation(function (this: any) {
+	SqliteStorage: vi.fn().mockImplementation(function () {
 		return mockStorage;
 	}),
 }));
@@ -31,8 +31,8 @@ describe('syncCommand', () => {
 	});
 
 	it('should call syncSymbols with all symbols', async () => {
-		mockStorage.getAllSymbols.mockReturnValue([{symbol: 'AAPL', name: 'Apple Inc.'}]);
-		await syncCommand('config.yaml');
-		expect(SyncService.syncSymbols).toHaveBeenCalledWith([{symbol: 'AAPL', name: 'Apple Inc.'}], expect.any(Object));
+		mockStorage.getAllSymbols.mockReturnValue([{name: 'Apple Inc.', symbol: 'AAPL'}]);
+		await syncCommand('config.jsonc');
+		expect(SyncService.syncSymbols).toHaveBeenCalledWith([{name: 'Apple Inc.', symbol: 'AAPL'}], expect.any(Object));
 	});
 });

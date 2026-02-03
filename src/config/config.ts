@@ -4,8 +4,8 @@
  */
 
 import chalk from 'chalk';
-import {dirname, join} from 'node:path';
-import {parse, stringify} from 'yaml';
+import {parse} from 'jsonc-parser';
+import {join} from 'node:path';
 
 import type {Config} from './schema.ts';
 
@@ -27,7 +27,7 @@ export function configExists(configPath?: string): boolean {
  * @returns Resolved configuration file path
  */
 export function getConfigFilePath(configPath?: string): string {
-	return join(process.cwd(), configPath ?? 'config.yaml');
+	return join(process.cwd(), configPath ?? 'config.jsonc');
 }
 
 /**
@@ -77,15 +77,10 @@ export function loadConfig(configPath?: string): Config {
 export async function saveConfig(config: Config, configPath?: string): Promise<void> {
 	const resolvedPath = getConfigFilePath(configPath);
 	try {
-		// Validate configuration before saving
 		const validatedConfig = ConfigSchema.parse(config);
 
-		// Ensure directory exists
-		await FsUtils.ensureDir(dirname(resolvedPath));
-
-		// Write configuration file with YAML comments
-		const yamlContent = stringify(validatedConfig);
-		await FsUtils.writeText(resolvedPath, yamlContent);
+		const jsoncContent = JSON.stringify(validatedConfig, null, '\t');
+		await FsUtils.writeText(resolvedPath, jsoncContent);
 	} catch (error) {
 		if (error instanceof Error) {
 			throw new Error(`${chalk.red('Failed to save configuration file')}: ${resolvedPath}\n` + `Error: ${error.message}`);

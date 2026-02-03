@@ -13,9 +13,9 @@ import {runCommand} from '../utils/runner.ts';
 export async function syncCommand(configPath: string): Promise<void> {
 	await runCommand(
 		{
-			title: 'Data Synchronization',
-			description: 'Updating historical market data for all symbols in the portfolio.',
 			configPath,
+			description: 'Updating historical market data for all symbols in the portfolio.',
+			title: 'Data Synchronization',
 		},
 		async ({config}) => {
 			if (!config) {

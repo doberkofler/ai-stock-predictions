@@ -1,7 +1,6 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import {SymbolService} from '../../../../src/cli/services/symbol-service.ts';
-import {SqliteStorage} from '../../../../src/gather/storage.ts';
-import {ModelPersistence} from '../../../../src/compute/persistence.ts';
 
 const mockStorage = {
 	deleteSymbol: vi.fn(),
@@ -39,9 +38,9 @@ describe('SymbolService', () => {
 	});
 
 	it('should get all symbols', () => {
-		mockStorage.getAllSymbols.mockReturnValue([{symbol: 'AAPL', name: 'Apple Inc.'}]);
+		mockStorage.getAllSymbols.mockReturnValue([{name: 'Apple Inc.', symbol: 'AAPL'}]);
 
 		const symbols = SymbolService.getAllSymbols();
-		expect(symbols).toEqual([{symbol: 'AAPL', name: 'Apple Inc.'}]);
+		expect(symbols).toEqual([{name: 'Apple Inc.', symbol: 'AAPL'}]);
 	});
 });

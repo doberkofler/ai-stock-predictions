@@ -7,3 +7,6 @@ entry:
 
 project:
   - src/**/*.ts
+
+ignore:
+  - src/types/index.ts

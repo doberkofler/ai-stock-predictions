@@ -1,6 +1,7 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {initializeEnvironment} from '../../src/env.ts';
 import util from 'node:util';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+import {initializeEnvironment} from '../../src/env.ts';
 
 // Mock dynamic imports
 vi.mock('@tensorflow/tfjs-node', () => ({}));

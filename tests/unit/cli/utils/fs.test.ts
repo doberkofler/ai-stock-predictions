@@ -1,7 +1,8 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {FsUtils} from '../../../../src/cli/utils/fs.ts';
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+import {FsUtils} from '../../../../src/cli/utils/fs.ts';
 
 vi.mock('node:fs');
 vi.mock('node:fs/promises');

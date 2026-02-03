@@ -1,4 +1,5 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import {YahooFinanceDataSource} from '../../../src/gather/yahoo-finance.ts';
 
 // Create stable mock functions
@@ -18,9 +19,9 @@ vi.mock('yahoo-finance2', () => {
 describe('YahooFinanceDataSource', () => {
 	let dataSource: YahooFinanceDataSource;
 	const mockApiConfig = {
-		timeout: 1000,
-		retries: 2,
 		rateLimit: 10,
+		retries: 2,
+		timeout: 1000,
 	};
 
 	beforeEach(() => {
@@ -32,8 +33,8 @@ describe('YahooFinanceDataSource', () => {
 		it('should successfully fetch and filter historical data', async () => {
 			const mockResponse = {
 				quotes: [
-					{date: new Date('2023-01-01'), open: 100, high: 110, low: 90, close: 105, volume: 1000, adjclose: 105},
-					{date: new Date('2023-01-02'), open: null, high: 110, low: 90, close: 105, volume: 1000, adjclose: 105}, // incomplete
+					{adjclose: 105, close: 105, date: new Date('2023-01-01'), high: 110, low: 90, open: 100, volume: 1000},
+					{adjclose: 105, close: 105, date: new Date('2023-01-02'), high: 110, low: 90, open: null, volume: 1000}, // incomplete
 				],
 			};
 			mockChart.mockResolvedValue(mockResponse);
@@ -50,9 +51,9 @@ describe('YahooFinanceDataSource', () => {
 		it('should apply limit to historical data', async () => {
 			const mockResponse = {
 				quotes: [
-					{date: new Date('2023-01-01'), open: 100, high: 110, low: 90, close: 100, volume: 1000, adjclose: 100},
-					{date: new Date('2023-01-02'), open: 101, high: 111, low: 91, close: 101, volume: 1000, adjclose: 101},
-					{date: new Date('2023-01-03'), open: 102, high: 112, low: 92, close: 102, volume: 1000, adjclose: 102},
+					{adjclose: 100, close: 100, date: new Date('2023-01-01'), high: 110, low: 90, open: 100, volume: 1000},
+					{adjclose: 101, close: 101, date: new Date('2023-01-02'), high: 111, low: 91, open: 101, volume: 1000},
+					{adjclose: 102, close: 102, date: new Date('2023-01-03'), high: 112, low: 92, open: 102, volume: 1000},
 				],
 			};
 			mockChart.mockResolvedValue(mockResponse);
@@ -67,8 +68,8 @@ describe('YahooFinanceDataSource', () => {
 		it('should deduplicate records by date', async () => {
 			const mockResponse = {
 				quotes: [
-					{date: new Date('2023-01-01T10:00:00Z'), open: 100, high: 110, low: 90, close: 105, volume: 1000, adjclose: 105},
-					{date: new Date('2023-01-01T20:00:00Z'), open: 101, high: 111, low: 91, close: 106, volume: 1100, adjclose: 106},
+					{adjclose: 105, close: 105, date: new Date('2023-01-01T10:00:00Z'), high: 110, low: 90, open: 100, volume: 1000},
+					{adjclose: 106, close: 106, date: new Date('2023-01-01T20:00:00Z'), high: 111, low: 91, open: 101, volume: 1100},
 				],
 			};
 			mockChart.mockResolvedValue(mockResponse);
@@ -81,7 +82,7 @@ describe('YahooFinanceDataSource', () => {
 
 		it('should retry on API error and eventually succeed', async () => {
 			mockChart.mockRejectedValueOnce(new Error('Transient Error')).mockResolvedValueOnce({
-				quotes: [{date: new Date('2023-01-01'), open: 100, high: 110, low: 90, close: 105, volume: 1000, adjclose: 105}],
+				quotes: [{adjclose: 105, close: 105, date: new Date('2023-01-01'), high: 110, low: 90, open: 100, volume: 1000}],
 			});
 
 			const result = await dataSource.getHistoricalData('AAPL', new Date('2023-01-01'));
@@ -107,9 +108,9 @@ describe('YahooFinanceDataSource', () => {
 	describe('getCurrentQuote', () => {
 		it('should successfully fetch current quote with name', async () => {
 			mockQuote.mockResolvedValue({
-				regularMarketPrice: 150.5,
 				currency: 'USD',
 				longName: 'Apple Inc.',
+				regularMarketPrice: 150.5,
 			});
 
 			const quote = await dataSource.getCurrentQuote('AAPL');
@@ -121,8 +122,8 @@ describe('YahooFinanceDataSource', () => {
 
 		it('should use fallback names if longName is missing', async () => {
 			mockQuote.mockResolvedValue({
-				regularMarketPrice: 150.5,
 				currency: 'USD',
+				regularMarketPrice: 150.5,
 				shortName: 'Apple',
 			});
 
@@ -132,8 +133,8 @@ describe('YahooFinanceDataSource', () => {
 
 		it('should use symbol if both names are missing', async () => {
 			mockQuote.mockResolvedValue({
-				regularMarketPrice: 150.5,
 				currency: 'USD',
+				regularMarketPrice: 150.5,
 			});
 
 			const quote = await dataSource.getCurrentQuote('AAPL');
@@ -152,8 +153,8 @@ describe('YahooFinanceDataSource', () => {
 	describe('validateSymbol', () => {
 		it('should return true for valid symbol', async () => {
 			mockQuote.mockResolvedValue({
-				regularMarketPrice: 150.5,
 				currency: 'USD',
+				regularMarketPrice: 150.5,
 			});
 			const isValid = await dataSource.validateSymbol('AAPL');
 			expect(isValid).toBe(true);

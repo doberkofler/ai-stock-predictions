@@ -1,16 +1,17 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {SyncService} from '../../../../src/cli/services/sync-service.ts';
-import {YahooFinanceDataSource} from '../../../../src/gather/yahoo-finance.ts';
-import {SqliteStorage} from '../../../../src/gather/storage.ts';
-import {DateUtils} from '../../../../src/cli/utils/date.ts';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import type {Config} from '../../../../src/config/schema.ts';
 
+import {SyncService} from '../../../../src/cli/services/sync-service.ts';
+import {DateUtils} from '../../../../src/cli/utils/date.ts';
+import {YahooFinanceDataSource} from '../../../../src/gather/yahoo-finance.ts';
+
 const mockStorage = {
-	symbolExists: vi.fn(),
-	saveSymbol: vi.fn(),
+	getAllSymbols: vi.fn(),
 	getDataTimestamp: vi.fn(),
 	saveStockData: vi.fn(),
-	getAllSymbols: vi.fn(),
+	saveSymbol: vi.fn(),
+	symbolExists: vi.fn(),
 };
 
 const mockDataSource = {
@@ -31,31 +32,42 @@ vi.mock('../../../../src/gather/storage.ts', () => ({
 
 vi.mock('../../../../src/cli/utils/ui.ts', () => ({
 	ui: {
+		error: vi.fn(),
 		log: vi.fn(),
 		spinner: vi.fn().mockReturnValue({
+			fail: vi.fn().mockReturnThis(),
 			start: vi.fn().mockReturnThis(),
 			succeed: vi.fn().mockReturnThis(),
-			fail: vi.fn().mockReturnThis(),
 			text: '',
 		}),
-		error: vi.fn(),
 	},
 }));
 
 describe('SyncService', () => {
 	const mockConfig: Config = {
-		dataSource: {timeout: 10000, retries: 3, rateLimit: 0},
-		training: {minNewDataPoints: 50},
-		model: {windowSize: 30, epochs: 50, learningRate: 0.001, batchSize: 128},
-		prediction: {
-			days: 30,
-			historyChartDays: 1825,
-			contextDays: 15,
-			directory: 'output',
-			buyThreshold: 0.05,
-			sellThreshold: -0.05,
-			minConfidence: 0.6,
+		aBTesting: {enabled: false},
+		dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
+		market: {
+			featureConfig: {
+				enabled: true,
+				includeBeta: true,
+				includeCorrelation: true,
+				includeRegime: true,
+				includeVix: true,
+			},
+			indices: ['^GSPC'],
 		},
+		model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
+		prediction: {
+			buyThreshold: 0.05,
+			contextDays: 15,
+			days: 30,
+			directory: 'output',
+			historyChartDays: 1825,
+			minConfidence: 0.6,
+			sellThreshold: -0.05,
+		},
+		training: {minNewDataPoints: 50},
 	};
 
 	beforeEach(() => {
@@ -64,14 +76,14 @@ describe('SyncService', () => {
 
 	it('should sync symbols correctly', async () => {
 		mockDataSource.getHistoricalData.mockResolvedValue({
-			data: [{date: '2023-01-01', open: 100, high: 110, low: 90, close: 105, volume: 1000, adjClose: 105}],
+			data: [{adjClose: 105, close: 105, date: '2023-01-01', high: 110, low: 90, open: 100, volume: 1000}],
 			omittedCount: 0,
 		});
 
 		mockStorage.getDataTimestamp.mockResolvedValue(null);
 		mockStorage.symbolExists.mockReturnValue(false);
 
-		await SyncService.syncSymbols([{symbol: 'AAPL', name: 'Apple Inc.'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
 
 		expect(mockStorage.saveSymbol).toHaveBeenCalledWith('AAPL', 'Apple Inc.');
 		expect(mockDataSource.getHistoricalData).toHaveBeenCalled();
@@ -83,7 +95,7 @@ describe('SyncService', () => {
 		mockStorage.getDataTimestamp.mockResolvedValue(today);
 		mockStorage.symbolExists.mockReturnValue(true);
 
-		await SyncService.syncSymbols([{symbol: 'AAPL', name: 'Apple Inc.'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
 
 		expect(mockStorage.saveStockData).not.toHaveBeenCalled();
 	});
@@ -100,7 +112,7 @@ describe('SyncService', () => {
 		});
 		mockStorage.getDataTimestamp.mockResolvedValue(null);
 
-		await SyncService.syncSymbols([{symbol: 'AAPL', name: 'Apple Inc.'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
 		expect(mockStorage.saveStockData).not.toHaveBeenCalled();
 	});
 
@@ -108,7 +120,7 @@ describe('SyncService', () => {
 		mockDataSource.getHistoricalData.mockRejectedValue(new Error('API Down'));
 		mockStorage.getDataTimestamp.mockResolvedValue(null);
 
-		await SyncService.syncSymbols([{symbol: 'AAPL', name: 'Apple Inc.'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
 		expect(mockStorage.saveStockData).not.toHaveBeenCalled();
 	});
 });

@@ -1,8 +1,10 @@
-import {describe, it, expect, beforeEach, beforeAll} from 'vitest';
+import {beforeAll, beforeEach, describe, expect, it} from 'vitest';
+
+import type {Config} from '../../../src/config/schema.ts';
+import type {StockDataPoint} from '../../../src/types/index.ts';
+
 import {LstmModel} from '../../../src/compute/lstm-model.ts';
 import {initializeEnvironment} from '../../../src/env.ts';
-import type {StockDataPoint} from '../../../src/types/index.ts';
-import type {Config} from '../../../src/config/schema.ts';
 
 describe('LstmModel', () => {
 	beforeAll(async () => {
@@ -10,36 +12,47 @@ describe('LstmModel', () => {
 	});
 
 	const mockMlConfig = {
-		modelType: 'lstm' as const,
-		windowSize: 5,
+		batchSize: 2,
 		epochs: 1,
 		learningRate: 0.01,
-		batchSize: 2,
+		modelType: 'lstm' as const,
+		windowSize: 5,
 	};
 
 	const mockAppConfig: Config = {
-		dataSource: {timeout: 5000, retries: 3, rateLimit: 100},
-		training: {minNewDataPoints: 5},
+		aBTesting: {enabled: false},
+		dataSource: {rateLimit: 100, retries: 3, timeout: 5000},
+		market: {
+			featureConfig: {
+				enabled: true,
+				includeBeta: true,
+				includeCorrelation: true,
+				includeRegime: true,
+				includeVix: true,
+			},
+			indices: [],
+		},
 		model: mockMlConfig,
 		prediction: {
-			days: 1,
-			historyChartDays: 10,
-			contextDays: 5,
-			directory: 'output',
 			buyThreshold: 0.05,
-			sellThreshold: -0.05,
+			contextDays: 5,
+			days: 1,
+			directory: 'output',
+			historyChartDays: 10,
 			minConfidence: 0.6,
+			sellThreshold: -0.05,
 		},
+		training: {minNewDataPoints: 5},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 15}, (_, i) => ({
+		adjClose: 102 + i,
+		close: 102 + i,
 		date: `2023-01-${(i + 1).toString().padStart(2, '0')}`,
-		open: 100 + i,
 		high: 105 + i,
 		low: 95 + i,
-		close: 102 + i,
+		open: 100 + i,
 		volume: 1000 * (i + 1),
-		adjClose: 102 + i,
 	}));
 
 	let model: LstmModel;

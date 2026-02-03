@@ -193,8 +193,11 @@ async function trainSingleSymbol(
 		stockData = stockData.slice(-1000);
 	}
 
+	spinner.text = `${prefix} Fetching market context for ${name} (${symbol})...`;
+	const marketFeatures = config.market.featureConfig.enabled ? (storage.getMarketFeatures(symbol) ?? []) : [];
+
 	spinner.text = `${prefix} Creating fresh ${name} (${symbol}) model...`;
-	const model = new LstmModel(config.model);
+	const model = new LstmModel(config.model, config.market.featureConfig);
 
 	const trainingStartTime = Date.now();
 	const dataPointCount = stockData.length;
@@ -204,10 +207,10 @@ async function trainSingleSymbol(
 		spinner.text = `${prefix} ${bar} [${dataPointCount} pts] (Loss: ${loss.toFixed(6)}, ETA: ${eta})`;
 	};
 
-	await model.train(stockData, config, trainingProgress);
+	await model.train(stockData, config, trainingProgress, marketFeatures);
 
 	spinner.text = `${prefix} Validating ${name} (${symbol}) model...`;
-	const performance = await model.evaluate(stockData, config);
+	const performance = model.evaluate(stockData, config, marketFeatures);
 
 	if (performance.isValid || quickTest) {
 		await modelPersistence.saveModel(symbol, model, {

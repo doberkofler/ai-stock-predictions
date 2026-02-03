@@ -1,39 +1,48 @@
-import {describe, it, expect, beforeEach, vi} from 'vitest';
-import {PredictionEngine} from '../../../src/compute/prediction.ts';
-import type {TradingConfig, StockDataPoint} from '../../../src/types/index.ts';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import type {Config} from '../../../src/config/schema.ts';
+import type {PredictionResult, StockDataPoint} from '../../../src/types/index.ts';
+
+import {LstmModel} from '../../../src/compute/lstm-model.ts';
+import {PredictionEngine} from '../../../src/compute/prediction.ts';
 
 describe('PredictionEngine', () => {
 	let engine: PredictionEngine;
-	const mockTradingConfig: TradingConfig = {
-		buyThreshold: 0.05,
-		sellThreshold: -0.05,
-		minConfidence: 0.6,
-	};
 
 	const mockAppConfig: Config = {
-		dataSource: {timeout: 5000, retries: 3, rateLimit: 100},
-		training: {minNewDataPoints: 5},
-		model: {windowSize: 10, epochs: 2, learningRate: 0.001, batchSize: 32},
-		prediction: {
-			days: 1,
-			historyChartDays: 1825,
-			contextDays: 15,
-			directory: 'output',
-			buyThreshold: 0.05,
-			sellThreshold: -0.05,
-			minConfidence: 0.6,
+		aBTesting: {enabled: false},
+		dataSource: {rateLimit: 100, retries: 3, timeout: 5000},
+		market: {
+			featureConfig: {
+				enabled: true,
+				includeBeta: true,
+				includeCorrelation: true,
+				includeRegime: true,
+				includeVix: true,
+			},
+			indices: [],
 		},
+		model: {batchSize: 32, epochs: 2, learningRate: 0.001, windowSize: 10},
+		prediction: {
+			buyThreshold: 0.05,
+			contextDays: 15,
+			days: 1,
+			directory: 'output',
+			historyChartDays: 1825,
+			minConfidence: 0.6,
+			sellThreshold: -0.05,
+		},
+		training: {minNewDataPoints: 5},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 20}, (_, i) => ({
+		adjClose: 102 + i,
+		close: 102 + i,
 		date: `2023-01-${String(i + 1).padStart(2, '0')}`,
-		open: 100 + i,
 		high: 105 + i,
 		low: 95 + i,
-		close: 102 + i,
+		open: 100 + i,
 		volume: 1000,
-		adjClose: 102 + i,
 	}));
 
 	beforeEach(() => {
@@ -43,17 +52,17 @@ describe('PredictionEngine', () => {
 	describe('predict', () => {
 		it('should generate prediction result if model is trained and data is sufficient', async () => {
 			const mockModel = {
-				isTrained: vi.fn().mockReturnValue(true),
-				predict: vi.fn().mockResolvedValue([110]),
 				getMetadata: vi.fn().mockReturnValue({
-					symbol: 'AAPL',
-					loss: 0.01,
-					metrics: {meanAbsoluteError: 0.02},
 					dataPoints: 100,
+					loss: 0.01,
+					metrics: {mape: 0.05, meanAbsoluteError: 0.02},
+					symbol: 'AAPL',
 				}),
+				isTrained: vi.fn().mockReturnValue(true),
+				predict: vi.fn().mockReturnValue([110]), // Changed to sync to match current implementation
 			};
 
-			const result = await engine.predict(mockModel as any, mockData, mockAppConfig);
+			const result = await engine.predict(mockModel as unknown as LstmModel, mockData, mockAppConfig);
 
 			expect(result.currentPrice).toBe(102 + 19);
 			expect(result.predictedPrices).toEqual([110]);
@@ -63,31 +72,47 @@ describe('PredictionEngine', () => {
 
 		it('should throw error if model is not trained', async () => {
 			const mockModel = {
-				isTrained: vi.fn().mockReturnValue(false),
 				getMetadata: vi.fn().mockReturnValue({symbol: 'AAPL'}),
+				isTrained: vi.fn().mockReturnValue(false),
 			};
 
-			await expect(engine.predict(mockModel as any, mockData, mockAppConfig)).rejects.toThrow(/not trained/);
+			await expect(engine.predict(mockModel as unknown as LstmModel, mockData, mockAppConfig)).rejects.toThrow(/not trained/);
 		});
 
 		it('should throw error if data is insufficient', async () => {
 			const mockModel = {
-				isTrained: vi.fn().mockReturnValue(true),
 				getMetadata: vi.fn().mockReturnValue({symbol: 'AAPL'}),
+				isTrained: vi.fn().mockReturnValue(true),
 			};
 			const smallData = mockData.slice(0, 5);
 
-			await expect(engine.predict(mockModel as any, smallData, mockAppConfig)).rejects.toThrow(/Insufficient data/);
+			await expect(engine.predict(mockModel as unknown as LstmModel, smallData, mockAppConfig)).rejects.toThrow(/Insufficient data/);
 		});
 	});
 
 	describe('generateSignal', () => {
+		const basePrediction: PredictionResult = {
+			confidence: 0.8,
+			currentPrice: 100,
+			days: 5,
+			fullHistory: [],
+			historicalData: [],
+			meanAbsoluteError: 0.05,
+			percentChange: 0.1,
+			predictedData: [],
+			predictedPrice: 110,
+			predictedPrices: [110],
+			predictionDate: new Date(),
+			priceChange: 10,
+			symbol: 'AAPL',
+		};
+
 		it('should generate BUY signal when expected gain exceeds threshold', () => {
-			const prediction: any = {
-				symbol: 'AAPL',
+			const prediction: PredictionResult = {
+				...basePrediction,
 				currentPrice: 100,
-				predictedPrice: 110,
 				percentChange: 0.1,
+				predictedPrices: [110],
 			};
 
 			const signal = engine.generateSignal(prediction, {...mockAppConfig.prediction, minConfidence: 0.1});
@@ -96,11 +121,11 @@ describe('PredictionEngine', () => {
 		});
 
 		it('should generate SELL signal when expected loss exceeds threshold', () => {
-			const prediction: any = {
-				symbol: 'AAPL',
+			const prediction: PredictionResult = {
+				...basePrediction,
 				currentPrice: 100,
-				predictedPrice: 90,
 				percentChange: -0.1,
+				predictedPrices: [90],
 			};
 
 			const signal = engine.generateSignal(prediction, {...mockAppConfig.prediction, minConfidence: 0.1});
@@ -109,11 +134,12 @@ describe('PredictionEngine', () => {
 		});
 
 		it('should generate HOLD signal when confidence is too low', () => {
-			const prediction: any = {
-				symbol: 'AAPL',
+			const prediction: PredictionResult = {
+				...basePrediction,
+				confidence: 0.5,
 				currentPrice: 100,
-				predictedPrice: 120,
 				percentChange: 0.2,
+				predictedPrices: [120],
 			};
 
 			const signal = engine.generateSignal(prediction, {...mockAppConfig.prediction, minConfidence: 0.99});
@@ -121,11 +147,12 @@ describe('PredictionEngine', () => {
 		});
 
 		it('should generate HOLD signal when change is below threshold', () => {
-			const prediction: any = {
-				symbol: 'AAPL',
+			const prediction: PredictionResult = {
+				...basePrediction,
+				confidence: 0.8,
 				currentPrice: 100,
-				predictedPrice: 101,
 				percentChange: 0.01,
+				predictedPrices: [101],
 			};
 
 			const signal = engine.generateSignal(prediction, mockAppConfig.prediction);

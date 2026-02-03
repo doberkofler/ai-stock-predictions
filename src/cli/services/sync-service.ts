@@ -3,6 +3,7 @@ import type {Ora} from 'ora';
 import chalk from 'chalk';
 
 import type {Config} from '../../config/schema.ts';
+import type {StockDataPoint} from '../../types/index.ts';
 import type {MockOra} from '../utils/ui.ts';
 
 import {SqliteStorage} from '../../gather/storage.ts';
@@ -26,18 +27,35 @@ export const SyncService = {
 		const storage = new SqliteStorage();
 		const progress = new ProgressTracker();
 
+		// Filter out indices to sync them first
+		const marketIndices = symbols.filter((s) => s.symbol === '^GSPC' || s.symbol === '^VIX');
+		const otherSymbols = symbols.filter((s) => s.symbol !== '^GSPC' && s.symbol !== '^VIX');
+		const sortedSymbols = [...marketIndices, ...otherSymbols];
+
 		ui.log(chalk.blue(`\n📊 Syncing data for ${symbols.length} symbols`));
 
-		for (const [i, entry] of symbols.entries()) {
+		for (const [i, entry] of sortedSymbols.entries()) {
 			const {name, symbol} = entry;
 			const prefix = chalk.dim(`[${i + 1}/${symbols.length}]`);
 			const spinner = ui.spinner(`${prefix} Processing ${name} (${symbol})`).start();
 
 			try {
-				await syncSingleSymbol(symbol, name, storage, dataSource, progress, spinner as Ora, config, quickTest, prefix);
+				const stockData = await syncSingleSymbol(symbol, name, storage, dataSource, progress, spinner as Ora, config, quickTest, prefix);
+
+				// Calculate market features if it is a STOCK or ETF and we have market data
+				if (config.market.featureConfig.enabled && symbol !== '^GSPC' && symbol !== '^VIX' && !symbol.startsWith('^')) {
+					spinner.text = `${prefix} Calculating market features for ${name} (${symbol})...`;
+					const marketData = await storage.getStockData('^GSPC');
+					const vixData = await storage.getStockData('^VIX');
+
+					if (marketData && vixData && stockData) {
+						const features = dataSource.calculateMarketFeatures(symbol, stockData, marketData, vixData);
+						storage.saveMarketFeatures(symbol, features);
+					}
+				}
 
 				// Rate limiting
-				if (i < symbols.length - 1) {
+				if (i < sortedSymbols.length - 1) {
 					await new Promise((resolve) => setTimeout(resolve, config.dataSource.rateLimit));
 				}
 			} catch (error) {
@@ -93,7 +111,7 @@ async function syncSingleSymbol(
 	_config: Config,
 	quickTest: boolean,
 	prefix: string,
-): Promise<void> {
+): Promise<null | StockDataPoint[]> {
 	// Persist symbol name to database if it doesn't exist
 	if (!storage.symbolExists(symbol)) {
 		storage.saveSymbol(symbol, name);
@@ -108,7 +126,7 @@ async function syncSingleSymbol(
 	if (startDate >= today) {
 		spinner.succeed(`${prefix} ${name} (${symbol}) (up to date)`);
 		progress.complete(symbol, 'up-to-date');
-		return;
+		return storage.getStockData(symbol);
 	}
 
 	// Fetch data
@@ -118,7 +136,7 @@ async function syncSingleSymbol(
 	if (result.data.length === 0) {
 		spinner.succeed(`${prefix} ${name} (${symbol}) (no new data)`);
 		progress.complete(symbol, 'up-to-date');
-		return;
+		return storage.getStockData(symbol);
 	}
 
 	// Save data
@@ -132,4 +150,6 @@ async function syncSingleSymbol(
 
 	spinner.succeed(successMsg);
 	progress.complete(symbol, 'updated', result.data.length);
+
+	return storage.getStockData(symbol);
 }

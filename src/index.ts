@@ -13,7 +13,7 @@ const program = new Command();
 program.name('ai-stock-predictions').description('AI-powered stock price prediction using LSTM neural networks').version('1.0.0');
 
 // Global options
-program.option('-c, --config <path>', 'path to configuration file', 'config.yaml');
+program.option('-c, --config <path>', 'path to configuration file', 'config.jsonc');
 
 program
 	.command('init')

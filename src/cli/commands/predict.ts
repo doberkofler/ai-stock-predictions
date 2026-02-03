@@ -246,8 +246,11 @@ async function predictSymbol(
 		return null;
 	}
 
+	spinner.text = `${prefix} Fetching market context for ${name} (${symbol})...`;
+	const marketFeatures = config.market.featureConfig.enabled ? (storage.getMarketFeatures(symbol) ?? []) : [];
+
 	spinner.text = `${prefix} Predicting ${name} (${symbol}) [${stockData.length} pts]...`;
-	const prediction = await predictionEngine.predict(model, stockData, config);
+	const prediction = await predictionEngine.predict(model, stockData, config, marketFeatures);
 	const signal = predictionEngine.generateSignal(prediction, config.prediction);
 
 	let signalEmoji = '➡️';

@@ -1,21 +1,35 @@
-import {describe, it, expect} from 'vitest';
+import {describe, expect, it} from 'vitest';
+
 import {ConfigSchema} from '../../../src/config/schema.ts';
 
 describe('ConfigSchema', () => {
 	it('should validate a correct configuration', () => {
 		const validConfig = {
-			dataSource: {timeout: 10000, retries: 3, rateLimit: 1000},
-			training: {minNewDataPoints: 50},
-			model: {windowSize: 30, epochs: 50, learningRate: 0.001, batchSize: 128},
-			prediction: {
-				days: 30,
-				historyChartDays: 1825,
-				contextDays: 15,
-				directory: 'output',
-				buyThreshold: 0.05,
-				sellThreshold: -0.05,
-				minConfidence: 0.6,
+			aBTesting: {
+				enabled: false,
 			},
+			dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
+			market: {
+				featureConfig: {
+					enabled: true,
+					includeBeta: true,
+					includeCorrelation: true,
+					includeRegime: true,
+					includeVix: true,
+				},
+				indices: ['^GSPC', '^DJI', '^IXIC', '^VIX', '^FTSE', '^GDAXI', '^N225'],
+			},
+			model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
+			prediction: {
+				buyThreshold: 0.05,
+				contextDays: 15,
+				days: 30,
+				directory: 'output',
+				historyChartDays: 1825,
+				minConfidence: 0.6,
+				sellThreshold: -0.05,
+			},
+			training: {minNewDataPoints: 50},
 		};
 
 		const result = ConfigSchema.safeParse(validConfig);

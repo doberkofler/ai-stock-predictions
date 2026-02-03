@@ -47,6 +47,118 @@ export class HtmlGenerator {
 	}
 
 	/**
+	 * Render the Chart.js initialization script for a stock
+	 * @param p - Prediction data
+	 * @param appConfig - Application configuration
+	 * @returns JavaScript code string
+	 */
+	private renderChartScript(p: ReportPrediction, appConfig: Config): string {
+		// Full History Chart Data - limited by config
+		const historyLimit = appConfig.prediction.historyChartDays;
+		const historicalData = p.prediction.fullHistory.slice(-historyLimit);
+		const historyLabels = historicalData.map((d) => d.date);
+		const historyPrices = historicalData.map((d) => d.close);
+
+		// Prediction Chart Data - limited context by config
+		const contextLimit = appConfig.prediction.contextDays;
+		const recentHistory = p.prediction.fullHistory.slice(-contextLimit);
+		const contextLabels = recentHistory.map((d) => d.date);
+		const contextPrices = recentHistory.map((d) => d.close);
+
+		const predictionLabels = p.prediction.predictedData.map((d) => d.date);
+		const predictionPrices = p.prediction.predictedData.map((d) => d.price);
+
+		// Combine for labels
+		const combinedLabels = [...contextLabels, ...predictionLabels];
+
+		// We create two datasets for the prediction chart to show different colors
+		// The actual data will end exactly where the prediction starts
+		const actualDataset = [...contextPrices, ...Array.from({length: predictionPrices.length}, () => null)];
+
+		// The predicted dataset starts with the last actual price to connect the lines
+		const lastActualPrice = contextPrices.at(-1);
+		const predictedDataset = [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices];
+
+		let signalColor = '#007bff';
+		let signalRgb = '0, 123, 255';
+		if (p.signal === 'BUY') {
+			signalColor = '#28a745';
+			signalRgb = '40, 167, 69';
+		} else if (p.signal === 'SELL') {
+			signalColor = '#dc3545';
+			signalRgb = '220, 53, 69';
+		}
+
+		return `
+			// Full History Chart
+			new Chart(document.getElementById('chart-history-${p.symbol}'), {
+				type: 'line',
+				data: {
+					labels: ${JSON.stringify(historyLabels)},
+					datasets: [{
+						label: 'Actual Price',
+						data: ${JSON.stringify(historyPrices)},
+						borderColor: '#6c757d',
+						backgroundColor: 'rgba(108, 117, 125, 0.1)',
+						borderWidth: 1,
+						pointRadius: 0,
+						fill: true,
+						tension: 0.1
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					interaction: { intersect: false, mode: 'index' },
+					plugins: { legend: { display: false } },
+					scales: { x: { display: false }, y: { beginAtZero: false } }
+				}
+			});
+
+			// Prediction Chart
+			new Chart(document.getElementById('chart-prediction-${p.symbol}'), {
+				type: 'line',
+				data: {
+					labels: ${JSON.stringify(combinedLabels)},
+					datasets: [
+						{
+							label: 'Recent Actual',
+							data: ${JSON.stringify(actualDataset)},
+							borderColor: '#6c757d',
+							backgroundColor: 'transparent',
+							borderDash: [5, 5],
+							borderWidth: 2,
+							pointRadius: 2,
+							tension: 0.1,
+							spanGaps: false
+						},
+						{
+							label: 'Forecast',
+							data: ${JSON.stringify(predictedDataset)},
+							borderColor: '${signalColor}',
+							backgroundColor: 'rgba(${signalRgb}, 0.1)',
+							borderWidth: 3,
+							pointRadius: 3,
+							fill: true,
+							tension: 0.1,
+							spanGaps: false
+						}
+					]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					interaction: { intersect: false, mode: 'index' },
+					scales: { 
+						y: { beginAtZero: false },
+						x: { ticks: { maxRotation: 45, minRotation: 45 } }
+					}
+				}
+			});
+		`;
+	}
+
+	/**
 	 * Render the full HTML document
 	 * @param predictions - Prediction data
 	 * @param appConfig - App configuration
@@ -271,118 +383,6 @@ export class HtmlGenerator {
 					</tr>
 				</table>
 			</div>
-		`;
-	}
-
-	/**
-	 * Render the Chart.js initialization script for a stock
-	 * @param p - Prediction data
-	 * @param appConfig - Application configuration
-	 * @returns JavaScript code string
-	 */
-	private renderChartScript(p: ReportPrediction, appConfig: Config): string {
-		// Full History Chart Data - limited by config
-		const historyLimit = appConfig.prediction.historyChartDays;
-		const historicalData = p.prediction.fullHistory.slice(-historyLimit);
-		const historyLabels = historicalData.map((d) => d.date);
-		const historyPrices = historicalData.map((d) => d.close);
-
-		// Prediction Chart Data - limited context by config
-		const contextLimit = appConfig.prediction.contextDays;
-		const recentHistory = p.prediction.fullHistory.slice(-contextLimit);
-		const contextLabels = recentHistory.map((d) => d.date);
-		const contextPrices = recentHistory.map((d) => d.close);
-
-		const predictionLabels = p.prediction.predictedData.map((d) => d.date);
-		const predictionPrices = p.prediction.predictedData.map((d) => d.price);
-
-		// Combine for labels
-		const combinedLabels = [...contextLabels, ...predictionLabels];
-
-		// We create two datasets for the prediction chart to show different colors
-		// The actual data will end exactly where the prediction starts
-		const actualDataset = [...contextPrices, ...Array.from({length: predictionPrices.length}, () => null)];
-
-		// The predicted dataset starts with the last actual price to connect the lines
-		const lastActualPrice = contextPrices.at(-1);
-		const predictedDataset = [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices];
-
-		let signalColor = '#007bff';
-		let signalRgb = '0, 123, 255';
-		if (p.signal === 'BUY') {
-			signalColor = '#28a745';
-			signalRgb = '40, 167, 69';
-		} else if (p.signal === 'SELL') {
-			signalColor = '#dc3545';
-			signalRgb = '220, 53, 69';
-		}
-
-		return `
-			// Full History Chart
-			new Chart(document.getElementById('chart-history-${p.symbol}'), {
-				type: 'line',
-				data: {
-					labels: ${JSON.stringify(historyLabels)},
-					datasets: [{
-						label: 'Actual Price',
-						data: ${JSON.stringify(historyPrices)},
-						borderColor: '#6c757d',
-						backgroundColor: 'rgba(108, 117, 125, 0.1)',
-						borderWidth: 1,
-						pointRadius: 0,
-						fill: true,
-						tension: 0.1
-					}]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					interaction: { intersect: false, mode: 'index' },
-					plugins: { legend: { display: false } },
-					scales: { x: { display: false }, y: { beginAtZero: false } }
-				}
-			});
-
-			// Prediction Chart
-			new Chart(document.getElementById('chart-prediction-${p.symbol}'), {
-				type: 'line',
-				data: {
-					labels: ${JSON.stringify(combinedLabels)},
-					datasets: [
-						{
-							label: 'Recent Actual',
-							data: ${JSON.stringify(actualDataset)},
-							borderColor: '#6c757d',
-							backgroundColor: 'transparent',
-							borderDash: [5, 5],
-							borderWidth: 2,
-							pointRadius: 2,
-							tension: 0.1,
-							spanGaps: false
-						},
-						{
-							label: 'Forecast',
-							data: ${JSON.stringify(predictedDataset)},
-							borderColor: '${signalColor}',
-							backgroundColor: 'rgba(${signalRgb}, 0.1)',
-							borderWidth: 3,
-							pointRadius: 3,
-							fill: true,
-							tension: 0.1,
-							spanGaps: false
-						}
-					]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					interaction: { intersect: false, mode: 'index' },
-					scales: { 
-						y: { beginAtZero: false },
-						x: { ticks: { maxRotation: 45, minRotation: 45 } }
-					}
-				}
-			});
 		`;
 	}
 }

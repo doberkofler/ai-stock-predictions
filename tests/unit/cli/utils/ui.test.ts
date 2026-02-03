@@ -1,16 +1,17 @@
-import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
-import {ui} from '../../../../src/cli/utils/ui.ts';
 import ora from 'ora';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+
+import {ui} from '../../../../src/cli/utils/ui.ts';
 
 vi.mock('ora', () => ({
 	default: vi.fn().mockReturnValue({
+		fail: vi.fn().mockReturnThis(),
+		info: vi.fn().mockReturnThis(),
 		start: vi.fn().mockReturnThis(),
 		stop: vi.fn().mockReturnThis(),
 		succeed: vi.fn().mockReturnThis(),
-		fail: vi.fn().mockReturnThis(),
-		warn: vi.fn().mockReturnThis(),
-		info: vi.fn().mockReturnThis(),
 		text: '',
+		warn: vi.fn().mockReturnThis(),
 	}),
 }));
 

@@ -1,18 +1,18 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+
 import {exportCommand} from '../../../../src/cli/commands/export.ts';
-import {SqliteStorage} from '../../../../src/gather/storage.ts';
 import {FsUtils} from '../../../../src/cli/utils/fs.ts';
 
 const mockStorage = {
-	getAllSymbols: vi.fn(),
-	getAllQuotes: vi.fn(),
-	getAllMetadata: vi.fn(),
 	close: vi.fn(),
+	getAllMetadata: vi.fn(),
+	getAllQuotes: vi.fn(),
+	getAllSymbols: vi.fn(),
 };
 
 vi.mock('../../../../src/cli/utils/fs.ts');
 vi.mock('../../../../src/gather/storage.ts', () => ({
-	SqliteStorage: vi.fn().mockImplementation(function (this: any) {
+	SqliteStorage: vi.fn().mockImplementation(function () {
 		return mockStorage;
 	}),
 }));
@@ -22,7 +22,7 @@ vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
 		try {
 			await handler({config: {}, startTime: Date.now()}, commandOptions);
-		} catch (error) {
+		} catch {
 			process.exit(1);
 		}
 	}),
@@ -31,12 +31,12 @@ vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 // Mock UI
 vi.mock('../../../../src/cli/utils/ui.ts', () => ({
 	ui: {
-		log: vi.fn(),
 		error: vi.fn(),
+		log: vi.fn(),
 		spinner: vi.fn().mockReturnValue({
+			fail: vi.fn().mockReturnThis(),
 			start: vi.fn().mockReturnThis(),
 			succeed: vi.fn().mockReturnThis(),
-			fail: vi.fn().mockReturnThis(),
 			text: '',
 		}),
 	},
@@ -46,7 +46,7 @@ describe('exportCommand', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		vi.spyOn(process, 'exit').mockImplementation((() => {}) as any);
+		vi.spyOn(process, 'exit').mockImplementation((() => {}) as unknown as (code?: null | number | string) => never);
 	});
 
 	it('should export data to json', async () => {
@@ -54,7 +54,7 @@ describe('exportCommand', () => {
 		mockStorage.getAllQuotes.mockReturnValue([]);
 		mockStorage.getAllMetadata.mockReturnValue([]);
 
-		await exportCommand('config.yaml', 'export.json');
+		await exportCommand('export.json');
 		expect(FsUtils.writeJson).toHaveBeenCalled();
 	});
 
@@ -63,7 +63,7 @@ describe('exportCommand', () => {
 			throw new Error('DB Error');
 		});
 
-		await exportCommand('config.yaml', 'export.json');
+		await exportCommand('export.json');
 		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 });
