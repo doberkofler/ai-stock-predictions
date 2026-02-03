@@ -161,6 +161,7 @@ For every modification, the agent MUST execute:
 - Optimized `--quick-test` mode (3 symbols, 50 data points)
 - Added command execution titles and human-readable process duration
 - Implemented dynamic backend loading for cross-platform portability (Windows fix)
+- **Switched configuration format from YAML to JSONC (JSON with comments) to eliminate format errors**
 
 ### ✅ Completed - Market Features Implementation
 
