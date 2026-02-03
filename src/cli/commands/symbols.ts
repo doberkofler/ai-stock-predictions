@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import {join} from 'node:path';
 
 import {ModelPersistence} from '../../compute/persistence.ts';
-import defaults from '../../constants/defaults.json' with {type: 'json'};
+import {getDefaultSymbols} from '../../constants/defaults-loader.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
 import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
 import {SymbolService} from '../services/symbol-service.ts';
@@ -87,13 +87,14 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
 			}
 			const storage = new SqliteStorage();
+			const defaults = getDefaultSymbols();
 			const addedSymbols: {name: string; symbol: string}[] = [];
 
 			for (const entry of defaults) {
 				if (!storage.symbolExists(entry.symbol)) {
-					storage.saveSymbol(entry.symbol, entry.name);
+					storage.saveSymbol(entry.symbol, entry.name, entry.type, entry.priority);
 				}
-				addedSymbols.push(entry);
+				addedSymbols.push({name: entry.name, symbol: entry.symbol});
 			}
 
 			ui.log(chalk.green(`\n✅ Registered ${addedSymbols.length} default symbols`));

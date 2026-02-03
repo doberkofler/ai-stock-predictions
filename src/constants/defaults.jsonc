@@ -1,0 +1,145 @@
+{
+	// Default symbols configuration
+	// This file contains market indices and stock symbols that are used for initialization
+	"defaultSymbols": [
+		// === MARKET INDICES (Priority 1-10) ===
+		// These are fetched first for market feature calculations
+		// The caret (^) prefix is Yahoo Finance's naming convention for indices
+
+		{"symbol": "^GSPC", "name": "S&P 500", "type": "INDEX", "priority": 1},
+		{"symbol": "^DJI", "name": "Dow Jones Industrial", "type": "INDEX", "priority": 2},
+		{"symbol": "^IXIC", "name": "NASDAQ Composite", "type": "INDEX", "priority": 3},
+		{"symbol": "^FTSE", "name": "FTSE 100", "type": "INDEX", "priority": 4},
+		{"symbol": "^GDAXI", "name": "DAX Performance", "type": "INDEX", "priority": 5},
+		{"symbol": "^N225", "name": "Nikkei 225", "type": "INDEX", "priority": 6},
+		{"symbol": "^VIX", "name": "CBOE Volatility Index", "type": "VOLATILITY", "priority": 10},
+
+		// === STOCKS (Priority 100) ===
+		// Major global stocks across various sectors
+		// All stocks have equal priority (100) for parallel fetching
+
+		// Technology
+		{"symbol": "NVDA", "name": "NVIDIA Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "AAPL", "name": "Apple Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "MSFT", "name": "Microsoft Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "GOOGL", "name": "Alphabet Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "AMZN", "name": "Amazon.com Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "META", "name": "Meta Platforms Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "TSLA", "name": "Tesla Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "AVGO", "name": "Broadcom Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "TSM", "name": "Taiwan Semiconductor Manufacturing", "type": "STOCK", "priority": 100},
+		{"symbol": "ORCL", "name": "Oracle Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "CRM", "name": "Salesforce Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "NFLX", "name": "Netflix Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "ADBE", "name": "Adobe Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "CSCO", "name": "Cisco Systems Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "INTC", "name": "Intel Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "AMD", "name": "Advanced Micro Devices Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "TXN", "name": "Texas Instruments Incorporated", "type": "STOCK", "priority": 100},
+		{"symbol": "QCOM", "name": "QUALCOMM Incorporated", "type": "STOCK", "priority": 100},
+		{"symbol": "AMAT", "name": "Applied Materials Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "LRCX", "name": "Lam Research Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "ADI", "name": "Analog Devices Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "MU", "name": "Micron Technology Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "NOW", "name": "ServiceNow Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "INTU", "name": "Intuit Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "IBM", "name": "International Business Machines Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "SAP", "name": "SAP SE", "type": "STOCK", "priority": 100},
+
+		// Pharmaceutical & Healthcare
+		{"symbol": "LLY", "name": "Eli Lilly and Company", "type": "STOCK", "priority": 100},
+		{"symbol": "JNJ", "name": "Johnson & Johnson", "type": "STOCK", "priority": 100},
+		{"symbol": "ABBV", "name": "AbbVie Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "MRK", "name": "Merck & Co. Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "TMO", "name": "Thermo Fisher Scientific Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "PFE", "name": "Pfizer Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "DHR", "name": "Danaher Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "AMGN", "name": "Amgen Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "SYK", "name": "Stryker Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "GILD", "name": "Gilead Sciences Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "REGN", "name": "Regeneron Pharmaceuticals Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "BMY", "name": "Bristol-Myers Squibb Company", "type": "STOCK", "priority": 100},
+		{"symbol": "VRTX", "name": "Vertex Pharmaceuticals Incorporated", "type": "STOCK", "priority": 100},
+		{"symbol": "ZTS", "name": "Zoetis Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "BSX", "name": "Boston Scientific Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "BDX", "name": "Becton Dickinson and Company", "type": "STOCK", "priority": 100},
+		{"symbol": "ISRG", "name": "Intuitive Surgical Inc.", "type": "STOCK", "priority": 100},
+
+		// Financial Services
+		{"symbol": "V", "name": "Visa Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "JPM", "name": "JPMorgan Chase & Co.", "type": "STOCK", "priority": 100},
+		{"symbol": "MA", "name": "Mastercard Incorporated", "type": "STOCK", "priority": 100},
+		{"symbol": "BAC", "name": "Bank of America Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "WFC", "name": "Wells Fargo & Company", "type": "STOCK", "priority": 100},
+		{"symbol": "GS", "name": "The Goldman Sachs Group Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "MS", "name": "Morgan Stanley", "type": "STOCK", "priority": 100},
+		{"symbol": "C", "name": "Citigroup Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "BLK", "name": "BlackRock Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "SPGI", "name": "S&P Global Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "AXP", "name": "American Express Company", "type": "STOCK", "priority": 100},
+		{"symbol": "HSBC", "name": "HSBC Holdings plc", "type": "STOCK", "priority": 100},
+		{"symbol": "MMC", "name": "Marsh & McLennan Companies Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "CB", "name": "Chubb Limited", "type": "STOCK", "priority": 100},
+
+		// Insurance & Healthcare Services
+		{"symbol": "UNH", "name": "UnitedHealth Group Incorporated", "type": "STOCK", "priority": 100},
+		{"symbol": "ELV", "name": "Elevance Health Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "CVS", "name": "CVS Health Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "CI", "name": "The Cigna Group", "type": "STOCK", "priority": 100},
+
+		// Retail & Consumer
+		{"symbol": "WMT", "name": "Walmart Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "COST", "name": "Costco Wholesale Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "PG", "name": "Procter & Gamble Company", "type": "STOCK", "priority": 100},
+		{"symbol": "HD", "name": "Home Depot Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "KO", "name": "Coca-Cola Company", "type": "STOCK", "priority": 100},
+		{"symbol": "PEP", "name": "PepsiCo Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "DIS", "name": "The Walt Disney Company", "type": "STOCK", "priority": 100},
+		{"symbol": "MCD", "name": "McDonald's Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "NKE", "name": "NIKE Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "BKNG", "name": "Booking Holdings Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "LOW", "name": "Lowe's Companies Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "TGT", "name": "Target Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "TJX", "name": "The TJX Companies Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "MDLZ", "name": "Mondelez International Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "CL", "name": "Colgate-Palmolive Company", "type": "STOCK", "priority": 100},
+
+		// Energy
+		{"symbol": "XOM", "name": "Exxon Mobil Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "CVX", "name": "Chevron Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "EOG", "name": "EOG Resources Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "SLB", "name": "Schlumberger Limited", "type": "STOCK", "priority": 100},
+
+		// Industrials
+		{"symbol": "LIN", "name": "Linde plc", "type": "STOCK", "priority": 100},
+		{"symbol": "ACN", "name": "Accenture plc", "type": "STOCK", "priority": 100},
+		{"symbol": "HON", "name": "Honeywell International Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "RTX", "name": "RTX Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "CAT", "name": "Caterpillar Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "GE", "name": "General Electric Company", "type": "STOCK", "priority": 100},
+		{"symbol": "DE", "name": "Deere & Company", "type": "STOCK", "priority": 100},
+		{"symbol": "LMT", "name": "Lockheed Martin Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "ETN", "name": "Eaton Corporation plc", "type": "STOCK", "priority": 100},
+		{"symbol": "WM", "name": "Waste Management Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "ADP", "name": "Automatic Data Processing Inc.", "type": "STOCK", "priority": 100},
+
+		// Tobacco
+		{"symbol": "PM", "name": "Philip Morris International Inc.", "type": "STOCK", "priority": 100},
+		{"symbol": "MO", "name": "Altria Group Inc.", "type": "STOCK", "priority": 100},
+
+		// Telecommunications
+		{"symbol": "VZ", "name": "Verizon Communications Inc.", "type": "STOCK", "priority": 100},
+
+		// Real Estate
+		{"symbol": "PLD", "name": "Prologis Inc.", "type": "STOCK", "priority": 100},
+
+		// Utilities
+		{"symbol": "SO", "name": "The Southern Company", "type": "STOCK", "priority": 100},
+		{"symbol": "DUK", "name": "Duke Energy Corporation", "type": "STOCK", "priority": 100},
+
+		// International
+		{"symbol": "TM", "name": "Toyota Motor Corporation", "type": "STOCK", "priority": 100},
+		{"symbol": "ASML", "name": "ASML Holding N.V.", "type": "STOCK", "priority": 100},
+		{"symbol": "005930.KS", "name": "Samsung Electronics Co. Ltd.", "type": "STOCK", "priority": 100},
+	],
+}

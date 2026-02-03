@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import {join} from 'node:path';
 
 import {configExists, getConfigFilePath, getDefaultConfig, saveConfig} from '../../config/config.ts';
+import {getMarketIndices} from '../../constants/defaults-loader.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
 import {FsUtils} from '../utils/fs.ts';
 import {ui} from '../utils/ui.ts';
@@ -56,18 +57,10 @@ export async function initCommand(configPath: string, force = false): Promise<vo
 
 		await saveConfig(defaultConfig, configPath);
 
-		// Initialize database with default indices
+		// Initialize database with default indices from defaults.jsonc
 		spinner.text = 'Initializing database with market indices...';
 		const storage = new SqliteStorage();
-		const indices = [
-			{name: 'S&P 500', priority: 1, symbol: '^GSPC', type: 'INDEX'},
-			{name: 'Dow Jones Industrial', priority: 2, symbol: '^DJI', type: 'INDEX'},
-			{name: 'NASDAQ Composite', priority: 3, symbol: '^IXIC', type: 'INDEX'},
-			{name: 'CBOE Volatility Index', priority: 10, symbol: '^VIX', type: 'VOLATILITY'},
-			{name: 'FTSE 100', priority: 4, symbol: '^FTSE', type: 'INDEX'},
-			{name: 'DAX Performance', priority: 5, symbol: '^GDAXI', type: 'INDEX'},
-			{name: 'Nikkei 225', priority: 6, symbol: '^N225', type: 'INDEX'},
-		];
+		const indices = getMarketIndices();
 
 		for (const idx of indices) {
 			storage.saveSymbol(idx.symbol, idx.name, idx.type, idx.priority);
