@@ -47,6 +47,7 @@ vi.mock('../../../../src/cli/utils/ui.ts', () => ({
 describe('SyncService', () => {
 	const mockConfig: Config = {
 		aBTesting: {enabled: false},
+		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
 		dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
 		market: {
 			featureConfig: {
@@ -63,7 +64,16 @@ describe('SyncService', () => {
 			primaryIndex: '^GSPC',
 			volatilityIndex: '^VIX',
 		},
-		model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
+		model: {
+			batchSize: 128,
+			dropout: 0.2,
+			epochs: 50,
+			l1Regularization: 0.001,
+			l2Regularization: 0.001,
+			learningRate: 0.001,
+			recurrentDropout: 0.1,
+			windowSize: 30,
+		},
 		prediction: {
 			buyThreshold: 0.05,
 			contextDays: 15,
@@ -73,7 +83,10 @@ describe('SyncService', () => {
 			minConfidence: 0.6,
 			sellThreshold: -0.05,
 		},
-		training: {minNewDataPoints: 50},
+		training: {
+			minNewDataPoints: 50,
+			minQualityScore: 60,
+		},
 	};
 
 	beforeEach(() => {

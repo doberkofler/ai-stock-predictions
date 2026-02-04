@@ -103,6 +103,7 @@ export type PredictionResult = {
  * Report prediction used for HTML generation
  */
 export type ReportPrediction = {
+	backtest?: BacktestResult | undefined;
 	confidence: number;
 	name: string;
 	prediction: PredictionResult;
@@ -120,4 +121,41 @@ export type TradingSignal = {
 	reason: string;
 	symbol: string;
 	timestamp: Date;
+};
+
+/**
+ * Individual trade record for backtesting
+ */
+export type Trade = {
+	action: 'BUY' | 'SELL';
+	date: string;
+	price: number;
+	shares: number;
+	value: number;
+};
+
+/**
+ * Results from a backtesting simulation
+ */
+export type BacktestResult = {
+	alpha: number; // Excess return vs benchmark
+	benchmarkReturn: number; // Return of buy-and-hold
+	drawdown: number; // Maximum peak-to-trough decline
+	equityCurve: {date: string; value: number}[];
+	finalValue: number;
+	initialValue: number;
+	profit: number;
+	sharpeRatio: number;
+	totalReturn: number;
+	trades: Trade[];
+	winRate: number;
+};
+
+/**
+ * Configuration for backtesting
+ */
+export type BacktestConfig = {
+	enabled: boolean;
+	initialCapital: number;
+	transactionCost: number; // Percentage per trade (e.g., 0.001 for 0.1%)
 };

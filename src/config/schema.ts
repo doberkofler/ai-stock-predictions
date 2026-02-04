@@ -30,6 +30,7 @@ const PredictionSchema = z.object({
  */
 const TrainingSchema = z.object({
 	minNewDataPoints: z.number().min(10).max(1000).default(50).describe('Minimum new data points required before retraining a model'),
+	minQualityScore: z.number().min(0).max(100).default(40).describe('Minimum data quality score (0-100) required to train a model'),
 });
 
 /**
@@ -46,8 +47,12 @@ const DataSourceSchema = z.object({
  */
 const ModelSchema = z.object({
 	batchSize: z.number().min(1).max(512).default(128).describe('Number of samples processed before updating model weights'),
+	dropout: z.number().min(0).max(1).default(0.2).describe('Dropout rate for preventing overfitting'),
 	epochs: z.number().min(10).max(200).default(50).describe('Maximum number of training cycles'),
+	l1Regularization: z.number().min(0).max(0.1).default(0.001).describe('L1 kernel regularization factor'),
+	l2Regularization: z.number().min(0).max(0.1).default(0.001).describe('L2 kernel regularization factor'),
 	learningRate: z.number().min(0.0001).max(0.1).default(0.001).describe('Speed at which the model learns during training'),
+	recurrentDropout: z.number().min(0).max(1).default(0.1).describe('Recurrent dropout rate for LSTM layers'),
 	windowSize: z.number().min(10).max(100).default(30).describe('How many past days the model uses to predict the next day'),
 });
 
@@ -79,11 +84,21 @@ const ABTestingSchema = z.object({
 });
 
 /**
+ * Backtesting configuration schema
+ */
+const BacktestSchema = z.object({
+	enabled: z.boolean().default(true).describe('Enable backtesting simulation for predictions'),
+	initialCapital: z.number().min(100).default(10000).describe('Starting cash for the simulation'),
+	transactionCost: z.number().min(0).max(0.05).default(0.001).describe('Transaction cost per trade (0.001 = 0.1%)'),
+});
+
+/**
  * Main configuration schema
  * This is the root schema for validating the entire config.jsonc file
  */
 export const ConfigSchema = z.object({
 	aBTesting: ABTestingSchema,
+	backtest: BacktestSchema,
 	dataSource: DataSourceSchema,
 	market: MarketSchema,
 	model: ModelSchema,
@@ -105,6 +120,11 @@ export const DefaultConfig: Config = {
 	aBTesting: {
 		baselineModelPath: undefined,
 		enabled: false,
+	},
+	backtest: {
+		enabled: true,
+		initialCapital: 10000,
+		transactionCost: 0.001,
 	},
 	dataSource: {
 		rateLimit: 1000,
@@ -128,8 +148,12 @@ export const DefaultConfig: Config = {
 	},
 	model: {
 		batchSize: 128,
+		dropout: 0.2,
 		epochs: 50,
+		l1Regularization: 0.001,
+		l2Regularization: 0.001,
 		learningRate: 0.001,
+		recurrentDropout: 0.1,
 		windowSize: 30,
 	},
 	prediction: {
@@ -143,5 +167,6 @@ export const DefaultConfig: Config = {
 	},
 	training: {
 		minNewDataPoints: 50,
+		minQualityScore: 40,
 	},
 };

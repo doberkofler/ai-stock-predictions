@@ -85,7 +85,7 @@ function applyQuickTestLimit(symbols: {name: string; symbol: string}[], quickTes
 
 	const maxSymbols = Math.min(3, symbols.length);
 	const limitedSymbols = symbols.slice(0, maxSymbols);
-	ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing ${maxSymbols} ${maxSymbols === 1 ? 'symbol' : 'symbols'}, 1000 data points, and 5 epochs`));
+	ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing ${maxSymbols} ${maxSymbols === 1 ? 'symbol' : 'symbols'}, 500 data points, and 5 epochs`));
 
 	return limitedSymbols;
 }
@@ -104,6 +104,7 @@ function displaySummary(progress: ProgressTracker, total: number): void {
 	ui.log('\n' + chalk.bold('🧠 Training Summary:'));
 	ui.log(chalk.green(`  ✅ Trained: ${trained}`));
 	ui.log(chalk.yellow(`  ⚠️  Poor Performance: ${poorPerf}`));
+	ui.log(chalk.yellow(`  ⚠️  Skipped (Quality): ${summary['low-quality'] ?? 0}`));
 	ui.log(chalk.red(`  ❌ Errors: ${error}`));
 	ui.log(chalk.dim(`  📊 Total symbols processed: ${total}`));
 	ui.log('\n' + chalk.green('✅ Model training complete!'));
@@ -266,8 +267,16 @@ async function trainSingleSymbol(
 		return;
 	}
 
+	// Check data quality
+	const quality = storage.getDataQuality(symbol);
+	if (quality && quality.qualityScore < config.training.minQualityScore) {
+		spinner.warn(`${prefix} ${name} (${symbol}) ⚠️ (Quality score ${quality.qualityScore} < ${config.training.minQualityScore})`);
+		progress.complete(symbol, 'low-quality');
+		return;
+	}
+
 	if (quickTest) {
-		stockData = stockData.slice(-1000);
+		stockData = stockData.slice(-500);
 	}
 
 	spinner.text = `${prefix} Fetching market context for ${name} (${symbol})...`;

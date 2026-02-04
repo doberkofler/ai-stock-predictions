@@ -12,6 +12,7 @@ import type {Config} from '../../config/schema.ts';
 import type {ReportPrediction} from '../../types/index.ts';
 import type {MockOra} from '../utils/ui.ts';
 
+import {BacktestEngine} from '../../compute/backtest/engine.ts';
 import {ModelPersistence} from '../../compute/persistence.ts';
 import {PredictionEngine} from '../../compute/prediction.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
@@ -41,10 +42,11 @@ export async function predictCommand(configPath: string, quickTest = false, symb
 			const storage = new SqliteStorage();
 			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
 			const predictionEngine = new PredictionEngine();
+			const backtestEngine = new BacktestEngine(config, predictionEngine);
 			const progress = new ProgressTracker();
 
 			// 1. Determine symbols to process
-			const symbolsToProcess = await getSymbolsToProcess(storage, modelPersistence, config, symbolList, quickTest);
+			const symbolsToProcess = await getSymbolsToProcess(storage, modelPersistence, symbolList, quickTest);
 			if (symbolsToProcess.length === 0) {
 				ui.log(chalk.yellow('No trained models found. Please run "train" first.'));
 				return;
@@ -65,7 +67,16 @@ export async function predictCommand(configPath: string, quickTest = false, symb
 			ui.log(chalk.dim(`Prediction window: ${effectiveConfig.prediction.days} days`));
 
 			// 3. Generate predictions
-			const predictions = await generatePredictions(symbolsToProcess, storage, modelPersistence, predictionEngine, progress, effectiveConfig);
+			const predictions = await generatePredictions(
+				symbolsToProcess,
+				storage,
+				modelPersistence,
+				predictionEngine,
+				backtestEngine,
+				progress,
+				effectiveConfig,
+				quickTest,
+			);
 
 			// 4. Generate HTML report
 			if (predictions.length > 0) {
@@ -102,8 +113,10 @@ function displaySummary(progress: ProgressTracker, total: number): void {
  * @param storage
  * @param modelPersistence
  * @param predictionEngine
+ * @param backtestEngine
  * @param progress
  * @param config
+ * @param quickTest
  * @returns Array of report predictions
  */
 async function generatePredictions(
@@ -111,8 +124,10 @@ async function generatePredictions(
 	storage: SqliteStorage,
 	modelPersistence: ModelPersistence,
 	predictionEngine: PredictionEngine,
+	backtestEngine: BacktestEngine,
 	progress: ProgressTracker,
 	config: Config,
+	quickTest = false,
 ): Promise<ReportPrediction[]> {
 	const predictions: ReportPrediction[] = [];
 
@@ -122,7 +137,7 @@ async function generatePredictions(
 		const symbolSpinner = ui.spinner(`${prefix} Predicting ${name} (${symbol})`).start();
 
 		try {
-			const result = await predictSymbol(symbol, name, storage, modelPersistence, predictionEngine, config, prefix, symbolSpinner);
+			const result = await predictSymbol(symbol, name, storage, modelPersistence, predictionEngine, backtestEngine, config, prefix, symbolSpinner, quickTest);
 			if (result) {
 				predictions.push(result);
 				progress.complete(symbol, 'predicted', result.confidence);
@@ -164,7 +179,6 @@ async function generateReport(predictions: ReportPrediction[], config: Config, s
  * Get the list of symbols to process based on availability and user request
  * @param storage
  * @param modelPersistence
- * @param config
  * @param symbolList
  * @param quickTest
  * @returns Symbols to process
@@ -172,7 +186,6 @@ async function generateReport(predictions: ReportPrediction[], config: Config, s
 async function getSymbolsToProcess(
 	storage: SqliteStorage,
 	modelPersistence: ModelPersistence,
-	config: Config,
 	symbolList?: string,
 	quickTest = false,
 ): Promise<{name: string; symbol: string}[]> {
@@ -182,8 +195,7 @@ async function getSymbolsToProcess(
 	if (symbolList) {
 		const requestedSymbols = symbolList.split(',').map((s) => s.trim().toUpperCase());
 		for (const sym of requestedSymbols) {
-			const model = await modelPersistence.loadModel(sym, config);
-			if (!model) {
+			if (!modelPersistence.modelExists(sym)) {
 				ui.error(chalk.red(`\n❌ Error: No trained model found for '${sym}'. Run 'train' first.`));
 				process.exit(1);
 			}
@@ -196,8 +208,7 @@ async function getSymbolsToProcess(
 		}
 	} else {
 		for (const sym of availableSymbolsInDb) {
-			const model = await modelPersistence.loadModel(sym, config);
-			if (model) {
+			if (modelPersistence.modelExists(sym)) {
 				const name = storage.getSymbolName(sym) ?? sym;
 				symbols.push({name, symbol: sym});
 			}
@@ -206,7 +217,7 @@ async function getSymbolsToProcess(
 
 	if (quickTest) {
 		symbols = symbols.slice(0, 3);
-		ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing 3 symbols and 5-day forecast`));
+		ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing 3 symbols, 500 data points, and 5-day forecast`));
 	}
 
 	return symbols;
@@ -219,9 +230,11 @@ async function getSymbolsToProcess(
  * @param storage
  * @param modelPersistence
  * @param predictionEngine
+ * @param backtestEngine
  * @param config
  * @param prefix
  * @param spinner
+ * @param quickTest
  * @returns Prediction result or null
  */
 async function predictSymbol(
@@ -230,14 +243,17 @@ async function predictSymbol(
 	storage: SqliteStorage,
 	modelPersistence: ModelPersistence,
 	predictionEngine: PredictionEngine,
+	backtestEngine: BacktestEngine,
 	config: Config,
 	prefix: string,
 	spinner: MockOra | Ora,
+	quickTest = false,
 ): Promise<null | ReportPrediction> {
-	const stockData = await storage.getStockData(symbol);
+	spinner.text = `${prefix} Loading model for ${name} (${symbol})...`;
+	const stockDataFull = await storage.getStockData(symbol);
 	const model = await modelPersistence.loadModel(symbol, config);
 
-	if (!stockData || stockData.length < config.model.windowSize) {
+	if (!stockDataFull || stockDataFull.length < config.model.windowSize) {
 		spinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
 		return null;
 	}
@@ -247,12 +263,29 @@ async function predictSymbol(
 		return null;
 	}
 
+	const stockData = quickTest ? stockDataFull.slice(-500) : stockDataFull;
+
 	spinner.text = `${prefix} Fetching market context for ${name} (${symbol})...`;
 	const marketFeatures = config.market.featureConfig.enabled ? (storage.getMarketFeatures(symbol) ?? []) : [];
 
-	spinner.text = `${prefix} Predicting ${name} (${symbol}) [${stockData.length} pts]...`;
+	spinner.text = `${prefix} Predicting future price for ${name} (${symbol})...`;
 	const prediction = await predictionEngine.predict(model, stockData, config, marketFeatures);
 	const signal = predictionEngine.generateSignal(prediction, config.prediction);
+
+	let backtest;
+	if (config.backtest.enabled) {
+		const backtestStartTime = Date.now();
+		const backtestDays = quickTest ? 30 : 126;
+		const progress = new ProgressTracker();
+
+		spinner.text = `${prefix} Starting walk-forward backtest (${backtestDays} days)...`;
+
+		backtest = await backtestEngine.run(symbol, model, stockData, marketFeatures, backtestDays, (current, total) => {
+			const bar = progress.createProgressBar(total, current, `Backtesting ${name} (${symbol})`);
+			const eta = ProgressTracker.calculateEta(backtestStartTime, current, total);
+			spinner.text = `${prefix} ${bar} (ETA: ${eta})`;
+		});
+	}
 
 	let signalEmoji = '➡️';
 	if (signal.action === 'BUY') {
@@ -264,6 +297,7 @@ async function predictSymbol(
 	spinner.succeed(`${prefix} ${name} (${symbol}) ${signalEmoji} ${signal.action} (${(signal.confidence * 100).toFixed(0)}%)`);
 
 	return {
+		backtest,
 		confidence: signal.confidence,
 		name,
 		prediction,

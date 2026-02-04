@@ -2,16 +2,6 @@
 
 ## CLI UX
 
-## UI/UX & Output Module (Priority: Medium)
-
-### Confidence Ribbons
-Description: Visualize the prediction uncertainty (using MAE) as a shaded area around the prediction line. 
-Impact: Better risk communication.
-
-### Signal Dashboard
-Description: Add a sortable/filterable summary table at the top of the report to quickly find high-confidence "BUY" or "SELL" signals.
-Impact: Better usability.
-
 ## Developer Experience & Logic (Priority: Low)
 
 ### Backtesting Command
@@ -21,7 +11,3 @@ Impact: The only way to prove if the model works.
 ### Model Drift Detection
 Description: Lower confidence automatically if recent (last 5 days) real prices differ significantly from the model's past predictions.
 Impact: Smart risk management.
-
-### HTML Templating
-Description: Simplify the HTML generation by splitting it into multiple modules. The HTML could be stored in an external file and the JavaScript code as well.
-The files could then be read and then combined. We should take advantage of eslint and lint the html and the js.

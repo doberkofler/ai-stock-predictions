@@ -47,6 +47,8 @@ vi.mock('../../../../src/compute/persistence.ts', () => ({
 }));
 
 const mockAppConfig = {
+	aBTesting: {enabled: false},
+	backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
 	market: {
 		featureConfig: {
 			enabled: true,
@@ -56,7 +58,20 @@ const mockAppConfig = {
 			includeVix: true,
 		},
 	},
-	model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
+	model: {
+		batchSize: 128,
+		dropout: 0.2,
+		epochs: 50,
+		l1Regularization: 0.001,
+		l2Regularization: 0.001,
+		learningRate: 0.001,
+		recurrentDropout: 0.1,
+		windowSize: 30,
+	},
+	training: {
+		minNewDataPoints: 50,
+		minQualityScore: 60,
+	},
 };
 
 vi.mock('../../../../src/cli/utils/runner.ts', () => ({

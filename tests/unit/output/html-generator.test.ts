@@ -8,6 +8,7 @@ import {HtmlGenerator} from '../../../src/output/html-generator.ts';
 
 vi.mock('node:fs/promises', () => ({
 	mkdir: vi.fn().mockResolvedValue(undefined),
+	readFile: vi.fn().mockResolvedValue('mocked asset content'),
 	writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -76,6 +77,7 @@ describe('HtmlGenerator', () => {
 
 	const mockAppConfig: Config = {
 		aBTesting: {enabled: false},
+		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
 		dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
 		market: {
 			featureConfig: {
@@ -89,12 +91,21 @@ describe('HtmlGenerator', () => {
 				includeVix: true,
 				includeVolatilitySpread: true,
 			},
-			primaryIndex: "^GSPC",
-			volatilityIndex: "^VIX",
+			primaryIndex: '^GSPC',
+			volatilityIndex: '^VIX',
 		},
-		model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
+		model: {
+			batchSize: 128,
+			dropout: 0.2,
+			epochs: 50,
+			l1Regularization: 0.001,
+			l2Regularization: 0.001,
+			learningRate: 0.001,
+			recurrentDropout: 0.1,
+			windowSize: 30,
+		},
 		prediction: mockOutputConfig,
-		training: {minNewDataPoints: 50},
+		training: {minNewDataPoints: 50, minQualityScore: 60},
 	};
 
 	beforeEach(() => {

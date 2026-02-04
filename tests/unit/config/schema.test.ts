@@ -8,6 +8,11 @@ describe('ConfigSchema', () => {
 			aBTesting: {
 				enabled: false,
 			},
+			backtest: {
+				enabled: true,
+				initialCapital: 10000,
+				transactionCost: 0.001,
+			},
 			dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
 			market: {
 				featureConfig: {
@@ -20,7 +25,16 @@ describe('ConfigSchema', () => {
 				primaryIndex: '^GSPC',
 				volatilityIndex: '^VIX',
 			},
-			model: {batchSize: 128, epochs: 50, learningRate: 0.001, windowSize: 30},
+			model: {
+				batchSize: 128,
+				dropout: 0.2,
+				epochs: 50,
+				l1Regularization: 0.001,
+				l2Regularization: 0.001,
+				learningRate: 0.001,
+				recurrentDropout: 0.1,
+				windowSize: 30,
+			},
 			prediction: {
 				buyThreshold: 0.05,
 				contextDays: 15,

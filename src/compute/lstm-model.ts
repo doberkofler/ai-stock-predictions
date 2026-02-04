@@ -15,11 +15,15 @@ import {calculateOBV, calculateReturns, calculateRsi, calculateSma, calculateVol
  */
 export type ModelMetadata = {
 	dataPoints: number;
+	dropout?: number;
 	featureConfig?: FeatureConfig | undefined;
+	l1Regularization?: number;
+	l2Regularization?: number;
 	loss: number;
 	mape?: number | undefined;
 	metrics: Record<string, number>;
 	normalizationType?: 'global-minmax' | 'window-zscore';
+	recurrentDropout?: number;
 	symbol: string;
 	trainedAt: Date;
 	trainingMethod?: 'absolute-prices' | 'log-returns';
@@ -284,6 +288,7 @@ export class LstmModel {
 		let bestLoss = Number.POSITIVE_INFINITY;
 		let patienceCounter = 0;
 		const patience = 5;
+		let currentLearningRate = this.config.learningRate;
 
 		const history = await this.model.fit(trainX, trainY, {
 			batchSize: this.config.batchSize,
@@ -293,7 +298,7 @@ export class LstmModel {
 						onProgress(epoch + 1, logs.loss ?? 0);
 					}
 
-					// Manual Early Stopping implementation for val_loss
+					// Manual Early Stopping and LR Scheduling implementation
 					const valLoss = logs?.val_loss;
 					if (valLoss !== undefined) {
 						if (valLoss < bestLoss) {
@@ -301,6 +306,13 @@ export class LstmModel {
 							patienceCounter = 0;
 						} else {
 							patienceCounter++;
+
+							// Adaptive Learning Rate: Reduce by 50% after 3 epochs of no improvement
+							if (patienceCounter === 3 && this.model) {
+								currentLearningRate *= 0.5;
+								// @ts-expect-error -- Justification: Adam optimizer in TFJS 4.x has a learningRate property but it's not always exposed in the base Optimizer type.
+								this.model.optimizer.learningRate = currentLearningRate;
+							}
 						}
 
 						if (patienceCounter >= patience && this.model) {
@@ -320,7 +332,10 @@ export class LstmModel {
 
 		this.metadata = {
 			dataPoints: data.length,
+			dropout: this.config.dropout,
 			featureConfig: this.featureConfig ?? undefined,
+			l1Regularization: this.config.l1Regularization,
+			l2Regularization: this.config.l2Regularization,
 			loss: finalLoss,
 			metrics: {
 				finalLoss,
@@ -328,6 +343,7 @@ export class LstmModel {
 				validationLoss: finalValLoss,
 			},
 			normalizationType: 'window-zscore',
+			recurrentDropout: this.config.recurrentDropout,
 			symbol: 'UNKNOWN',
 			trainedAt: new Date(),
 			trainingMethod: 'log-returns',
@@ -503,20 +519,30 @@ export class LstmModel {
 			model.add(
 				tf.layers.lstm({
 					inputShape: [this.config.windowSize, inputDim],
+					kernelRegularizer: tf.regularizers.l1l2({
+						l1: this.config.l1Regularization,
+						l2: this.config.l2Regularization,
+					}),
+					recurrentDropout: this.config.recurrentDropout,
 					returnSequences: true,
 					units: 64,
 				}),
 			);
-			model.add(tf.layers.dropout({rate: 0.2}));
+			model.add(tf.layers.dropout({rate: this.config.dropout}));
 
 			// LSTM Layer 2
 			model.add(
 				tf.layers.lstm({
+					kernelRegularizer: tf.regularizers.l1l2({
+						l1: this.config.l1Regularization,
+						l2: this.config.l2Regularization,
+					}),
+					recurrentDropout: this.config.recurrentDropout,
 					returnSequences: false,
 					units: 64,
 				}),
 			);
-			model.add(tf.layers.dropout({rate: 0.2}));
+			model.add(tf.layers.dropout({rate: this.config.dropout}));
 
 			// Dense Output Layer
 			model.add(
@@ -526,10 +552,14 @@ export class LstmModel {
 				}),
 			);
 
+			const optimizer = tf.train.adam(this.config.learningRate);
+			// @ts-expect-error -- Justification: clipvalue is supported by many TFJS optimizers but not always in the base type.
+			optimizer.clipvalue = 1;
+
 			model.compile({
 				loss: 'meanSquaredError',
 				metrics: ['mae'],
-				optimizer: tf.train.adam(this.config.learningRate),
+				optimizer,
 			});
 
 			return model;

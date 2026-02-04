@@ -101,6 +101,26 @@ export default tseslint.config(
 		},
 	},
 	{
+		files: ['src/output/assets/*.js'],
+		languageOptions: {
+			globals: {
+				document: 'readonly',
+				window: 'readonly',
+				globalThis: 'readonly',
+				Chart: 'readonly',
+			},
+		},
+		rules: {
+			'no-console': 'off',
+			'@typescript-eslint/no-unsafe-member-access': 'off',
+			'@typescript-eslint/no-unsafe-assignment': 'off',
+			'@typescript-eslint/no-unsafe-call': 'off',
+			'@typescript-eslint/no-unsafe-argument': 'off',
+			'@typescript-eslint/no-unsafe-return': 'off',
+			'@typescript-eslint/restrict-template-expressions': 'off',
+		},
+	},
+	{
 		ignores: ['dist/', 'node_modules/', 'coverage/', 'data/', 'models/', 'output/'],
 	},
 );

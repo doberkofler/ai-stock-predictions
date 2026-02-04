@@ -10,3 +10,4 @@ project:
 
 ignore:
   - src/types/index.ts
+  - src/output/assets/report.js

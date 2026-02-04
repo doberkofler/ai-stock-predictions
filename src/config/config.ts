@@ -115,22 +115,38 @@ function generateCommentedConfig(config: Config): string {
 			: `\t\t"baselineModelPath": "${config.aBTesting.baselineModelPath}"`;
 
 	return `{
-\t// ============================================================================
-\t// A/B TESTING CONFIGURATION
-\t// ============================================================================
-\t// Enable experimental model comparison to measure improvements
-\t
-\t"aBTesting": {
-\t\t// Enable A/B testing to compare new model against baseline
-\t\t"enabled": ${config.aBTesting.enabled},
-\t\t
-\t\t// Path to baseline model for comparison (optional)
+	// ============================================================================
+	// A/B TESTING CONFIGURATION
+	// ============================================================================
+	// Enable experimental model comparison to measure improvements
+	
+	"aBTesting": {
+		// Enable A/B testing to compare new model against baseline
+		"enabled": ${config.aBTesting.enabled},
+		
+		// Path to baseline model for comparison (optional)
 ${baselinePathComment}
-\t},
-\t
-\t// ============================================================================
-\t// DATA SOURCE CONFIGURATION (Yahoo Finance API)
-\t// ============================================================================
+	},
+	
+	// ============================================================================
+	// BACKTESTING CONFIGURATION
+	// ============================================================================
+	// Control historical simulation parameters
+	
+	"backtest": {
+		// Enable backtesting simulation for predictions
+		"enabled": ${config.backtest.enabled},
+
+		// Starting cash for the simulation (e.g., 10000)
+		"initialCapital": ${config.backtest.initialCapital},
+
+		// Transaction cost per trade (0.001 = 0.1%)
+		"transactionCost": ${config.backtest.transactionCost}
+	},
+	
+	// ============================================================================
+	// DATA SOURCE CONFIGURATION (Yahoo Finance API)
+	// ============================================================================
 \t// Control API rate limiting and error handling
 \t
 \t"dataSource": {
@@ -204,23 +220,35 @@ ${baselinePathComment}
 \t// ============================================================================
 \t// Hyperparameters that control LSTM neural network training
 \t
-\t"model": {
-\t\t// Number of samples processed before updating weights (1-512)
-\t\t// Smaller (32-64) = slower but more stable; Larger (256-512) = faster but might overfit
-\t\t"batchSize": ${config.model.batchSize},
-\t\t
-\t\t// Maximum number of training cycles (10-200)
-\t\t// More epochs = longer training but potentially better fit; watch for overfitting after ~100
-\t\t"epochs": ${config.model.epochs},
-\t\t
-\t\t// Learning rate: Speed of weight adjustments (0.0001-0.1)
-\t\t// Lower (0.0001) = slower, more stable; Higher (0.01) = faster but might miss optimal solution
-\t\t"learningRate": ${config.model.learningRate},
-\t\t
-\t\t// Number of past days used to predict the next day (10-100)
-\t\t// Short-term traders: 10-20; Medium-term: 30 (default); Long-term: 60-100
-\t\t"windowSize": ${config.model.windowSize}
-\t},
+	"model": {
+		// Number of samples processed before updating weights (1-512)
+		// Smaller (32-64) = slower but more stable; Larger (256-512) = faster but might overfit
+		"batchSize": ${config.model.batchSize},
+
+		// Dropout rate for preventing overfitting (0.0 to 1.0)
+		"dropout": ${config.model.dropout},
+		
+		// Maximum number of training cycles (10-200)
+		// More epochs = longer training but potentially better fit; watch for overfitting after ~100
+		"epochs": ${config.model.epochs},
+
+		// L1 kernel regularization factor (0.0 to 0.1)
+		"l1Regularization": ${config.model.l1Regularization},
+
+		// L2 kernel regularization factor (0.0 to 0.1)
+		"l2Regularization": ${config.model.l2Regularization},
+		
+		// Learning rate: Speed of weight adjustments (0.0001-0.1)
+		// Lower (0.0001) = slower, more stable; Higher (0.01) = faster but might miss optimal solution
+		"learningRate": ${config.model.learningRate},
+
+		// Recurrent dropout rate for LSTM layers (0.0 to 1.0)
+		"recurrentDropout": ${config.model.recurrentDropout},
+		
+		// Number of past days used to predict the next day (10-100)
+		// Short-term traders: 10-20; Medium-term: 30 (default); Long-term: 60-100
+		"windowSize": ${config.model.windowSize}
+	},
 \t
 \t// ============================================================================
 \t// PREDICTION CONFIGURATION

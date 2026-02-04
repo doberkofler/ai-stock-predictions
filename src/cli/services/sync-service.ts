@@ -153,7 +153,7 @@ async function syncSingleSymbol(
 
 	// Fetch data
 	spinner.text = `${prefix} Fetching ${name} (${symbol}) data...`;
-	const result = await dataSource.getHistoricalData(symbol, startDate, quickTest ? 1000 : undefined);
+	const result = await dataSource.getHistoricalData(symbol, startDate, quickTest ? 500 : undefined);
 
 	if (result.data.length === 0) {
 		spinner.succeed(`${prefix} ${name} (${symbol}) (no new data)`);
@@ -172,6 +172,8 @@ async function syncSingleSymbol(
 			result.qualityMetrics.qualityScore,
 			result.qualityMetrics.interpolatedCount,
 			result.qualityMetrics.interpolatedPercent,
+			result.qualityMetrics.outlierCount,
+			result.qualityMetrics.outlierPercent,
 			result.qualityMetrics.gapsDetected,
 			result.qualityMetrics.missingDays,
 		);

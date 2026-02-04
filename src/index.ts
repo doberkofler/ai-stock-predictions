@@ -1,6 +1,7 @@
 import {Command} from 'commander';
 
 import {exportCommand} from './cli/commands/export.ts';
+import {backtestCommand} from './cli/commands/backtest.ts';
 import {importCommand} from './cli/commands/import.ts';
 import {initCommand} from './cli/commands/init.ts';
 import {predictCommand} from './cli/commands/predict.ts';
@@ -84,6 +85,16 @@ program
 	.action(async (options: {quickTest: boolean; symbols?: string}) => {
 		const programOptions = program.opts<{config: string}>();
 		await predictCommand(programOptions.config, options.quickTest, options.symbols);
+	});
+
+program
+	.command('backtest')
+	.description('Evaluate trading strategy based on historical predictions')
+	.option('-s, --symbols <list>', 'comma-separated list of specific symbols to backtest')
+	.option('-d, --days <number>', 'number of historical days to backtest', '252')
+	.action(async (options: {days: string; symbols?: string}) => {
+		const programOptions = program.opts<{config: string}>();
+		await backtestCommand(programOptions.config, options.symbols, Number.parseInt(options.days, 10));
 	});
 
 program

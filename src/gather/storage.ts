@@ -214,6 +214,8 @@ export class SqliteStorage {
 		interpolatedPercent: number;
 		lastUpdated: string;
 		missingDays: number;
+		outlierCount: number;
+		outlierPercent: number;
 		qualityScore: number;
 		symbol: string;
 	} {
@@ -226,6 +228,8 @@ export class SqliteStorage {
 					interpolatedPercent: number;
 					lastUpdated: string;
 					missingDays: number;
+					outlierCount: number;
+					outlierPercent: number;
 					qualityScore: number;
 					symbol: string;
 			  };
@@ -466,6 +470,8 @@ export class SqliteStorage {
 	 * @param qualityScore - Quality score (0-100)
 	 * @param interpolatedCount - Number of interpolated data points
 	 * @param interpolatedPercent - Percentage of interpolated data (0-1)
+	 * @param outlierCount - Number of outliers detected
+	 * @param outlierPercent - Percentage of outliers detected (0-1)
 	 * @param gapsDetected - Number of gaps detected
 	 * @param missingDays - Total missing days
 	 */
@@ -474,14 +480,19 @@ export class SqliteStorage {
 		qualityScore: number,
 		interpolatedCount: number,
 		interpolatedPercent: number,
+		outlierCount: number,
+		outlierPercent: number,
 		gapsDetected: number,
 		missingDays: number,
 	): void {
 		const upsert = this.historicalDb.prepare(`
-			INSERT OR REPLACE INTO data_quality (symbol, qualityScore, interpolatedCount, interpolatedPercent, gapsDetected, missingDays, lastUpdated)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
+			INSERT OR REPLACE INTO data_quality (
+				symbol, qualityScore, interpolatedCount, interpolatedPercent, 
+				outlierCount, outlierPercent, gapsDetected, missingDays, lastUpdated
+			)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`);
-		upsert.run(symbol, qualityScore, interpolatedCount, interpolatedPercent, gapsDetected, missingDays, new Date().toISOString());
+		upsert.run(symbol, qualityScore, interpolatedCount, interpolatedPercent, outlierCount, outlierPercent, gapsDetected, missingDays, new Date().toISOString());
 	}
 
 	/**
@@ -644,6 +655,8 @@ export class SqliteStorage {
 				qualityScore REAL,
 				interpolatedCount INTEGER,
 				interpolatedPercent REAL,
+				outlierCount INTEGER,
+				outlierPercent REAL,
 				gapsDetected INTEGER,
 				missingDays INTEGER,
 				lastUpdated TEXT

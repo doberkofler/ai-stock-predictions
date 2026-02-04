@@ -17,6 +17,7 @@ vi.mock('../../../../src/gather/storage.ts', () => ({
 
 const mockPersistence = {
 	loadModel: vi.fn(),
+	modelExists: vi.fn(),
 };
 
 vi.mock('../../../../src/compute/persistence.ts', () => ({
@@ -100,18 +101,20 @@ describe('predictCommand', () => {
 		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL']);
 		mockStorage.getSymbolName.mockReturnValue('Apple Inc.');
 		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+		mockPersistence.modelExists.mockReturnValue(true);
 		mockPersistence.loadModel.mockResolvedValue({});
 
 		await predictCommand('config.jsonc');
 	});
 
 	it('should predict specific symbols', async () => {
+		mockPersistence.modelExists.mockReturnValue(true);
 		await predictCommand('config.jsonc', false, 'AAPL');
 	});
 
 	it('should handle errors in symbol request', async () => {
 		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL']);
-		mockPersistence.loadModel.mockResolvedValue(null);
+		mockPersistence.modelExists.mockReturnValue(false);
 
 		await predictCommand('config.jsonc', false, 'AAPL');
 		expect(process.exit).toHaveBeenCalledWith(1);
@@ -121,6 +124,7 @@ describe('predictCommand', () => {
 		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL', 'MSFT', 'GOOG', 'TSLA']);
 		mockStorage.getSymbolName.mockReturnValue('Company');
 		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+		mockPersistence.modelExists.mockReturnValue(true);
 		mockPersistence.loadModel.mockResolvedValue({});
 
 		await predictCommand('config.jsonc', true);
@@ -129,6 +133,7 @@ describe('predictCommand', () => {
 	});
 
 	it('should handle init mode', async () => {
+		mockPersistence.modelExists.mockReturnValue(true);
 		await predictCommand('config.jsonc', true);
 		// Should only process 3 symbols
 		expect(mockStorage.getStockData).toHaveBeenCalledTimes(3);

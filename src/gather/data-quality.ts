@@ -40,6 +40,21 @@ export type DataQualityResult = {
 	missingDays: number;
 
 	/**
+	 * Number of detected outliers in the data
+	 */
+	outlierCount: number;
+
+	/**
+	 * Indices of data points identified as outliers
+	 */
+	outlierIndices: number[];
+
+	/**
+	 * Percentage of data points that are outliers (0-1)
+	 */
+	outlierPercent: number;
+
+	/**
 	 * Quality score (0-100) based on completeness, outliers, and consistency
 	 */
 	qualityScore: number;
@@ -80,6 +95,9 @@ export function processData(data: StockDataPoint[]): DataQualityResult {
 			interpolatedIndices: [],
 			interpolatedPercent: 0,
 			missingDays: 0,
+			outlierCount: 0,
+			outlierIndices: [],
+			outlierPercent: 0,
 			qualityScore: 0,
 		};
 	}
@@ -90,10 +108,15 @@ export function processData(data: StockDataPoint[]): DataQualityResult {
 	// Interpolate gaps
 	const {data: interpolatedData, interpolatedIndices} = interpolateGaps(data, gaps);
 
+	// Detect outliers
+	const {indices: outlierIndices} = detectOutliers(interpolatedData);
+	const outlierCount = outlierIndices.length;
+	const outlierPercent = outlierCount / interpolatedData.length;
+
 	// Calculate quality metrics
 	const interpolatedCount = interpolatedIndices.length;
 	const interpolatedPercent = interpolatedCount / interpolatedData.length;
-	const qualityScore = calculateQualityScore(interpolatedData, interpolatedPercent, gaps);
+	const qualityScore = calculateQualityScore(interpolatedData, interpolatedPercent, outlierPercent, gaps);
 
 	return {
 		data: interpolatedData,
@@ -102,32 +125,86 @@ export function processData(data: StockDataPoint[]): DataQualityResult {
 		interpolatedIndices,
 		interpolatedPercent,
 		missingDays: countMissingDays(data),
+		outlierCount,
+		outlierIndices,
+		outlierPercent,
 		qualityScore,
 	};
+}
+
+/**
+ * Detect statistical outliers in stock data based on log returns
+ * Uses Z-score method (threshold = 3.0)
+ * @param data - Stock data points
+ * @returns Indices of outlier data points
+ */
+function detectOutliers(data: StockDataPoint[]): {indices: number[]} {
+	if (data.length < 20) {
+		return {indices: []};
+	}
+
+	// Calculate log returns
+	const returns: number[] = [];
+	for (let i = 1; i < data.length; i++) {
+		const curr = data[i]?.close ?? 0;
+		const prev = data[i - 1]?.close ?? 0;
+		if (prev > 0 && curr > 0) {
+			returns.push(Math.log(curr / prev));
+		} else {
+			returns.push(0);
+		}
+	}
+
+	// Calculate mean and standard deviation of returns
+	const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+	const std = Math.sqrt(returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length);
+
+	if (std === 0) {
+		return {indices: []};
+	}
+
+	const outlierIndices: number[] = [];
+	const zThreshold = 3;
+
+	for (const [i, r] of returns.entries()) {
+		const zScore = Math.abs((r - mean) / std);
+
+		if (zScore > zThreshold) {
+			// +1 because returns[i] corresponds to data[i+1]
+			outlierIndices.push(i + 1);
+		}
+	}
+
+	return {indices: outlierIndices};
 }
 
 /**
  * Calculate quality score (0-100) based on multiple factors
  * @param data - Processed stock data
  * @param interpolatedPercent - Percentage of interpolated data (0-1)
+ * @param outlierPercent - Percentage of outliers detected (0-1)
  * @param gaps - Detected gaps
  * @returns Quality score (0-100)
  */
-function calculateQualityScore(data: StockDataPoint[], interpolatedPercent: number, gaps: {gapDays: number}[]): number {
+function calculateQualityScore(data: StockDataPoint[], interpolatedPercent: number, outlierPercent: number, gaps: {gapDays: number}[]): number {
 	if (data.length === 0) {
 		return 0;
 	}
 
-	// Factor 1: Completeness (40% weight)
+	// Factor 1: Completeness (35% weight)
 	// Penalize based on interpolation percentage
-	const completeness = 1 - interpolatedPercent;
+	const completeness = Math.max(0, 1 - interpolatedPercent * 5); // 20% interpolation = 0 score
 
-	// Factor 2: Gap penalty (30% weight)
+	// Factor 2: Gap penalty (25% weight)
 	// Penalize large gaps more heavily
 	const largeGaps = gaps.filter((g) => g.gapDays > MAX_INTERPOLATION_GAP + 1).length;
-	const gapPenalty = Math.max(0, 1 - largeGaps / 10); // -10% per large gap, max 100%
+	const gapPenalty = Math.max(0, 1 - largeGaps / 5); // -20% per large gap, max 100%
 
-	// Factor 3: Data density (30% weight)
+	// Factor 3: Outlier penalty (20% weight)
+	// Penalize based on outlier percentage
+	const outlierHealth = Math.max(0, 1 - outlierPercent * 10); // 10% outliers = 0 score
+
+	// Factor 4: Data density (20% weight)
 	// Measure how much of the expected timespan we have data for
 	const startDate = new Date(data[0]?.date ?? '');
 	const endDate = new Date(data.at(-1)?.date ?? '');
@@ -136,7 +213,7 @@ function calculateQualityScore(data: StockDataPoint[], interpolatedPercent: numb
 	const density = expectedTradingDays > 0 ? Math.min(1, data.length / expectedTradingDays) : 1;
 
 	// Weighted average
-	const qualityScore = (completeness * 0.4 + gapPenalty * 0.3 + density * 0.3) * 100;
+	const qualityScore = (completeness * 0.35 + gapPenalty * 0.25 + outlierHealth * 0.2 + density * 0.2) * 100;
 
 	return Math.round(qualityScore * 10) / 10; // Round to 1 decimal place
 }

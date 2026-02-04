@@ -166,6 +166,9 @@ describe('DataQualityPipeline', () => {
 				interpolatedIndices: [],
 				interpolatedPercent: 0.05, // 5% interpolated
 				missingDays: 10,
+				outlierCount: 0,
+				outlierIndices: [],
+				outlierPercent: 0,
 				qualityScore: 85,
 			};
 
@@ -180,6 +183,9 @@ describe('DataQualityPipeline', () => {
 				interpolatedIndices: [],
 				interpolatedPercent: 0.15, // 15% interpolated (>10% threshold)
 				missingDays: 100,
+				outlierCount: 0,
+				outlierIndices: [],
+				outlierPercent: 0,
 				qualityScore: 70,
 			};
 
@@ -194,6 +200,9 @@ describe('DataQualityPipeline', () => {
 				interpolatedIndices: [],
 				interpolatedPercent: 0.05, // Low interpolation
 				missingDays: 200,
+				outlierCount: 0,
+				outlierIndices: [],
+				outlierPercent: 0,
 				qualityScore: 50, // <60 threshold
 			};
 
@@ -208,10 +217,55 @@ describe('DataQualityPipeline', () => {
 				interpolatedIndices: [],
 				interpolatedPercent: 0.1, // Exactly 10%
 				missingDays: 50,
+				outlierCount: 0,
+				outlierIndices: [],
+				outlierPercent: 0,
 				qualityScore: 60, // Exactly 60
 			};
 
 			expect(isQualityAcceptable(boundaryResult)).toBe(true);
+		});
+	});
+
+	describe('outlier detection', () => {
+		it('should detect statistical outliers in prices', () => {
+			const mockData: StockDataPoint[] = Array.from({length: 30}, (_, i) => ({
+				adjClose: 100,
+				close: 100,
+				date: `2024-01-${(i + 1).toString().padStart(2, '0')}`,
+				high: 100,
+				low: 100,
+				open: 100,
+				volume: 1000,
+			}));
+
+			// Add an outlier (huge price jump)
+			if (mockData[15]) {
+				mockData[15].close = 200;
+				mockData[15].adjClose = 200;
+			}
+
+			const result = processData(mockData);
+
+			expect(result.outlierCount).toBeGreaterThan(0);
+			expect(result.outlierIndices).toContain(15);
+			expect(result.qualityScore).toBeLessThan(90); // Should be penalized
+		});
+
+		it('should not flag steady data as outliers', () => {
+			const mockData: StockDataPoint[] = Array.from({length: 30}, (_, i) => ({
+				adjClose: 100 + i,
+				close: 100 + i,
+				date: `2024-01-${(i + 1).toString().padStart(2, '0')}`,
+				high: 100 + i,
+				low: 100 + i,
+				open: 100 + i,
+				volume: 1000,
+			}));
+
+			const result = processData(mockData);
+
+			expect(result.outlierCount).toBe(0);
 		});
 	});
 

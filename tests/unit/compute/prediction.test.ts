@@ -11,6 +11,7 @@ describe('PredictionEngine', () => {
 
 	const mockAppConfig: Config = {
 		aBTesting: {enabled: false},
+		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
 		dataSource: {rateLimit: 100, retries: 3, timeout: 5000},
 		market: {
 			featureConfig: {
@@ -24,10 +25,19 @@ describe('PredictionEngine', () => {
 				includeVix: true,
 				includeVolatilitySpread: true,
 			},
-			primaryIndex: "^GSPC",
-			volatilityIndex: "^VIX",
+			primaryIndex: '^GSPC',
+			volatilityIndex: '^VIX',
 		},
-		model: {batchSize: 32, epochs: 2, learningRate: 0.001, windowSize: 10},
+		model: {
+			batchSize: 32,
+			dropout: 0.2,
+			epochs: 2,
+			l1Regularization: 0.001,
+			l2Regularization: 0.001,
+			learningRate: 0.001,
+			recurrentDropout: 0.1,
+			windowSize: 10,
+		},
 		prediction: {
 			buyThreshold: 0.05,
 			contextDays: 15,
@@ -37,7 +47,7 @@ describe('PredictionEngine', () => {
 			minConfidence: 0.6,
 			sellThreshold: -0.05,
 		},
-		training: {minNewDataPoints: 5},
+		training: {minNewDataPoints: 5, minQualityScore: 60},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 20}, (_, i) => ({

@@ -12,6 +12,7 @@ import {DateUtils} from './date.ts';
  */
 export type ProgressStatus =
 	| 'error'
+	| 'low-quality'
 	| 'no-improvement'
 	| 'no-new-data'
 	| 'pending'

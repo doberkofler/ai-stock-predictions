@@ -13,6 +13,22 @@
 	},
 	
 	// ============================================================================
+	// BACKTESTING CONFIGURATION
+	// ============================================================================
+	// Control historical simulation parameters
+	
+	"backtest": {
+		// Enable backtesting simulation for predictions
+		"enabled": true,
+
+		// Starting cash for the simulation (e.g., 10000)
+		"initialCapital": 10000,
+
+		// Transaction cost per trade (0.001 = 0.1%)
+		"transactionCost": 0.001
+	},
+	
+	// ============================================================================
 	// DATA SOURCE CONFIGURATION (Yahoo Finance API)
 	// ============================================================================
 	// Control API rate limiting and error handling
@@ -92,14 +108,26 @@
 		// Number of samples processed before updating weights (1-512)
 		// Smaller (32-64) = slower but more stable; Larger (256-512) = faster but might overfit
 		"batchSize": 128,
+
+		// Dropout rate for preventing overfitting (0.0 to 1.0)
+		"dropout": 0.2,
 		
 		// Maximum number of training cycles (10-200)
 		// More epochs = longer training but potentially better fit; watch for overfitting after ~100
 		"epochs": 50,
+
+		// L1 kernel regularization factor (0.0 to 0.1)
+		"l1Regularization": 0.001,
+
+		// L2 kernel regularization factor (0.0 to 0.1)
+		"l2Regularization": 0.001,
 		
 		// Learning rate: Speed of weight adjustments (0.0001-0.1)
 		// Lower (0.0001) = slower, more stable; Higher (0.01) = faster but might miss optimal solution
 		"learningRate": 0.001,
+
+		// Recurrent dropout rate for LSTM layers (0.0 to 1.0)
+		"recurrentDropout": 0.1,
 		
 		// Number of past days used to predict the next day (10-100)
 		// Short-term traders: 10-20; Medium-term: 30 (default); Long-term: 60-100

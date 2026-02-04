@@ -48,8 +48,8 @@ describe('MarketFeatureEngineer', () => {
 		const vixData = generateData(5, 20, 0);
 
 		// VIX dates matching
-		for (const [i, v] of vixData.entries()) (v.date = stockData[i]!.date);
-		for (const [i, m] of marketData.entries()) (m.date = stockData[i]!.date);
+		for (const [i, v] of vixData.entries()) v.date = stockData[i]!.date;
+		for (const [i, m] of marketData.entries()) m.date = stockData[i]!.date;
 
 		// With very short data, returns might be null, leading to no features
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
@@ -186,7 +186,7 @@ describe('MarketFeatureEngineer', () => {
 		const vixData = generateData(days, 15, 0);
 
 		// Make stock price constant -> variance is 0 -> correlation denominator 0
-		for (const s of stockData) (s.close = 100);
+		for (const s of stockData) s.close = 100;
 
 		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;

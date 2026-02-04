@@ -76,13 +76,40 @@ class UiService {
 		// Return a no-op implementation that satisfies the common Ora interface
 		/* v8 ignore start */
 		const mock: MockOra = {
-			fail: () => mock,
-			info: () => mock,
-			start: () => mock,
+			fail: (t) => {
+				// eslint-disable-next-line no-console
+				if (process.env.DEBUG_UI === 'true') console.error(`  [SPINNER FAIL] ${t ?? text}`);
+				return mock;
+			},
+			info: (t) => {
+				// eslint-disable-next-line no-console
+				if (process.env.DEBUG_UI === 'true') console.log(`  [SPINNER INFO] ${t ?? text}`);
+				return mock;
+			},
+			start: () => {
+				// eslint-disable-next-line no-console
+				if (process.env.DEBUG_UI === 'true') console.log(`  [SPINNER START] ${text}`);
+				return mock;
+			},
 			stop: () => mock,
-			succeed: () => mock,
-			text: text,
-			warn: () => mock,
+			succeed: (t) => {
+				// eslint-disable-next-line no-console
+				if (process.env.DEBUG_UI === 'true') console.log(`  [SPINNER SUCCESS] ${t ?? text}`);
+				return mock;
+			},
+			set text(t: string) {
+				text = t;
+				// eslint-disable-next-line no-console
+				if (process.env.DEBUG_UI === 'true') console.log(`  [SPINNER TEXT] ${t}`);
+			},
+			get text() {
+				return text;
+			},
+			warn: (t) => {
+				// eslint-disable-next-line no-console
+				if (process.env.DEBUG_UI === 'true') console.warn(`  [SPINNER WARN] ${t ?? text}`);
+				return mock;
+			},
 		};
 		return mock;
 		/* v8 ignore stop */

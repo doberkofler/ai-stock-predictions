@@ -13,14 +13,18 @@ describe('LstmModel', () => {
 
 	const mockMlConfig = {
 		batchSize: 2,
+		dropout: 0.2,
 		epochs: 1,
+		l1Regularization: 0.001,
+		l2Regularization: 0.001,
 		learningRate: 0.01,
-		modelType: 'lstm' as const,
+		recurrentDropout: 0.1,
 		windowSize: 5,
 	};
 
 	const mockAppConfig: Config = {
 		aBTesting: {enabled: false},
+		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
 		dataSource: {rateLimit: 100, retries: 3, timeout: 5000},
 		market: {
 			featureConfig: {
@@ -47,7 +51,7 @@ describe('LstmModel', () => {
 			minConfidence: 0.6,
 			sellThreshold: -0.05,
 		},
-		training: {minNewDataPoints: 5},
+		training: {minNewDataPoints: 5, minQualityScore: 60},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 15}, (_, i) => ({

@@ -185,6 +185,23 @@ describe('SqliteStorage', () => {
 		});
 	});
 
+	describe('Data Quality Operations', () => {
+		it('should save and retrieve data quality metrics', async () => {
+			storage.saveDataQuality('AAPL', 85.5, 5, 0.05, 2, 0.02, 0, 10);
+			const quality = storage.getDataQuality('AAPL');
+			expect(quality).not.toBeNull();
+			expect(quality?.qualityScore).toBe(85.5);
+			expect(quality?.interpolatedCount).toBe(5);
+			expect(quality?.outlierCount).toBe(2);
+			expect(quality?.symbol).toBe('AAPL');
+		});
+
+		it('should return null for non-existent data quality', async () => {
+			const quality = storage.getDataQuality('NONEXISTENT');
+			expect(quality).toBeNull();
+		});
+	});
+
 	describe('Cleanup Operations', () => {
 		it('should clear all data', async () => {
 			storage.saveSymbol('AAPL', 'Apple Inc.');

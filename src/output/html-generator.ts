@@ -3,8 +3,9 @@
  * Generates a static index.html file with interactive Chart.js visualizations
  */
 
-import {mkdir, writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import {dirname, join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 import type {Config} from '../config/schema.ts';
 import type {ReportPrediction} from '../types/index.ts';
@@ -12,6 +13,8 @@ import type {ReportPrediction} from '../types/index.ts';
 import {ErrorHandler} from '../cli/utils/errors.ts';
 
 import type {SqliteStorage} from '../gather/storage.ts';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * HTML report generator class
@@ -41,7 +44,8 @@ export class HtmlGenerator {
 			await mkdir(this.config.directory, {recursive: true});
 			const reportPath = join(this.config.directory, 'index.html');
 
-			const html = this.renderHtml(predictions, appConfig);
+			const assets = await this.loadAssets();
+			const html = this.renderHtml(predictions, appConfig, assets);
 			await writeFile(reportPath, html, 'utf8');
 
 			return reportPath;
@@ -49,37 +53,35 @@ export class HtmlGenerator {
 	}
 
 	/**
-	 * Render the Chart.js initialization script for a stock
+	 * Load static assets (CSS, JS) from the filesystem
+	 * @returns Object containing asset contents
+	 */
+	private async loadAssets(): Promise<{css: string; js: string}> {
+		const assetsPath = join(__dirname, 'assets');
+		const [css, js] = await Promise.all([readFile(join(assetsPath, 'report.css'), 'utf8'), readFile(join(assetsPath, 'report.js'), 'utf8')]);
+		return {css, js};
+	}
+
+	/**
+	 * Prepare data for Chart.js for a specific stock
 	 * @param p - Prediction data
 	 * @param appConfig - Application configuration
-	 * @returns JavaScript code string
+	 * @returns Structured data object for the client-side chart
 	 */
-	private renderChartScript(p: ReportPrediction, appConfig: Config): string {
-		// Full History Chart Data - limited by config
+	private prepareChartData(p: ReportPrediction, appConfig: Config): object {
+		// Full History Chart Data
 		const historyLimit = appConfig.prediction.historyChartDays;
 		const historicalData = p.prediction.fullHistory.slice(-historyLimit);
-		const historyLabels = historicalData.map((d) => d.date);
-		const historyPrices = historicalData.map((d) => d.close);
 
-		// Prediction Chart Data - limited context by config
+		// Prediction Chart Data
 		const contextLimit = appConfig.prediction.contextDays;
 		const recentHistory = p.prediction.fullHistory.slice(-contextLimit);
-		const contextLabels = recentHistory.map((d) => d.date);
 		const contextPrices = recentHistory.map((d) => d.close);
 
 		const predictionLabels = p.prediction.predictedData.map((d) => d.date);
 		const predictionPrices = p.prediction.predictedData.map((d) => d.price);
-
-		// Combine for labels
-		const combinedLabels = [...contextLabels, ...predictionLabels];
-
-		// We create two datasets for the prediction chart to show different colors
-		// The actual data will end exactly where the prediction starts
-		const actualDataset = [...contextPrices, ...Array.from({length: predictionPrices.length}, () => null)];
-
-		// The predicted dataset starts with the last actual price to connect the lines
+		const mae = p.prediction.meanAbsoluteError;
 		const lastActualPrice = contextPrices.at(-1);
-		const predictedDataset = [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices];
 
 		let signalColor = '#007bff';
 		let signalRgb = '0, 123, 255';
@@ -91,82 +93,39 @@ export class HtmlGenerator {
 			signalRgb = '220, 53, 69';
 		}
 
-		return `
-			// Full History Chart
-			new Chart(document.getElementById('chart-history-${p.symbol}'), {
-				type: 'line',
-				data: {
-					labels: ${JSON.stringify(historyLabels)},
-					datasets: [{
-						label: 'Actual Price',
-						data: ${JSON.stringify(historyPrices)},
-						borderColor: '#6c757d',
-						backgroundColor: 'rgba(108, 117, 125, 0.1)',
-						borderWidth: 1,
-						pointRadius: 0,
-						fill: true,
-						tension: 0.1
-					}]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					interaction: { intersect: false, mode: 'index' },
-					plugins: { legend: { display: false } },
-					scales: { x: { display: false }, y: { beginAtZero: false } }
-				}
-			});
-
-			// Prediction Chart
-			new Chart(document.getElementById('chart-prediction-${p.symbol}'), {
-				type: 'line',
-				data: {
-					labels: ${JSON.stringify(combinedLabels)},
-					datasets: [
-						{
-							label: 'Recent Actual',
-							data: ${JSON.stringify(actualDataset)},
-							borderColor: '#6c757d',
-							backgroundColor: 'transparent',
-							borderDash: [5, 5],
-							borderWidth: 2,
-							pointRadius: 2,
-							tension: 0.1,
-							spanGaps: false
-						},
-						{
-							label: 'Forecast',
-							data: ${JSON.stringify(predictedDataset)},
-							borderColor: '${signalColor}',
-							backgroundColor: 'rgba(${signalRgb}, 0.1)',
-							borderWidth: 3,
-							pointRadius: 3,
-							fill: true,
-							tension: 0.1,
-							spanGaps: false
-						}
-					]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					interaction: { intersect: false, mode: 'index' },
-					scales: { 
-						y: { beginAtZero: false },
-						x: { ticks: { maxRotation: 45, minRotation: 45 } }
+		return {
+			backtest: p.backtest
+				? {
+						labels: p.backtest.equityCurve.map((d) => d.date),
+						values: p.backtest.equityCurve.map((v) => v.value),
 					}
-				}
-			});
-		`;
+				: null,
+			history: {
+				labels: historicalData.map((d) => d.date),
+				prices: historicalData.map((d) => d.close),
+			},
+			prediction: {
+				labels: [...recentHistory.map((d) => d.date), ...predictionLabels],
+				actualDataset: [...contextPrices, ...Array.from({length: predictionPrices.length}, () => null)],
+				predictedDataset: [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices],
+				upperDataset: [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices.map((v) => v + mae)],
+				lowerDataset: [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices.map((v) => v - mae)],
+				signalColor,
+				signalRgb,
+			},
+		};
 	}
 
 	/**
 	 * Render the full HTML document
 	 * @param predictions - Prediction data
 	 * @param appConfig - App configuration
+	 * @param assets - Loaded CSS and JS assets
+	 * @param assets.css - CSS asset content
+	 * @param assets.js - JS asset content
 	 * @returns HTML string
 	 */
-	private renderHtml(predictions: ReportPrediction[], appConfig: Config): string {
+	private renderHtml(predictions: ReportPrediction[], appConfig: Config, assets: {css: string; js: string}): string {
 		const generatedAt = new Date().toLocaleString();
 
 		return `<!DOCTYPE html>
@@ -176,124 +135,7 @@ export class HtmlGenerator {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>AI Stock Predictions Report</title>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-	<style>
-		:root {
-			--bg-color: #f4f7f6;
-			--card-bg: #ffffff;
-			--text-main: #333333;
-			--buy-color: #28a745;
-			--sell-color: #dc3545;
-			--hold-color: #6c757d;
-			--accent-color: #007bff;
-		}
-		body {
-			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-			background-color: var(--bg-color);
-			color: var(--text-main);
-			margin: 0;
-			padding: 20px;
-		}
-		.container {
-			max-width: 1200px;
-			margin: 0 auto;
-		}
-		header {
-			margin-bottom: 30px;
-			text-align: center;
-		}
-		.summary-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-			gap: 20px;
-			margin-bottom: 40px;
-		}
-		.card {
-			background: var(--card-bg);
-			border-radius: 8px;
-			padding: 20px;
-			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-		}
-		.stock-grid {
-			display: grid;
-			grid-template-columns: 1fr;
-			gap: 40px;
-		}
-		.stock-card {
-			background: var(--card-bg);
-			border-radius: 12px;
-			padding: 25px;
-			box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-		}
-		.stock-header {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			margin-bottom: 25px;
-			border-bottom: 1px solid #eee;
-			padding-bottom: 15px;
-		}
-		.symbol-info {
-			display: flex;
-			flex-direction: column;
-		}
-		.symbol {
-			font-size: 28px;
-			font-weight: bold;
-		}
-		.company-name {
-			font-size: 16px;
-			color: #666;
-			margin-bottom: 5px;
-		}
-		.signal {
-			padding: 8px 20px;
-			border-radius: 20px;
-			font-weight: bold;
-			text-transform: uppercase;
-			font-size: 18px;
-		}
-		.signal-buy { background-color: #e8f5e9; color: var(--buy-color); }
-		.signal-sell { background-color: #ffebee; color: var(--sell-color); }
-		.signal-hold { background-color: #f5f5f5; color: var(--hold-color); }
-		.chart-section {
-			margin-bottom: 30px;
-		}
-		.chart-title {
-			font-size: 16px;
-			font-weight: bold;
-			margin-bottom: 10px;
-			color: #555;
-			text-align: center;
-		}
-		.chart-container {
-			height: 350px;
-			position: relative;
-			margin-bottom: 20px;
-		}
-		table {
-			width: 100%;
-			border-collapse: collapse;
-			margin-top: 20px;
-		}
-		th, td {
-			text-align: left;
-			padding: 12px;
-			border-bottom: 1px solid #eee;
-		}
-		.confidence-bar {
-			height: 8px;
-			background: #eee;
-			border-radius: 4px;
-			width: 100px;
-			display: inline-block;
-			margin-left: 10px;
-		}
-		.confidence-fill {
-			height: 100%;
-			border-radius: 4px;
-			background: var(--accent-color);
-		}
-	</style>
+	<style>${assets.css}</style>
 </head>
 <body>
 	<div class="container">
@@ -317,17 +159,75 @@ export class HtmlGenerator {
 			</div>
 		</div>
 
+		<div class="dashboard-card">
+			<h2 style="text-align: center;">Signal Dashboard</h2>
+			${this.renderSignalDashboard(predictions)}
+		</div>
+
 		<div class="stock-grid">
 			${predictions.map((p) => this.renderStockCard(p, appConfig)).join('')}
 		</div>
 	</div>
 
 	<script>
+		${assets.js}
+		
 		// Initialize all charts
-		${predictions.map((p) => this.renderChartScript(p, appConfig)).join('')}
+		${predictions.map((p) => `initCharts('${p.symbol}', ${JSON.stringify(this.prepareChartData(p, appConfig))});`).join('\n')}
 	</script>
 </body>
 </html>`;
+	}
+
+	/**
+	 * Render the Signal Dashboard table
+	 * @param predictions - Prediction data
+	 * @returns HTML string
+	 */
+	private renderSignalDashboard(predictions: ReportPrediction[]): string {
+		const sortedPredictions = predictions.toSorted((a, b) => b.confidence - a.confidence);
+		return `
+			<table class="dashboard-table" id="dashboard-table" data-sort-dir="desc">
+				<thead>
+					<tr>
+						<th onclick="sortTable(0)" class="sort-icon">Symbol</th>
+						<th onclick="sortTable(1)" class="sort-icon">Signal</th>
+						<th onclick="sortTable(2)" class="sort-icon">Confidence</th>
+						<th onclick="sortTable(3)" class="sort-icon">Current Price</th>
+						<th onclick="sortTable(4)" class="sort-icon">Target Price</th>
+						<th onclick="sortTable(5)" class="sort-icon">Exp. Change</th>
+					</tr>
+				</thead>
+				<tbody>
+					${sortedPredictions
+						.map((p) => {
+							const signalClass = `signal-${p.signal.toLowerCase()}`;
+							const confidencePercent = (p.confidence * 100).toFixed(0);
+							const targetPrice = p.prediction.predictedData.at(-1)?.price ?? 0;
+							const changePercent = ((targetPrice - p.prediction.currentPrice) / p.prediction.currentPrice) * 100;
+
+							return `
+							<tr>
+								<td><a href="#stock-${p.symbol}" class="link-symbol">${p.symbol}</a></td>
+								<td><span class="signal ${signalClass}" style="font-size: 12px; padding: 4px 10px;">${p.signal}</span></td>
+								<td>
+									${confidencePercent}%
+									<div class="confidence-bar" style="width: 60px; height: 4px; margin-left: 5px;">
+										<div class="confidence-fill" style="width: ${confidencePercent}%"></div>
+									</div>
+								</td>
+								<td>$${p.prediction.currentPrice.toFixed(2)}</td>
+								<td>$${targetPrice.toFixed(2)}</td>
+								<td style="color: ${changePercent >= 0 ? 'var(--buy-color)' : 'var(--sell-color)'}; font-weight: bold;">
+									${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%
+								</td>
+							</tr>
+						`;
+						})
+						.join('')}
+				</tbody>
+			</table>
+		`;
 	}
 
 	/**
@@ -358,10 +258,61 @@ export class HtmlGenerator {
 				<th>Data Quality</th>
 				<td>
 					<span style="color: ${qualityColor}; font-weight: bold;">${quality.qualityScore}/100</span>
-					${quality.interpolatedCount > 0 ? `<span style="font-size: 12px; color: #666; margin-left: 10px;">(${quality.interpolatedCount} interpolated)</span>` : ''}
+					<div style="font-size: 12px; color: #666; margin-top: 4px;">
+						${quality.interpolatedCount > 0 ? `<span>• ${quality.interpolatedCount} interpolated points</span><br>` : ''}
+						${quality.outlierCount > 0 ? `<span style="color: var(--sell-color);">• ${quality.outlierCount} outliers detected</span><br>` : ''}
+						${quality.gapsDetected > 0 ? `<span>• ${quality.gapsDetected} gaps detected</span>` : ''}
+					</div>
 				</td>
 			</tr>
 		`;
+	}
+
+	/**
+	 * Render backtest metrics row if available
+	 * @param backtest - Backtest result
+	 * @returns HTML string
+	 */
+	private renderBacktestSummary(backtest: ReportPrediction['backtest']): string {
+		if (!backtest) return '';
+
+		return `
+			<div class="backtest-summary">
+				<div class="backtest-metric">
+					<div class="label">Backtest Return</div>
+					<div class="value">${this.formatReportPercent(backtest.totalReturn)}</div>
+				</div>
+				<div class="backtest-metric">
+					<div class="label">Benchmark (B&H)</div>
+					<div class="value">${this.formatReportPercent(backtest.benchmarkReturn)}</div>
+				</div>
+				<div class="backtest-metric">
+					<div class="label">Alpha</div>
+					<div class="value">${this.formatReportPercent(backtest.alpha)}</div>
+				</div>
+				<div class="backtest-metric">
+					<div class="label">Max Drawdown</div>
+					<div class="value" style="color: var(--sell-color);">${(backtest.drawdown * 100).toFixed(2)}%</div>
+				</div>
+				<div class="backtest-metric">
+					<div class="label">Win Rate</div>
+					<div class="value">${(backtest.winRate * 100).toFixed(0)}%</div>
+				</div>
+				<div class="backtest-metric">
+					<div class="label">Sharpe Ratio</div>
+					<div class="value">${backtest.sharpeRatio.toFixed(2)}</div>
+				</div>
+			</div>
+		`;
+	}
+
+	/**
+	 * Helper to format percentage with color
+	 * @param val
+	 */
+	private formatReportPercent(val: number): string {
+		const color = val >= 0 ? 'var(--buy-color)' : 'var(--sell-color)';
+		return `<span style="color: ${color}; font-weight: bold;">${(val * 100).toFixed(2)}%</span>`;
 	}
 
 	/**
@@ -376,7 +327,7 @@ export class HtmlGenerator {
 		const firstPredicted = p.prediction.predictedData[0]?.price;
 
 		return `
-			<div class="stock-card">
+			<div class="stock-card" id="stock-${p.symbol}">
 				<div class="stock-header">
 					<div class="symbol-info">
 						<span class="symbol">${p.symbol}</span>
@@ -390,6 +341,22 @@ export class HtmlGenerator {
 					</div>
 					<span class="signal ${signalClass}">${p.signal}</span>
 				</div>
+
+				${this.renderBacktestSummary(p.backtest)}
+
+				${
+					p.backtest
+						? `
+				<div class="chart-section">
+					<div class="chart-title">Backtest Equity Curve (Walk-Forward Simulation)</div>
+					<div class="chart-container">
+						<canvas id="chart-backtest-${p.symbol}"></canvas>
+					</div>
+				</div>
+				`
+						: ''
+				}
+
 				<div class="chart-section">
 					<div class="chart-title">Full Performance History (${appConfig.prediction.historyChartDays} Days)</div>
 					<div class="chart-container">

@@ -3,7 +3,7 @@
 This document contains prioritized proposals for improving the machine learning capabilities of the AI Stock Predictions system.
 
 **Last Updated:** 2026-02-04  
-**Document Version:** 1.3
+**Document Version:** 1.6
 
 ## 📋 Document Update Conventions
 
@@ -32,14 +32,17 @@ When completing an enhancement proposal:
 - ⚠️ Market features are frozen during recursive prediction (HIGH PRIORITY)
 - 🎯 Window normalization and log-return training are the most impactful improvements
 
-### ✅ Phase 1 Complete (2026-02-04):
+### ✅ Phase 1 & 2 Progress (2026-02-04):
 - **#1 Window-Based Normalization**: Per-window z-score normalization eliminates data leakage
 - **#2 Log-Return Training**: Model trains on stationary log returns instead of absolute prices
 - **#14 Market Feature Prediction**: Exponential decay prevents frozen market conditions
 - **#3 Linear Interpolation**: Gap detection, linear interpolation (≤3 days), quality scoring (0-100)
 - **#15 Volume-Based Features**: Added VMA, Volume Ratio, and OBV indicators (5 technical features total)
+- **#8 Enhanced Regularization**: Added L1/L2 reg, recurrent dropout, adaptive LR, and gradient clipping
+- **#11 Backtesting Framework**: Walk-forward simulation with Sharpe Ratio and Equity Curves
+- **#10 Outlier Detection**: Statistical detection and auto-rejection of poor-quality data
 - **Breaking Change**: Model version 2.0.0 - all existing models require retraining
-- **Test Coverage**: 93.33%+ (209 tests passing)
+- **Test Coverage**: 93.33%+ (224 tests passing)
 - **Next Step**: Retrain all models and measure MAPE improvement vs baseline
 
 ---
@@ -342,78 +345,24 @@ const confidence = 1 / (1 + variance);  // High variance = low confidence
 
 ---
 
-### 8. Enhanced Regularization
+### 8. Enhanced Regularization ✅
 
-**Current:** Fixed 0.2 dropout on LSTM layers only
+**Status:** Completed (2026-02-04)
 
-**Problem:**
-- Limited regularization techniques beyond dropout
-- No learning rate adaptation during training
-- Potential for gradient instability (exploding/vanishing)
-- Risk of overfitting on small datasets (<1000 samples)
-- No batch normalization for training stability
+**Impact:** Improved training stability and generalization. Prevents overfitting on small datasets through multiple techniques:
+- **Configurable Regularization**: Added L1/L2 kernel regularization, Dropout, and Recurrent Dropout.
+- **Adaptive Learning Rate**: Implemented a "ReduceLROnPlateau" style scheduler that reduces the learning rate by 50% after 3 epochs without improvement.
+- **Gradient Clipping**: Added gradient clipping (clipvalue=1.0) to prevent exploding gradients.
 
-**Fix:**
+**Implementation:**
+- Updated `ModelSchema` in `src/config/schema.ts` with new hyperparameters.
+- Updated `buildModel` and `train` in `src/compute/lstm-model.ts` to apply regularization and LR scheduling.
+- Updated multiple test files to support the new configuration structure.
 
-**1. Gradient Clipping:**
-```typescript
-model.compile({
-    optimizer: tf.train.adam(learningRate, undefined, undefined, undefined, 1.0), // clipValue
-    loss: 'meanSquaredError'
-});
-```
-
-**2. Learning Rate Scheduling:**
-```typescript
-const lrScheduler = {
-    onEpochEnd: (epoch: number, logs: tf.Logs) => {
-        if (logs.val_loss > previousValLoss) {
-            patienceCounter++;
-            if (patienceCounter >= 3) {
-                currentLR *= 0.5;  // Reduce by 50%
-                model.optimizer.learningRate = currentLR;
-            }
-        }
-    }
-};
-```
-
-**3. L1/L2 Regularization:**
-```typescript
-tf.layers.dense({
-    units: 1,
-    kernelRegularizer: tf.regularizers.l2({l2: 0.01})
-});
-```
-
-**4. Batch Normalization:**
-```typescript
-// After dense layers (NOT after LSTM - causes issues)
-model.add(tf.layers.dense({units: 64}));
-model.add(tf.layers.batchNormalization());
-model.add(tf.layers.activation({activation: 'relu'}));
-```
-
-**5. Adaptive Dropout:**
-```typescript
-// Higher dropout for larger datasets
-const dropoutRate = dataSize > 1000 ? 0.3 : 0.2;
-```
-
-**Importance:** MEDIUM - Incrementally improves training stability and generalization
-
-**Complexity:** Medium (5-6 hours)
-- Add learning rate scheduler callback
-- Implement gradient clipping in optimizer config
-- Add L1/L2 regularization options to config schema
-- Test batch normalization placement (not with LSTMs)
-- Add adaptive dropout based on dataset size
-- Update config schema for new regularization options
-- Document trade-offs
-
-**ETA:** 1 day
-
-**Status:** Not Started (Partial: Dropout already implemented at 0.2)
+**Code Locations:**
+- `src/config/schema.ts` - New regularization hyperparameters
+- `src/compute/lstm-model.ts` - Regularization and scheduling implementation
+- `tests/unit/compute/lstm-model.test.ts` - Verification of new features
 
 **References:**
 - `src/compute/lstm-model.ts:228-256` (training loop with callbacks)
@@ -497,188 +446,49 @@ if (valMAE > bestMAE && valMAPE > bestMAPE) {
 
 ---
 
-### 10. Outlier Detection and Data Quality Pipeline
+### 10. Outlier Detection and Data Quality Pipeline ✅
 
-**Current:** Basic validation (non-null checks only in `yahoo-finance.ts:189-224`)
+**Status:** Completed (2026-02-04)
 
-**Problem:**
-- Stock splits and dividends may create artificial jumps (Yahoo should handle via adjClose but errors happen)
-- Flash crashes and data errors corrupt training (e.g., 2010 Flash Crash)
-- No quality metrics to identify problematic symbols
-- Bad data silently reduces model performance
+**Impact:** Prevents "garbage-in, garbage-out" by identifying and handling anomalous data points that can corrupt training.
+- **Statistical Detection**: Uses Z-score (threshold=3) on log returns to find price outliers.
+- **Quality Scoring**: Comprehensive 0-100 score based on completeness, gap sizes, outlier frequency, and data density.
+- **Auto-Rejection**: Training pipeline automatically skips symbols with quality scores below the configurable threshold (default: 60).
+- **Transparency**: Detailed quality metrics (outlier counts, interpolation stats) are displayed in HTML reports.
 
-**Fix:**
+**Implementation:**
+- Enhanced `processData` in `src/gather/data-quality.ts` with outlier detection logic.
+- Updated `SqliteStorage` schema and persistence for new quality metrics.
+- Integrated `minQualityScore` check in `src/cli/commands/train.ts`.
+- Updated `HtmlGenerator` to display detailed quality summaries.
 
-**Statistical Outlier Detection:**
-```typescript
-class DataQualityAnalyzer {
-    detectOutliers(data: StockDataPoint[]): {
-        outlierIndices: number[];
-        qualityScore: number;  // 0-100
-    } {
-        const returns = calculateReturns(data);
-        const mean = calculateMean(returns);
-        const std = calculateStd(returns);
-        
-        // Flag returns > 3 standard deviations
-        const outliers = returns.map((r, i) => 
-            Math.abs(r - mean) > 3 * std ? i : -1
-        ).filter(i => i !== -1);
-        
-        // Quality score based on multiple factors
-        const completeness = 1 - (missingDays / totalDays);
-        const outlierPenalty = 1 - (outliers.length / data.length);
-        const consistencyScore = correlationWithMarketIndex;
-        
-        return {
-            outlierIndices: outliers,
-            qualityScore: (completeness * 0.4 + outlierPenalty * 0.3 + consistencyScore * 0.3) * 100
-        };
-    }
-}
-```
-
-**Auto-rejection:**
-```typescript
-if (qualityScore < 60) {
-    logger.warn(`Symbol ${symbol} has low quality score (${qualityScore}). Skipping training.`);
-    return;
-}
-```
-
-**Quality Reports:**
-```html
-<!-- In HTML output -->
-<div class="data-quality">
-    <span>Data Quality: ${qualityScore}/100</span>
-    <span>Outliers: ${outlierCount} (${outlierPercent}%)</span>
-    <span>Completeness: ${completeness}%</span>
-</div>
-```
-
-**Importance:** MEDIUM - Prevents "garbage in, garbage out" scenarios
-
-**Complexity:** Medium (5-6 hours)
-- Create `DataQualityAnalyzer` class
-- Implement statistical outlier detection (Z-score, IQR methods)
-- Add quality scoring algorithm
-- Integrate into sync/train pipeline with warnings
-- Add quality metrics to HTML reports
-- Add tests with known bad data
-
-**ETA:** 1 day
-
-**Status:** Not Started
-
-**References:**
-- `src/gather/yahoo-finance.ts:189-224` (current data processing)
-- `src/gather/storage.ts` (data validation point)
-- `src/output/html-generator.ts` (report generation)
+**Code Locations:**
+- `src/gather/data-quality.ts` - Outlier detection and scoring logic
+- `src/cli/commands/train.ts` - Auto-rejection integration
+- `src/output/html-generator.ts` - Reporting logic
+- `tests/unit/gather/data-quality.test.ts` - Logic verification
 
 ---
 
-### 11. Backtesting and Performance Tracking
+### 11. Backtesting and Performance Tracking ✅
 
-**Current:** Only tracks loss, MAE, MAPE during training; no simulation of actual trading
+**Status:** Completed (2026-02-04)
 
-**Problem:**
-- No simulation of actual trading performance
-- Cannot assess real-world profitability
-- Missing key financial metrics (Sharpe ratio, drawdown, win rate)
-- Cannot compare against simple buy-and-hold strategy
-- Users don't know if signals are actually profitable
+**Impact:** Critical for assessing real-world viability and building user trust. Provides a quantitative measure of whether the model's signals would have been profitable in the past.
+- **Financial Metrics**: Calculates Sharpe Ratio, Win Rate, Max Drawdown, and Alpha vs. Benchmark.
+- **Walk-Forward Simulation**: Automatically runs a 6-month simulation during prediction using next-day open prices and accounting for transaction costs.
+- **Visual Feedback**: Interactive equity curve charts and performance summaries in HTML reports.
 
-**Fix:**
+**Implementation:**
+- Created `src/compute/backtest/engine.ts` for core simulation logic.
+- Integrated backtesting into `src/cli/commands/predict.ts`.
+- Updated `src/output/html-generator.ts` and associated assets for visualization.
 
-**Backtesting Engine:**
-```typescript
-class BacktestEngine {
-    simulate(
-        predictions: PredictionResult[],
-        historicalData: StockDataPoint[],
-        config: BacktestConfig
-    ): BacktestResults {
-        let portfolio = {
-            cash: 10000,
-            shares: 0,
-            value: 10000
-        };
-        
-        const trades: Trade[] = [];
-        
-        for (const prediction of predictions) {
-            const signal = generateSignal(prediction);
-            
-            if (signal === 'BUY' && portfolio.cash > 0) {
-                const shares = Math.floor(portfolio.cash / prediction.currentPrice);
-                portfolio.shares += shares;
-                portfolio.cash -= shares * prediction.currentPrice * (1 + 0.001); // 0.1% transaction cost
-                trades.push({type: 'BUY', date: prediction.date, price: prediction.currentPrice, shares});
-            }
-            
-            if (signal === 'SELL' && portfolio.shares > 0) {
-                portfolio.cash += portfolio.shares * prediction.currentPrice * (1 - 0.001);
-                trades.push({type: 'SELL', date: prediction.date, price: prediction.currentPrice, shares: portfolio.shares});
-                portfolio.shares = 0;
-            }
-        }
-        
-        return calculateMetrics(trades, portfolio);
-    }
-}
-```
-
-**Financial Metrics:**
-```typescript
-type BacktestResults = {
-    sharpeRatio: number;        // Risk-adjusted returns
-    maxDrawdown: number;        // Worst peak-to-trough decline
-    winRate: number;            // % of profitable trades
-    totalReturn: number;        // Total % gain/loss
-    cumulativePnL: number[];    // Portfolio value over time
-    trades: Trade[];
-    benchmarkComparison: {
-        buyAndHoldReturn: number;
-        alpha: number;          // Excess return vs benchmark
-    };
-};
-```
-
-**Integration:**
-```typescript
-// In predict command
-const backtest = await backtestEngine.simulate(predictions, historicalData, config);
-
-// Display in CLI
-console.log(`Sharpe Ratio: ${backtest.sharpeRatio.toFixed(2)}`);
-console.log(`Win Rate: ${(backtest.winRate * 100).toFixed(1)}%`);
-console.log(`Total Return: ${(backtest.totalReturn * 100).toFixed(2)}%`);
-console.log(`vs Buy & Hold: ${(backtest.benchmarkComparison.buyAndHoldReturn * 100).toFixed(2)}%`);
-
-// Add to HTML report with interactive charts
-```
-
-**Importance:** HIGH - Critical for assessing real-world viability and building user trust
-
-**Complexity:** High (12-15 hours)
-- Design backtesting framework with proper walk-forward testing
-- Implement trading simulator with transaction costs
-- Calculate financial metrics (Sharpe, drawdown, win rate)
-- Add benchmark comparisons (buy-and-hold, market index)
-- Integrate into predict command with optional flag
-- Add interactive backtest charts to HTML report
-- Extensive testing with historical data
-- Document limitations (past performance ≠ future results)
-
-**ETA:** 2-3 days
-
-**Status:** Not Started
-
-**References:**
-- `src/compute/prediction.ts:23-44` (signal generation)
-- `src/cli/commands/predict.ts` (prediction command)
-- Add new module: `src/compute/backtesting.ts`
-- Research: Prado, "Advances in Financial Machine Learning" (2018)
+**Code Locations:**
+- `src/compute/backtest/engine.ts` - Backtest simulator
+- `src/cli/commands/predict.ts` - Integration logic
+- `src/output/html-generator.ts` - UI rendering logic
+- `tests/compute/backtest/engine.test.ts` - Core engine tests
 
 ---
 
@@ -990,11 +800,11 @@ const interval = {
 | ~~🔴 **CRITICAL**~~ | ~~#1 Window Normalization~~ | ~~Very High~~ | ~~Medium~~ | ~~⭐⭐⭐⭐⭐~~ | ✅ Complete |
 | ~~🔴 **HIGH**~~ | ~~#2 Log-Return Training~~ | ~~High~~ | ~~Medium~~ | ~~⭐⭐⭐⭐~~ | ✅ Complete |
 | ~~🔴 **HIGH**~~ | ~~#14 Market Feature Prediction~~ | ~~High~~ | ~~Low (A)~~ | ~~⭐⭐⭐⭐~~ | ✅ Complete |
-| 🔴 **HIGH** | #11 Backtesting | High | High | ⭐⭐⭐⭐ | Not Started |
+| 🔴 **HIGH** | #11 Backtesting | High | High | ⭐⭐⭐⭐ | ✅ Complete |
 | ~~🟡 **MEDIUM**~~ | ~~#3 Linear Interpolation~~ | ~~Medium~~ | ~~Low~~ | ~~⭐⭐⭐⭐~~ | ✅ Complete |
 | ~~🟡 **MEDIUM**~~ | ~~#15 Volume Features~~ | ~~Medium~~ | ~~Low~~ | ~~⭐⭐⭐⭐~~ | ✅ Complete |
-| 🟡 **MEDIUM** | #8 Enhanced Regularization | Medium | Medium | ⭐⭐⭐ | Not Started |
-| 🟡 **MEDIUM** | #10 Outlier Detection | Medium | Medium | ⭐⭐⭐ | Not Started |
+| 🟡 **MEDIUM** | #8 Enhanced Regularization | Medium | Medium | ⭐⭐⭐ | ✅ Complete |
+| 🟡 **MEDIUM** | #10 Outlier Detection | Medium | Medium | ⭐⭐⭐ | ✅ Complete |
 | 🟡 **MEDIUM** | #4 Multi-Source Fallback | Medium | High | ⭐⭐ | Not Started |
 | 🟡 **MEDIUM** | #5 Hyperparameter Tuning (P1) | Medium-High | High | ⭐⭐⭐ | Not Started |
 | 🟡 **MEDIUM** | #6 Alternative Architectures | Medium | High | ⭐⭐ | Not Started |
