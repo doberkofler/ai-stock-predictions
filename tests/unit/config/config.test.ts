@@ -1,5 +1,5 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {parse} from 'jsonc-parser';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {FsUtils} from '../../../src/cli/utils/fs.ts';
 import {configExists, getDefaultConfig, loadConfig, saveConfig} from '../../../src/config/config.ts';

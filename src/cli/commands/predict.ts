@@ -68,7 +68,7 @@ export async function predictCommand(configPath: string, quickTest = false, symb
 
 			// 4. Generate HTML report
 			if (predictions.length > 0) {
-				await generateReport(predictions, effectiveConfig);
+				await generateReport(predictions, effectiveConfig, storage);
 			}
 
 			// 5. Display summary
@@ -142,11 +142,12 @@ async function generatePredictions(
  * Orchestrate HTML report generation
  * @param predictions
  * @param config
+ * @param storage
  */
-async function generateReport(predictions: ReportPrediction[], config: Config): Promise<void> {
+async function generateReport(predictions: ReportPrediction[], config: Config, storage: SqliteStorage): Promise<void> {
 	const htmlSpinner = ui.spinner('Generating HTML report...').start();
 	try {
-		const htmlGenerator = new HtmlGenerator(config.prediction);
+		const htmlGenerator = new HtmlGenerator(config.prediction, storage);
 
 		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		await mkdir(config.prediction.directory, {recursive: true});

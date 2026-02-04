@@ -13,6 +13,9 @@ import {DataSourceError, ErrorHandler} from '../cli/utils/errors.ts';
 import {MarketFeatureEngineer} from '../compute/market-features.ts';
 import {StockDataPointSchema, YahooQuoteSchema} from '../types/index.ts';
 
+import type {DataQualityResult} from './data-quality.ts';
+import {DataQualityPipeline} from './data-quality.ts';
+
 const StockDataSchema = z.array(StockDataPointSchema);
 
 /**
@@ -22,6 +25,7 @@ export type FetchResult = {
 	data: StockDataPoint[];
 	oldestDate: null | string;
 	omittedCount: number;
+	qualityMetrics?: DataQualityResult;
 };
 
 /**
@@ -143,10 +147,17 @@ export class YahooFinanceDataSource {
 						throw new DataSourceError(`No data returned for symbol ${symbol}`, symbol);
 					}
 
+					// Apply data quality pipeline
+					const qualityResult = DataQualityPipeline.processData(deduplicatedQuotes);
+
+					// Use interpolated data if quality is acceptable
+					const finalData = DataQualityPipeline.isQualityAcceptable(qualityResult) ? qualityResult.data : deduplicatedQuotes;
+
 					return {
-						data: deduplicatedQuotes,
-						oldestDate: deduplicatedQuotes[0]?.date ?? null,
+						data: finalData,
+						oldestDate: finalData[0]?.date ?? null,
 						omittedCount: rawQuotes.length - deduplicatedQuotes.length,
+						qualityMetrics: qualityResult,
 					};
 				} catch (error) {
 					lastError = error instanceof Error ? error : new Error(String(error));

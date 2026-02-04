@@ -1,6 +1,8 @@
-import {describe, it, expect, beforeEach} from 'vitest';
-import {MarketFeatureEngineer} from '../../../src/compute/market-features.js';
+import {beforeEach, describe, expect, it} from 'vitest';
+
 import type {StockDataPoint} from '../../../src/types/index.js';
+
+import {MarketFeatureEngineer} from '../../../src/compute/market-features.js';
 
 describe('MarketFeatureEngineer', () => {
 	let engineer: MarketFeatureEngineer;
@@ -10,7 +12,7 @@ describe('MarketFeatureEngineer', () => {
 	});
 
 	// Helper to generate mock data
-	const generateData = (count: number, startPrice: number, trend: number, startDateStr: string = '2023-01-01'): StockDataPoint[] => {
+	const generateData = (count: number, startPrice: number, trend: number, startDateStr = '2023-01-01'): StockDataPoint[] => {
 		const data: StockDataPoint[] = [];
 		let price = startPrice;
 		const startDate = new Date(startDateStr);
@@ -23,12 +25,12 @@ describe('MarketFeatureEngineer', () => {
 			price = price * (1 + trend + (Math.random() - 0.5) * 0.02);
 
 			data.push({
-				date: date.toISOString().split('T')[0] as string,
-				open: price,
+				adjClose: price,
+				close: price,
+				date: date.toISOString().split('T')[0]!,
 				high: price * 1.01,
 				low: price * 0.99,
-				close: price,
-				adjClose: price,
+				open: price,
 				volume: 1000000,
 			});
 		}
@@ -46,8 +48,8 @@ describe('MarketFeatureEngineer', () => {
 		const vixData = generateData(5, 20, 0);
 
 		// VIX dates matching
-		vixData.forEach((v, i) => (v.date = stockData[i]!.date));
-		marketData.forEach((m, i) => (m.date = stockData[i]!.date));
+		for (const [i, v] of vixData.entries()) (v.date = stockData[i]!.date);
+		for (const [i, m] of marketData.entries()) (m.date = stockData[i]!.date);
 
 		// With very short data, returns might be null, leading to no features
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
@@ -66,16 +68,16 @@ describe('MarketFeatureEngineer', () => {
 		const vixData = generateData(days, 15, 0);
 
 		// Align dates
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
 
 		expect(features.length).toBe(days - 1); // First day has no return
 
-		const lastFeature = features[features.length - 1];
+		const lastFeature = features.at(-1);
 		expect(lastFeature).toBeDefined();
 		if (lastFeature) {
 			expect(lastFeature).toHaveProperty('beta');
@@ -91,10 +93,10 @@ describe('MarketFeatureEngineer', () => {
 		const marketData = generateData(10, 1000, 0);
 		const vixData = generateData(5, 20, 0); // VIX missing for half the days
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
-			if (i < 5 && vixData[i]) vixData[i]!.date = s.date;
-		});
+			if (i < 5 && vixData[i]) vixData[i].date = s.date;
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
 		// Should only have features where VIX is present (and index > 0)
@@ -114,13 +116,13 @@ describe('MarketFeatureEngineer', () => {
 		}
 
 		const vixData = generateData(days, 15, 0);
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
-		const lastFeature = features[features.length - 1];
+		const lastFeature = features.at(-1);
 		expect(lastFeature).toBeDefined();
 		expect(lastFeature?.marketRegime).toBe('BULL');
 	});
@@ -137,13 +139,13 @@ describe('MarketFeatureEngineer', () => {
 		}
 
 		const vixData = generateData(days, 15, 0);
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
-		const lastFeature = features[features.length - 1];
+		const lastFeature = features.at(-1);
 		expect(lastFeature).toBeDefined();
 		expect(lastFeature?.marketRegime).toBe('BEAR');
 	});
@@ -157,10 +159,10 @@ describe('MarketFeatureEngineer', () => {
 		const marketData = generateData(days, 4000, 0);
 		const vixData = generateData(days, 15, 0);
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		// Construct NEUTRAL scenario
 		// Last 200 days average is around 3000
@@ -172,7 +174,7 @@ describe('MarketFeatureEngineer', () => {
 		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
-		const lastFeature = features[features.length - 1];
+		const lastFeature = features.at(-1);
 		expect(lastFeature).toBeDefined();
 		expect(lastFeature?.marketRegime).toBe('NEUTRAL');
 	});
@@ -184,16 +186,16 @@ describe('MarketFeatureEngineer', () => {
 		const vixData = generateData(days, 15, 0);
 
 		// Make stock price constant -> variance is 0 -> correlation denominator 0
-		stockData.forEach((s) => (s.close = 100));
+		for (const s of stockData) (s.close = 100);
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
 		// Check last feature
-		const last = features[features.length - 1];
+		const last = features.at(-1);
 		expect(last?.indexCorrelation).toBe(0);
 	});
 
@@ -204,10 +206,10 @@ describe('MarketFeatureEngineer', () => {
 		const marketData = generateData(days, 1000, 0);
 		const vixData = generateData(days, 15, 0);
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
 		// Index 10 is < 30.
@@ -224,10 +226,10 @@ describe('MarketFeatureEngineer', () => {
 		const marketData = generateData(days, 1000, 0);
 		const vixData = generateData(days, 15, 0);
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
 		// Index 10 is < 20.
@@ -242,12 +244,12 @@ describe('MarketFeatureEngineer', () => {
 
 		// Force NaN return
 		// @ts-ignore
-		stockData[1]!.close = NaN;
+		stockData[1]!.close = Number.NaN;
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
 		// Should likely skip the NaN entry
@@ -259,10 +261,10 @@ describe('MarketFeatureEngineer', () => {
 		const marketData = generateData(200, 1000, 0); // Shorter
 		const vixData = generateData(250, 15, 0);
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			if (i < 200) marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		const features = engineer.calculateFeatures('TEST', stockData, marketData, vixData);
 		// Should return features for the first 200 days (minus 1), then likely fail or return nulls
@@ -278,10 +280,10 @@ describe('MarketFeatureEngineer', () => {
 		const marketData = generateData(days, 1000, 0);
 		const vixData = generateData(days, 15, 0);
 
-		stockData.forEach((s, i) => {
+		for (const [i, s] of stockData.entries()) {
 			marketData[i]!.date = s.date;
 			vixData[i]!.date = s.date;
-		});
+		}
 
 		// Create gaps in market data by removing quotes or setting undefined
 		// We can't easily set 'undefined' in the array since generateData returns valid objects.

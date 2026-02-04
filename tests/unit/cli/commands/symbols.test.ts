@@ -120,7 +120,7 @@ describe('symbols commands', () => {
 		});
 
 		it('should remove symbol', async () => {
-			vi.mocked(SymbolService.removeSymbol).mockResolvedValue();
+			vi.mocked(SymbolService.removeSymbol).mockResolvedValue(undefined);
 
 			await symbolRemoveCommand('config.jsonc', 'AAPL');
 
@@ -129,7 +129,7 @@ describe('symbols commands', () => {
 
 		it('should add default symbols', async () => {
 			mockStorage.symbolExists.mockReturnValue(false);
-			vi.mocked(SyncService.syncSymbols).mockResolvedValue();
+			vi.mocked(SyncService.syncSymbols).mockResolvedValue(undefined);
 
 			await symbolDefaultsCommand('config.jsonc');
 

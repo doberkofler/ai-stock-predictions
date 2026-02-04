@@ -11,14 +11,18 @@ import type {ReportPrediction} from '../types/index.ts';
 
 import {ErrorHandler} from '../cli/utils/errors.ts';
 
+import type {SqliteStorage} from '../gather/storage.ts';
+
 /**
  * HTML report generator class
  */
 export class HtmlGenerator {
 	private readonly config: Config['prediction'];
+	private readonly storage: SqliteStorage | undefined;
 
-	public constructor(config: Config['prediction']) {
+	public constructor(config: Config['prediction'], storage?: SqliteStorage) {
 		this.config = config;
+		this.storage = storage ?? undefined;
 	}
 
 	/**
@@ -329,6 +333,40 @@ export class HtmlGenerator {
 	}
 
 	/**
+	 * Render data quality metrics row if available
+	 * @param symbol - Stock symbol
+	 * @returns HTML string for quality metrics or empty string
+	 */
+	private renderQualityMetrics(symbol: string): string {
+		if (!this.storage) {
+			return '';
+		}
+
+		const quality = this.storage.getDataQuality(symbol);
+		if (!quality) {
+			return '';
+		}
+
+		let qualityColor = 'var(--buy-color)';
+		if (quality.qualityScore < 70) {
+			qualityColor = '#ff9800'; // Orange
+		}
+		if (quality.qualityScore < 50) {
+			qualityColor = 'var(--sell-color)';
+		}
+
+		return `
+			<tr>
+				<th>Data Quality</th>
+				<td>
+					<span style="color: ${qualityColor}; font-weight: bold;">${quality.qualityScore}/100</span>
+					${quality.interpolatedCount > 0 ? `<span style="font-size: 12px; color: #666; margin-left: 10px;">(${quality.interpolatedCount} interpolated)</span>` : ''}
+				</td>
+			</tr>
+		`;
+	}
+
+	/**
 	 * Render a card for a single stock
 	 * @param p - Prediction data
 	 * @param appConfig - App configuration
@@ -381,6 +419,7 @@ export class HtmlGenerator {
 							${firstPredicted === undefined ? '0.00' : (((firstPredicted - p.prediction.currentPrice) / p.prediction.currentPrice) * 100).toFixed(2)}%
 						</td>
 					</tr>
+					${this.renderQualityMetrics(p.symbol)}
 				</table>
 			</div>
 		`;

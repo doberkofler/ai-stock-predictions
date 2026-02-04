@@ -204,6 +204,35 @@ export class SqliteStorage {
 	}
 
 	/**
+	 * Get data quality metrics for a symbol
+	 * @param symbol - Stock symbol
+	 * @returns Data quality metrics or null if not found
+	 */
+	public getDataQuality(symbol: string): null | {
+		gapsDetected: number;
+		interpolatedCount: number;
+		interpolatedPercent: number;
+		lastUpdated: string;
+		missingDays: number;
+		qualityScore: number;
+		symbol: string;
+	} {
+		const stmt = this.historicalDb.prepare('SELECT * FROM data_quality WHERE symbol = ?');
+		const row = stmt.get(symbol) as
+			| undefined
+			| {
+					gapsDetected: number;
+					interpolatedCount: number;
+					interpolatedPercent: number;
+					lastUpdated: string;
+					missingDays: number;
+					qualityScore: number;
+					symbol: string;
+			  };
+		return row ?? null;
+	}
+
+	/**
 	 * Get data update timestamp for a symbol
 	 * @param symbol - Stock symbol
 	 * @returns Last update timestamp or null if not found
@@ -432,6 +461,30 @@ export class SqliteStorage {
 	}
 
 	/**
+	 * Save data quality metrics for a symbol
+	 * @param symbol - Stock symbol
+	 * @param qualityScore - Quality score (0-100)
+	 * @param interpolatedCount - Number of interpolated data points
+	 * @param interpolatedPercent - Percentage of interpolated data (0-1)
+	 * @param gapsDetected - Number of gaps detected
+	 * @param missingDays - Total missing days
+	 */
+	public saveDataQuality(
+		symbol: string,
+		qualityScore: number,
+		interpolatedCount: number,
+		interpolatedPercent: number,
+		gapsDetected: number,
+		missingDays: number,
+	): void {
+		const upsert = this.historicalDb.prepare(`
+			INSERT OR REPLACE INTO data_quality (symbol, qualityScore, interpolatedCount, interpolatedPercent, gapsDetected, missingDays, lastUpdated)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`);
+		upsert.run(symbol, qualityScore, interpolatedCount, interpolatedPercent, gapsDetected, missingDays, new Date().toISOString());
+	}
+
+	/**
 	 * Save market features for a symbol
 	 * @param symbol - Stock symbol
 	 * @param data - Array of market features
@@ -585,6 +638,16 @@ export class SqliteStorage {
 				PRIMARY KEY (symbol, date)
 			);
 			CREATE INDEX IF NOT EXISTS idx_market_features_symbol ON market_features (symbol);
+
+			CREATE TABLE IF NOT EXISTS data_quality (
+				symbol TEXT PRIMARY KEY,
+				qualityScore REAL,
+				interpolatedCount INTEGER,
+				interpolatedPercent REAL,
+				gapsDetected INTEGER,
+				missingDays INTEGER,
+				lastUpdated TEXT
+			);
 		`);
 
 		// Models Metadata Schema

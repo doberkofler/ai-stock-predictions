@@ -165,9 +165,24 @@ async function syncSingleSymbol(
 	spinner.text = `${prefix} Saving ${name} (${symbol}) data...`;
 	await storage.saveStockData(symbol, result.data);
 
+	// Save quality metrics if available
+	if (result.qualityMetrics) {
+		storage.saveDataQuality(
+			symbol,
+			result.qualityMetrics.qualityScore,
+			result.qualityMetrics.interpolatedCount,
+			result.qualityMetrics.interpolatedPercent,
+			result.qualityMetrics.gapsDetected,
+			result.qualityMetrics.missingDays,
+		);
+	}
+
 	let successMsg = `${prefix} ${name} (${symbol}) [${result.data.length} new pts]`;
 	if (result.omittedCount > 0) {
 		successMsg += ` (${result.omittedCount} omitted)`;
+	}
+	if (result.qualityMetrics && result.qualityMetrics.interpolatedCount > 0) {
+		successMsg += ` (${result.qualityMetrics.interpolatedCount} interpolated, Q:${result.qualityMetrics.qualityScore})`;
 	}
 
 	spinner.succeed(successMsg);

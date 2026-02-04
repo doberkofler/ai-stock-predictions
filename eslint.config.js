@@ -87,10 +87,24 @@ export default tseslint.config(
 
 			'no-console': 'error',
 
-			// perfectionist
-			// 'perfectionist/sort-objects': 'off', // Enabled by default in recommended-natural
-			// 'perfectionist/sort-interfaces': 'off',
-			// 'perfectionist/sort-classes': 'off',
+			// perfectionist - disable all sorting rules
+			'perfectionist/sort-array-includes': 'off',
+			'perfectionist/sort-classes': 'off',
+			'perfectionist/sort-enums': 'off',
+			'perfectionist/sort-exports': 'off',
+			'perfectionist/sort-imports': 'off',
+			'perfectionist/sort-interfaces': 'off',
+			'perfectionist/sort-intersection-types': 'off',
+			'perfectionist/sort-jsx-props': 'off',
+			'perfectionist/sort-maps': 'off',
+			'perfectionist/sort-named-exports': 'off',
+			'perfectionist/sort-named-imports': 'off',
+			'perfectionist/sort-object-types': 'off',
+			'perfectionist/sort-objects': 'off',
+			'perfectionist/sort-sets': 'off',
+			'perfectionist/sort-switch-case': 'off',
+			'perfectionist/sort-union-types': 'off',
+			'perfectionist/sort-variable-declarations': 'off',
 
 			// Security
 			'security/detect-object-injection': 'off',

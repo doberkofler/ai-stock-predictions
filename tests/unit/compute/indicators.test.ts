@@ -33,13 +33,13 @@ describe('calculateReturns', () => {
 
 describe('calculateRsi', () => {
 	it('should calculate RSI correctly', () => {
-		const prices = [44, 44.34, 44.09, 43.61, 44.33, 44.83, 45.1, 45.42, 45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46.0];
+		const prices = [44, 44.34, 44.09, 43.61, 44.33, 44.83, 45.1, 45.42, 45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46];
 		const rsi = calculateRsi(prices, 14);
 
 		expect(rsi).toHaveLength(16);
 		expect(rsi[0]).toBe(50); // Neutral starting point
-		expect(rsi[rsi.length - 1]).toBeGreaterThan(0);
-		expect(rsi[rsi.length - 1]).toBeLessThan(100);
+		expect(rsi.at(-1)).toBeGreaterThan(0);
+		expect(rsi.at(-1)).toBeLessThan(100);
 	});
 
 	it('should handle constant gains (avgLoss === 0)', () => {
