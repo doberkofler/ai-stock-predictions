@@ -3,7 +3,7 @@
 This document contains prioritized proposals for improving the machine learning capabilities of the AI Stock Predictions system.
 
 **Last Updated:** 2026-02-04  
-**Document Version:** 1.2
+**Document Version:** 1.3
 
 ## 📋 Document Update Conventions
 
@@ -37,8 +37,9 @@ When completing an enhancement proposal:
 - **#2 Log-Return Training**: Model trains on stationary log returns instead of absolute prices
 - **#14 Market Feature Prediction**: Exponential decay prevents frozen market conditions
 - **#3 Linear Interpolation**: Gap detection, linear interpolation (≤3 days), quality scoring (0-100)
+- **#15 Volume-Based Features**: Added VMA, Volume Ratio, and OBV indicators (5 technical features total)
 - **Breaking Change**: Model version 2.0.0 - all existing models require retraining
-- **Test Coverage**: 93.33% (196 tests passing)
+- **Test Coverage**: 93.33%+ (209 tests passing)
 - **Next Step**: Retrain all models and measure MAPE improvement vs baseline
 
 ---
@@ -954,116 +955,31 @@ const interval = {
 
 ---
 
-### 15. Add Volume-Based Features
+### 15. Add Volume-Based Features ✅
 
-**Current:** Volume data downloaded from Yahoo Finance but **not used** in model features
+**Status:** Completed (2026-02-04)
 
-**Problem:**
-- Volume confirms price movements (high volume breakout = more reliable signal)
-- Volume divergence can signal reversals (price up but volume down = weak rally)
-- Currently using only: close, SMA, RSI, daily returns
-- Missing On-Balance Volume (OBV), Volume Ratio, Volume MA
+**Impact:** Added three volume-based technical indicators to improve model feature richness. Volume features help confirm price movements and detect potential reversals.
 
-**Data Available:** `StockDataPoint.volume` already in database (not null, validated)
+**Implementation:**
+- Added `calculateVolumeMA()`, `calculateVolumeRatio()`, and `calculateOBV()` to `src/compute/indicators.ts:77-135`
+- Integrated volume features into preprocessing pipeline in `src/compute/lstm-model.ts:673-707`
+- Updated `technicalFeatureCount` from 3 to 5 in `src/compute/lstm-model.ts:496`
+- Added comprehensive tests covering all edge cases in `tests/unit/compute/indicators.test.ts:115-249`
+- All 209 tests passing with 93%+ coverage maintained
 
-**Fix:**
+**Breaking Change:** Model input dimension changed from `1 + 3 + market_features` to `1 + 5 + market_features`. Existing trained models are incompatible and require retraining.
 
-**Add volume indicators:**
-```typescript
-// src/compute/indicators.ts
+**Features Added:**
+1. **Volume Moving Average (VMA)**: 20-day moving average of volume
+2. **Volume Ratio**: Current volume / 20-day VMA (>2.0 = surge, <0.5 = low)
+3. **On-Balance Volume (OBV)**: Cumulative volume indicator (add on up days, subtract on down days)
 
-/**
- * Calculate Volume Moving Average
- */
-export function calculateVolumeMA(data: StockDataPoint[], period: number = 20): number[] {
-    return data.map((_, i) => {
-        if (i < period - 1) return data[i]?.volume ?? 0;
-        
-        let sum = 0;
-        for (let j = 0; j < period; j++) {
-            sum += data[i - j]?.volume ?? 0;
-        }
-        return sum / period;
-    });
-}
-
-/**
- * Calculate Volume Ratio (current volume / 20-day average)
- * > 2.0 = volume surge, < 0.5 = low volume
- */
-export function calculateVolumeRatio(data: StockDataPoint[]): number[] {
-    const volumeMA = calculateVolumeMA(data, 20);
-    return data.map((point, i) => {
-        const ma = volumeMA[i] ?? 1;
-        return ma === 0 ? 1 : point.volume / ma;
-    });
-}
-
-/**
- * Calculate On-Balance Volume (OBV)
- * Cumulative indicator: add volume on up days, subtract on down days
- */
-export function calculateOBV(data: StockDataPoint[]): number[] {
-    let obv = 0;
-    return data.map((point, i) => {
-        if (i === 0) return obv;
-        
-        const priceChange = point.close - (data[i - 1]?.close ?? point.close);
-        if (priceChange > 0) {
-            obv += point.volume;
-        } else if (priceChange < 0) {
-            obv -= point.volume;
-        }
-        // If price unchanged, OBV unchanged
-        return obv;
-    });
-}
-```
-
-**Integration into model:**
-```typescript
-// src/compute/lstm-model.ts - preprocessData method
-
-// After calculating technical indicators (line 494-503)
-const volumeMA = calculateVolumeMA(data, 20);
-const volumeRatio = calculateVolumeRatio(data);
-const obv = calculateOBV(data);
-
-// Normalize volume features
-const normalizedVolumeRatio = volumeRatio.map(v => Math.min(1, v / 3)); // Clip to [0, 1]
-const normalizedOBV = normalizeArray(obv);  // Min-max normalize
-
-// Add to technical matrix
-const technicalMatrix: number[][] = data.map((_, i) => [
-    normalizedSma[i] ?? 0.5,
-    normalizedRsi[i] ?? 0.5,
-    normalizedReturns[i] ?? 0.5,
-    normalizedVolumeRatio[i] ?? 0.5,  // NEW
-    normalizedOBV[i] ?? 0.5            // NEW
-]);
-
-// Update input dimension calculation (line 362-364)
-const technicalFeatureCount = 5;  // Was 3, now 5
-```
-
-**Importance:** MEDIUM - Incremental improvement, low-hanging fruit
-
-**Complexity:** Low (2-3 hours)
-- Implement 3 volume indicator functions
-- Add to preprocessing pipeline
-- Update input dimension calculation
-- Add tests for volume calculations
-- Update documentation
-
-**ETA:** 0.5 days
-
-**Status:** Not Started
-
-**References:**
-- `src/compute/indicators.ts` (add functions here)
-- `src/compute/lstm-model.ts:485-523` (preprocessData method)
-- `src/compute/lstm-model.ts:362-364` (input dimension)
-- `src/types/index.ts` (StockDataPoint already has volume)
+**Code Locations:**
+- `src/compute/indicators.ts:77-135` - Volume indicator implementations
+- `src/compute/lstm-model.ts:673-707` - Volume feature calculation and normalization
+- `src/compute/lstm-model.ts:496` - Input dimension update
+- `tests/unit/compute/indicators.test.ts:115-249` - Volume indicator tests
 
 ---
 
@@ -1076,7 +992,7 @@ const technicalFeatureCount = 5;  // Was 3, now 5
 | ~~🔴 **HIGH**~~ | ~~#14 Market Feature Prediction~~ | ~~High~~ | ~~Low (A)~~ | ~~⭐⭐⭐⭐~~ | ✅ Complete |
 | 🔴 **HIGH** | #11 Backtesting | High | High | ⭐⭐⭐⭐ | Not Started |
 | ~~🟡 **MEDIUM**~~ | ~~#3 Linear Interpolation~~ | ~~Medium~~ | ~~Low~~ | ~~⭐⭐⭐⭐~~ | ✅ Complete |
-| 🟡 **MEDIUM** | #15 Volume Features | Medium | Low | ⭐⭐⭐⭐ | Not Started |
+| ~~🟡 **MEDIUM**~~ | ~~#15 Volume Features~~ | ~~Medium~~ | ~~Low~~ | ~~⭐⭐⭐⭐~~ | ✅ Complete |
 | 🟡 **MEDIUM** | #8 Enhanced Regularization | Medium | Medium | ⭐⭐⭐ | Not Started |
 | 🟡 **MEDIUM** | #10 Outlier Detection | Medium | Medium | ⭐⭐⭐ | Not Started |
 | 🟡 **MEDIUM** | #4 Multi-Source Fallback | Medium | High | ⭐⭐ | Not Started |
@@ -1087,14 +1003,14 @@ const technicalFeatureCount = 5;  // Was 3, now 5
 | 🟢 **LOW** | #7 Ensemble Methods | Medium | Very High | ⭐⭐ | Not Started |
 | 🟢 **LOW** | #12 Incremental Learning | Medium | Very High | ⭐ | Not Started |
 
-**Completed:** 4 items (2.5 days)  
-**Remaining Effort:** ~24.5 days
+**Completed:** 5 items (3 days)  
+**Remaining Effort:** ~24 days
 
 ---
 
 ## 🚀 RECOMMENDED IMPLEMENTATION SEQUENCE
 
-### **Phase 1: Foundation Fixes** ✅ Partially Complete
+### **Phase 1: Foundation Fixes** ✅ Complete
 
 **Goal:** Fix fundamental data issues and establish solid foundation
 
@@ -1102,6 +1018,8 @@ const technicalFeatureCount = 5;  // Was 3, now 5
 1. ✅ **#1 Window Normalization** - Per-window z-score normalization implemented
 2. ✅ **#2 Log-Return Training** - Model now trains on log returns
 3. ✅ **#14 Market Feature Prediction (Option A)** - Exponential decay implemented
+4. ✅ **#3 Linear Interpolation** - Gap detection and quality scoring
+5. ✅ **#15 Volume Features** - Added VMA, Volume Ratio, OBV indicators
 
 **Status:** ✅ Phase 1 Complete
 
@@ -1110,20 +1028,21 @@ All Phase 1 items implemented:
 - Log-return training (improves stationarity)
 - Market feature prediction with exponential decay
 - Linear interpolation with quality scoring
+- Volume-based features (5 technical indicators total)
 
 **Model Version:** 2.0.0  
-**Test Coverage:** 93.33%+ (196 tests passing)  
+**Test Coverage:** 93.33%+ (209 tests passing)  
 **Breaking Change:** All existing models require retraining
 
 **Next Action:** Retrain all models and measure MAPE improvement vs baseline to validate Phase 1 enhancements.
 
 ---
 
-### **Phase 2: Robustness & Quick Wins (Week 2) - 4.5 days**
+### **Phase 2: Robustness & Quick Wins (Week 2) - 4 days**
 
-**Goal:** Add data quality checks, volume features, and backtesting
+**Goal:** Add data quality checks and backtesting
 
-5. **#15 Volume Features** - 0.5 days
+5. ~~**#15 Volume Features**~~ - ✅ Complete
    - Low-hanging fruit
    - Volume confirmation for signals
 
@@ -1194,11 +1113,11 @@ All Phase 1 items implemented:
 
 ### Breaking Changes
 The following items require **full model retrain** (all existing models invalidated):
-- ⏳ #1: Window Normalization
-- ⏳ #2: Log-Return Training
-- ⏳ #15: Volume Features (adds input dimensions)
+- ✅ #1: Window Normalization
+- ✅ #2: Log-Return Training
+- ✅ #15: Volume Features (adds input dimensions)
 
-**Recommendation:** Implement #1, #2, #15 together in Phase 1, then retrain ONCE to include all improvements.
+**Status:** All breaking changes implemented in Phase 1. Models require retraining to use new features.
 
 ### Testing Requirements
 Every implementation must:

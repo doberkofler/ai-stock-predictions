@@ -8,7 +8,7 @@ import * as tf from '@tensorflow/tfjs';
 import type {Config} from '../config/schema.ts';
 import type {FeatureConfig, MarketFeatures, StockDataPoint} from '../types/index.ts';
 
-import {calculateReturns, calculateRsi, calculateSma} from './indicators.ts';
+import {calculateOBV, calculateReturns, calculateRsi, calculateSma, calculateVolumeRatio} from './indicators.ts';
 
 /**
  * Metadata stored with the saved model
@@ -205,7 +205,9 @@ export class LstmModel {
 			const lastPoint = [...lastWindowData].slice(-inputDim);
 
 			// Extract technical indicators (skip first element which is log return)
-			const technicalIndicators = lastPoint.slice(1, 4); // SMA, RSI, Returns
+			// Now includes: SMA, RSI, Returns, VolumeRatio, OBV (5 features)
+			const technicalFeatureCount = 5;
+			const technicalIndicators = lastPoint.slice(1, 1 + technicalFeatureCount);
 
 			// Build new point with predicted log return + technical indicators + market features
 			const newPointData = [newLogReturn, ...technicalIndicators, ...decayedFeatures];
@@ -492,8 +494,8 @@ export class LstmModel {
 			const model = tf.sequential();
 
 			// Calculate input dimension based on enabled features
-			// 1 (price) + 3 (technical indicators: SMA, RSI, Returns) + market features
-			const technicalFeatureCount = 3;
+			// 1 (price) + 5 (technical indicators: SMA, RSI, Returns, VolumeRatio, OBV) + market features
+			const technicalFeatureCount = 5;
 			const marketFeatureCount = this.featureConfig?.enabled ? this.getEnabledFeatureCount() : 0;
 			const inputDim = 1 + technicalFeatureCount + marketFeatureCount;
 
@@ -675,6 +677,11 @@ export class LstmModel {
 		const rsi14 = calculateRsi(prices, 14);
 		const dailyReturns = calculateReturns(prices);
 
+		// Calculate Volume-Based Features
+		const volumes = data.map((d) => d.volume);
+		const volumeRatio = calculateVolumeRatio(volumes);
+		const obv = calculateOBV(prices, volumes);
+
 		// Normalize technical indicators (these don't have look-ahead bias)
 		const normalizedRsi = rsi14.map((v: number) => v / 100);
 		const normalizedReturns = dailyReturns.map((v: number) => Math.max(0, Math.min(1, (v + 0.1) / 0.2)));
@@ -684,7 +691,19 @@ export class LstmModel {
 		const priceMax = Math.max(...prices);
 		const normalizedSma = sma20.map((v: number) => (priceMax === priceMin ? 0.5 : (v - priceMin) / (priceMax - priceMin)));
 
-		const technicalMatrix: number[][] = data.map((_, i) => [normalizedSma[i] ?? 0.5, normalizedRsi[i] ?? 0.5, normalizedReturns[i] ?? 0.5]);
+		// Normalize volume features
+		const normalizedVolumeRatio = volumeRatio.map((v: number) => Math.min(1, v / 3)); // Clip to [0, 1], 3x average = max
+		const obvMin = Math.min(...obv);
+		const obvMax = Math.max(...obv);
+		const normalizedOBV = obv.map((v: number) => (obvMax === obvMin ? 0.5 : (v - obvMin) / (obvMax - obvMin)));
+
+		const technicalMatrix: number[][] = data.map((_, i) => [
+			normalizedSma[i] ?? 0.5,
+			normalizedRsi[i] ?? 0.5,
+			normalizedReturns[i] ?? 0.5,
+			normalizedVolumeRatio[i] ?? 0.5,
+			normalizedOBV[i] ?? 0.5,
+		]);
 
 		// Process market features if enabled and provided
 		const useMarketFeatures = this.featureConfig?.enabled === true && marketFeatures !== undefined && marketFeatures.length > 0;

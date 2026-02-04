@@ -3,6 +3,29 @@
  */
 
 /**
+ * Calculate On-Balance Volume (OBV)
+ * Cumulative indicator: add volume on up days, subtract on down days
+ * @param prices - Array of closing prices
+ * @param volumes - Array of volumes
+ * @returns OBV array
+ */
+export function calculateOBV(prices: number[], volumes: number[]): number[] {
+	let obv = 0;
+	return prices.map((price, i) => {
+		if (i === 0) return obv;
+
+		const priceChange = price - (prices[i - 1] ?? price);
+		if (priceChange > 0) {
+			obv += volumes[i] ?? 0;
+		} else if (priceChange < 0) {
+			obv -= volumes[i] ?? 0;
+		}
+		// If price unchanged, OBV unchanged
+		return obv;
+	});
+}
+
+/**
  * Calculate Daily Returns
  * @param prices - Array of prices
  * @returns Returns array
@@ -72,4 +95,40 @@ export function calculateSma(prices: number[], period: number): number[] {
 		sma.push(sum / period);
 	}
 	return sma;
+}
+
+/**
+ * Calculate Volume Moving Average (VMA)
+ * @param volumes - Array of volumes
+ * @param period - Window period (default 20)
+ * @returns VMA array
+ */
+export function calculateVolumeMA(volumes: number[], period = 20): number[] {
+	const vma: number[] = [];
+	for (let i = 0; i < volumes.length; i++) {
+		if (i < period - 1) {
+			vma.push(volumes[i] ?? 0);
+			continue;
+		}
+		let sum = 0;
+		for (let j = 0; j < period; j++) {
+			sum += volumes[i - j] ?? 0;
+		}
+		vma.push(sum / period);
+	}
+	return vma;
+}
+
+/**
+ * Calculate Volume Ratio (current volume / 20-day average)
+ * Values > 2.0 indicate volume surge, < 0.5 indicate low volume
+ * @param volumes - Array of volumes
+ * @returns Volume ratio array
+ */
+export function calculateVolumeRatio(volumes: number[]): number[] {
+	const volumeMA = calculateVolumeMA(volumes, 20);
+	return volumes.map((vol, i) => {
+		const ma = volumeMA[i] ?? 1;
+		return ma === 0 ? 1 : vol / ma;
+	});
 }
