@@ -1,5 +1,11 @@
 # AI Stock Predictions - UX Enhancement Proposals
 
+## CLI UX
+
+### Change export/import command 
+Simplify export/import to only care about the symbols and the history.
+Aöö other data is redundant and only the data actually defined by the user should and must be serialized.
+
 ## UI/UX & Output Module (Priority: Medium)
 
 ### Historical Context
