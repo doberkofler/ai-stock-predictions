@@ -5,19 +5,23 @@
 import {join} from 'node:path';
 import {z} from 'zod';
 
-import {HistoricalRowSchema, MetadataRowSchema, SqliteStorage, SymbolRowSchema} from '../../gather/storage.ts';
+import {HistoricalRowSchema, SqliteStorage, SymbolRowSchema} from '../../gather/storage.ts';
 import {FsUtils} from '../utils/fs.ts';
 import {runCommand} from '../utils/runner.ts';
 import {ui} from '../utils/ui.ts';
 
 /**
- * Export data schema for validation
+ * Export data schema for validation (v2.0.0+)
+ * Only includes user-defined data: symbols and historical quotes
+ * Computed data (models_metadata, market_features, data_quality) is excluded
  */
 const ExportSchema = z.object({
+	exportedAt: z.string().optional(),
 	historical_data: z.array(HistoricalRowSchema),
-	models_metadata: z.array(MetadataRowSchema),
-	symbols: z.array(SymbolRowSchema).optional(),
-	version: z.string(),
+	symbols: z.array(SymbolRowSchema),
+	version: z.string().refine((v) => v.startsWith('2.'), {
+		message: 'Only v2.x export files are supported. Please re-export your data.',
+	}),
 });
 
 /**
@@ -43,19 +47,18 @@ export async function importCommand(configPath: string, importPath = 'export.jso
 
 			const storage = new SqliteStorage();
 
-			if (validatedData.symbols) {
-				spinner.text = 'Overwriting symbols...';
-				await storage.overwriteSymbols(validatedData.symbols);
-			}
+			spinner.text = 'Overwriting symbols...';
+			await storage.overwriteSymbols(validatedData.symbols);
 
 			spinner.text = 'Overwriting historical data...';
 			await storage.overwriteHistoricalData(validatedData.historical_data);
 
-			spinner.text = 'Overwriting models metadata...';
-			await storage.overwriteModelsMetadata(validatedData.models_metadata);
-
 			storage.close();
-			spinner.succeed(`Import complete! Overwritten from: ${resolvedPath}`);
+			spinner.succeed(`Import complete! Data restored from: ${resolvedPath}`);
+			ui.log('');
+			ui.log('Next steps:');
+			ui.log('  - Run "node src/index.ts sync" to update historical data');
+			ui.log('  - Run "node src/index.ts train" to regenerate models');
 		},
 		{},
 	);

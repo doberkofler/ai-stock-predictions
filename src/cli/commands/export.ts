@@ -29,18 +29,14 @@ export async function exportCommand(configPath: string, exportPath = 'export.jso
 			spinner.text = 'Fetching symbols...';
 			const symbols = storage.getAllSymbols();
 
-			spinner.text = 'Fetching quotes...';
+			spinner.text = 'Fetching historical data...';
 			const quotes = storage.getAllQuotes();
-
-			spinner.text = 'Fetching metadata...';
-			const metadata = storage.getAllMetadata();
 
 			const exportData = {
 				exportedAt: new Date().toISOString(),
 				historical_data: quotes,
-				models_metadata: metadata,
 				symbols,
-				version: '1.1.0',
+				version: '2.0.0',
 			};
 
 			const resolvedPath = join(process.cwd(), exportPath);

@@ -5,7 +5,6 @@ import {FsUtils} from '../../../../src/cli/utils/fs.ts';
 
 const mockStorage = {
 	close: vi.fn(),
-	getAllMetadata: vi.fn(),
 	getAllQuotes: vi.fn(),
 	getAllSymbols: vi.fn(),
 };
@@ -21,6 +20,7 @@ vi.mock('../../../../src/gather/storage.ts', () => ({
 vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
 		try {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 			await handler({config: {}, startTime: Date.now()}, commandOptions);
 		} catch {
 			process.exit(1);
@@ -52,7 +52,6 @@ describe('exportCommand', () => {
 	it('should export data to json', async () => {
 		mockStorage.getAllSymbols.mockReturnValue([]);
 		mockStorage.getAllQuotes.mockReturnValue([]);
-		mockStorage.getAllMetadata.mockReturnValue([]);
 
 		await exportCommand('export.json');
 		expect(FsUtils.writeJson).toHaveBeenCalled();
@@ -64,6 +63,7 @@ describe('exportCommand', () => {
 		});
 
 		await exportCommand('export.json');
+		// eslint-disable-next-line @typescript-eslint/unbound-method
 		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 });

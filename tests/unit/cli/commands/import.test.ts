@@ -5,8 +5,9 @@ import {FsUtils} from '../../../../src/cli/utils/fs.ts';
 
 const mockStorage = {
 	close: vi.fn(),
+	// eslint-disable-next-line unicorn/no-useless-undefined
 	overwriteHistoricalData: vi.fn().mockResolvedValue(undefined),
-	overwriteModelsMetadata: vi.fn().mockResolvedValue(undefined),
+	// eslint-disable-next-line unicorn/no-useless-undefined
 	overwriteSymbols: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -28,6 +29,7 @@ vi.mock('../../../../src/gather/storage.ts', async (importOriginal) => {
 vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
 		try {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 			await handler({config: {}, startTime: Date.now()}, commandOptions);
 		} catch {
 			process.exit(1);
@@ -58,22 +60,12 @@ describe('importCommand', () => {
 	});
 
 	it('should import data from json', async () => {
-		// Mock readJson to return a valid export object
+		// Mock readJson to return a valid v2.0.0 export object
 		vi.mocked(FsUtils.readJson).mockResolvedValue({
+			exportedAt: '2023-01-01T00:00:00.000Z',
 			historical_data: [{adjClose: 105, close: 105, date: '2023-01-01', high: 110, low: 90, open: 100, symbol: 'AAPL', volume: 1000}],
-			models_metadata: [
-				{
-					dataPoints: 100,
-					loss: 0.01,
-					metrics: '{}',
-					symbol: 'AAPL',
-					trainedAt: '2023-01-01',
-					version: '1.0.0',
-					windowSize: 30,
-				},
-			],
-			symbols: [{name: 'Apple Inc.', symbol: 'AAPL'}],
-			version: '1.1.0',
+			symbols: [{name: 'Apple Inc.', priority: 100, symbol: 'AAPL', type: 'STOCK'}],
+			version: '2.0.0',
 		});
 
 		await importCommand('import.json');
@@ -81,13 +73,27 @@ describe('importCommand', () => {
 		expect(FsUtils.readJson).toHaveBeenCalled();
 		expect(mockStorage.overwriteSymbols).toHaveBeenCalled();
 		expect(mockStorage.overwriteHistoricalData).toHaveBeenCalled();
-		expect(mockStorage.overwriteModelsMetadata).toHaveBeenCalled();
 	});
 
 	it('should handle errors in import', async () => {
 		vi.mocked(FsUtils.readJson).mockRejectedValue(new Error('File Error'));
 
 		await importCommand('import.json');
+		// eslint-disable-next-line @typescript-eslint/unbound-method
+		expect(process.exit).toHaveBeenCalledWith(1);
+	});
+
+	it('should reject v1.x export files', async () => {
+		// Mock readJson to return an old v1.x export format
+		vi.mocked(FsUtils.readJson).mockResolvedValue({
+			historical_data: [{adjClose: 105, close: 105, date: '2023-01-01', high: 110, low: 90, open: 100, symbol: 'AAPL', volume: 1000}],
+			models_metadata: [],
+			symbols: [{name: 'Apple Inc.', symbol: 'AAPL'}],
+			version: '1.1.0',
+		});
+
+		await importCommand('import.json');
+		// eslint-disable-next-line @typescript-eslint/unbound-method
 		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 });
