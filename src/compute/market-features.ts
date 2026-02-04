@@ -344,12 +344,18 @@ export class MarketFeatureEngineer {
 		}
 
 		const window = 10;
-		const stockVol = this.calculateStandardDeviation(
-			stockData.slice(index - window, index + 1).map((s) => this.calculateDailyReturn(s, index - (index - window) + (index - window), stockData) ?? 0),
-		);
-		const marketVol = this.calculateStandardDeviation(
-			marketData.slice(index - window, index + 1).map(() => this.calculateMarketReturn(marketData, index - (index - window) + (index - window)) ?? 0),
-		);
+
+		// Calculate returns for the window correctly
+		const stockSlice = stockData.slice(index - window, index + 1);
+		const stockReturns = stockSlice.slice(1).map((point, i) => this.calculateDailyReturn(point, i + 1, stockSlice) ?? 0);
+
+		const stockVol = this.calculateStandardDeviation(stockReturns);
+
+		// Same for market volatility
+		const marketSlice = marketData.slice(index - window, index + 1);
+		const marketReturns = marketSlice.slice(1).map((_, i) => this.calculateMarketReturn(marketSlice, i + 1) ?? 0);
+
+		const marketVol = this.calculateStandardDeviation(marketReturns);
 
 		return stockVol - marketVol;
 	}

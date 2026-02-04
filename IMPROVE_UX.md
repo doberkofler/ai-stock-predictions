@@ -1,35 +1,4 @@
-# IMPROVEMENTS
-
-
-## Machine Learning & Compute Module (Priority: High)
-
-### Log-Return Training
-Description: Instead of absolute prices, train the model on Daily Log Returns. Raw prices are non-stationary and prone to "look-ahead bias" in normalization.
-Impact: Improves generalization significantly.
-
-### Feature Engineering
-Description: Incorporate Volume, Volatility (High-Low/Close), and technical indicators like RSI or MACD as additional LSTM input channels.
-Impact: Provides more context than just price action.
-
-### Attention Mechanism
-Description: Add a Self-Attention or 1D-Attention layer after the LSTM. This helps the model focus on critical historical time steps.
-Impact: Better long-term trend awareness.
-
-### Window Normalization
-Description: Normalize each sliding window relative to its first element or via Z-score, rather than a global min-max over 2 years.
-Impact: Fixes data leakage and scaling issues.
-
-
-## Data Gathering & Resilience (Priority: Medium)
-
-### Linear Interpolation
-Description: Implement a "Gap Fill" utility. Financial APIs often have missing days or "null" values. Current defaults (0) will break ML convergence.
-Impact: Prevents training on corrupted data.
-
-### Multi-Source Fallback
-Description: Add a secondary data source (e.g., Alpha Vantage) if Yahoo Finance returns empty or throttled responses.
-Impact: Higher reliability.
-
+# AI Stock Predictions - UX Enhancement Proposals
 
 ## UI/UX & Output Module (Priority: Medium)
 
@@ -62,6 +31,3 @@ Impact: Smart risk management.
 ### HTML Templating
 Description: Simplify the HTML generation by splitting it into multiple modules. The HTML could be stored in an external file and the JavaScript code as well.
 The files could then be read and then combined. We should take advantage of eslint and lint the html and the js.
-
-
-
