@@ -66,7 +66,7 @@ export type HistoricalRow = z.infer<typeof HistoricalRowSchema>;
 /**
  * Model metadata row schema
  */
-export const MetadataRowSchema = z.object({
+const MetadataRowSchema = z.object({
 	dataPoints: z.number(),
 	loss: z.number(),
 	metrics: z.string(),

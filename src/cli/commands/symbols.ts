@@ -23,6 +23,7 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 		{
 			configPath,
 			description: 'Adding new symbols to the portfolio.',
+			nextSteps: ['Run: {cli} sync to download historical data'],
 			title: 'Add Symbols',
 		},
 		async ({config}) => {
@@ -64,7 +65,6 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 
 			if (addedSymbols.length > 0) {
 				ui.log(chalk.green(`\n✅ Added ${addedSymbols.length} symbol(s)`));
-				ui.log(chalk.dim(`Next: Run 'sync' to download historical data`));
 			}
 		},
 		{},
@@ -80,6 +80,7 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 		{
 			configPath,
 			description: 'Populating the database with default symbols.',
+			nextSteps: ['Run: {cli} sync to download historical data'],
 			title: 'Add Default Symbols',
 		},
 		// eslint-disable-next-line @typescript-eslint/require-await
@@ -99,7 +100,6 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 			}
 
 			ui.log(chalk.green(`\n✅ Registered ${addedSymbols.length} default symbols`));
-			ui.log(chalk.dim(`Next: Run 'sync' to download historical data`));
 		},
 		{},
 	);

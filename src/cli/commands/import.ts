@@ -34,6 +34,7 @@ export async function importCommand(configPath: string, importPath = 'export.jso
 		{
 			configPath,
 			description: 'Hydrating the relational SQLite databases from a serialized JSON backup.',
+			nextSteps: ['Run: {cli} sync to update historical data', 'Run: {cli} train to regenerate models'],
 			title: 'Data Import',
 		},
 		async () => {
@@ -55,10 +56,6 @@ export async function importCommand(configPath: string, importPath = 'export.jso
 
 			storage.close();
 			spinner.succeed(`Import complete! Data restored from: ${resolvedPath}`);
-			ui.log('');
-			ui.log('Next steps:');
-			ui.log('  - Run "node src/index.ts sync" to update historical data');
-			ui.log('  - Run "node src/index.ts train" to regenerate models');
 		},
 		{},
 	);

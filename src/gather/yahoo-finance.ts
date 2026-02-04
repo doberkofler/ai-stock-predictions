@@ -13,8 +13,7 @@ import {DataSourceError, ErrorHandler} from '../cli/utils/errors.ts';
 import {MarketFeatureEngineer} from '../compute/market-features.ts';
 import {StockDataPointSchema, YahooQuoteSchema} from '../types/index.ts';
 
-import type {DataQualityResult} from './data-quality.ts';
-import {DataQualityPipeline} from './data-quality.ts';
+import {isQualityAcceptable, processData, type DataQualityResult} from './data-quality.ts';
 
 const StockDataSchema = z.array(StockDataPointSchema);
 
@@ -148,10 +147,10 @@ export class YahooFinanceDataSource {
 					}
 
 					// Apply data quality pipeline
-					const qualityResult = DataQualityPipeline.processData(deduplicatedQuotes);
+					const qualityResult = processData(deduplicatedQuotes);
 
 					// Use interpolated data if quality is acceptable
-					const finalData = DataQualityPipeline.isQualityAcceptable(qualityResult) ? qualityResult.data : deduplicatedQuotes;
+					const finalData = isQualityAcceptable(qualityResult) ? qualityResult.data : deduplicatedQuotes;
 
 					return {
 						data: finalData,

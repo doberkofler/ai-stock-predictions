@@ -15,7 +15,6 @@ export const FsUtils = {
 	 * @param path - Path to delete
 	 */
 	deletePath: async (path: string): Promise<void> => {
-		 
 		await rm(path, {force: true, recursive: true});
 	},
 
@@ -24,7 +23,6 @@ export const FsUtils = {
 	 * @param path - Directory path
 	 */
 	ensureDir: async (path: string): Promise<void> => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		await mkdir(path, {recursive: true});
 	},
 
@@ -33,9 +31,7 @@ export const FsUtils = {
 	 * @param path - Directory path
 	 */
 	ensureDirSync: (path: string): void => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		if (!existsSync(path)) {
-			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			mkdirSync(path, {recursive: true});
 		}
 	},
@@ -45,7 +41,6 @@ export const FsUtils = {
 	 * @param path - Path to check
 	 */
 	exists: (path: string): boolean => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		return existsSync(path);
 	},
 
@@ -54,7 +49,6 @@ export const FsUtils = {
 	 * @param path - File path
 	 */
 	readJson: async <T>(path: string): Promise<T> => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		const content = await readFile(path, 'utf8');
 		return JSON.parse(content) as T;
 	},
@@ -64,7 +58,6 @@ export const FsUtils = {
 	 * @param path - File path
 	 */
 	readText: async (path: string): Promise<string> => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		return await readFile(path, 'utf8');
 	},
 
@@ -73,7 +66,6 @@ export const FsUtils = {
 	 * @param path - File path
 	 */
 	readTextSync: (path: string): string => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		return readFileSync(path, 'utf8');
 	},
 
@@ -82,12 +74,9 @@ export const FsUtils = {
 	 * @param path - Directory path
 	 */
 	recreateDir: async (path: string): Promise<void> => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		if (existsSync(path)) {
-			 
 			await rm(path, {force: true, recursive: true});
 		}
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		await mkdir(path, {recursive: true});
 	},
 
@@ -98,7 +87,6 @@ export const FsUtils = {
 	 */
 	writeJson: async (path: string, data: unknown): Promise<void> => {
 		const content = JSON.stringify(data, null, 2);
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		await writeFile(path, content, 'utf8');
 	},
 
@@ -108,7 +96,6 @@ export const FsUtils = {
 	 * @param content - Text content
 	 */
 	writeText: async (path: string, content: string): Promise<void> => {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		await writeFile(path, content, 'utf8');
 	},
 };

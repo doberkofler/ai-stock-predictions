@@ -15,6 +15,7 @@ export async function syncCommand(configPath: string): Promise<void> {
 		{
 			configPath,
 			description: 'Updating historical market data for all symbols in the portfolio.',
+			nextSteps: ['Run: {cli} train to build prediction models'],
 			title: 'Data Synchronization',
 		},
 		async ({config}) => {

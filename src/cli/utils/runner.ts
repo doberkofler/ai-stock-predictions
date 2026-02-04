@@ -5,6 +5,7 @@ import type {Config} from '../../config/schema.ts';
 import {configExists, loadConfig} from '../../config/config.ts';
 import {initializeEnvironment} from '../../env.ts';
 import {DateUtils} from './date.ts';
+import {getCliInvocation} from './cli-helper.ts';
 import {ui} from './ui.ts';
 
 type CommandContext = {
@@ -17,6 +18,7 @@ type CommandHandler<T> = (context: CommandContext, options: T) => Promise<void>;
 type RunOptions = {
 	configPath: string;
 	description?: string;
+	nextSteps?: string[];
 	title: string;
 };
 
@@ -50,6 +52,16 @@ export async function runCommand<T>(options: RunOptions, handler: CommandHandler
 		await handler({config, startTime}, commandOptions);
 
 		ui.log(chalk.cyan(`\nProcess completed in ${DateUtils.formatDuration(Date.now() - startTime)}.`));
+
+		// Display next steps if provided
+		if (options.nextSteps && options.nextSteps.length > 0) {
+			ui.log(chalk.bold('\nNext steps:'));
+			const cliInvocation = getCliInvocation();
+			for (const [i, step] of options.nextSteps.entries()) {
+				const formattedStep = step.replaceAll('{cli}', cliInvocation);
+				ui.log(chalk.cyan(`  ${String(i + 1)}. ${formattedStep}`));
+			}
+		}
 	} catch (error) {
 		if (error instanceof Error) {
 			ui.error(chalk.red(`\n❌ ${options.title} failed`));

@@ -32,20 +32,11 @@ export function getMarketIndices(): DefaultSymbol[] {
 }
 
 /**
- * Get symbols by type
- * @param type - Symbol type to filter by
- * @returns Filtered array of default symbols
- */
-export function getSymbolsByType(type: DefaultSymbol['type']): DefaultSymbol[] {
-	return getDefaultSymbols().filter((symbol) => symbol.type === type);
-}
-
-/**
  * Load and validate defaults.jsonc file
  * @throws {Error} If file cannot be read or validation fails
  * @returns Validated defaults configuration
  */
-export function loadDefaults(): Defaults {
+function loadDefaults(): Defaults {
 	const defaultsPath = join(__dirname, 'defaults.jsonc');
 
 	try {

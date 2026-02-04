@@ -38,12 +38,10 @@ export class HtmlGenerator {
 		};
 
 		return ErrorHandler.wrapAsync(async () => {
-			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			await mkdir(this.config.directory, {recursive: true});
 			const reportPath = join(this.config.directory, 'index.html');
 
 			const html = this.renderHtml(predictions, appConfig);
-			// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 			await writeFile(reportPath, html, 'utf8');
 
 			return reportPath;

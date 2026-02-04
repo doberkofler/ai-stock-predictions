@@ -9,6 +9,7 @@ import {configExists, getConfigFilePath, getDefaultConfig, saveConfig} from '../
 import {getMarketIndices} from '../../constants/defaults-loader.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
 import {FsUtils} from '../utils/fs.ts';
+import {runCommand} from '../utils/runner.ts';
 import {ui} from '../utils/ui.ts';
 
 /**
@@ -18,94 +19,79 @@ import {ui} from '../utils/ui.ts';
  * @param force - Whether to overwrite existing config and wipe all data
  */
 export async function initCommand(configPath: string, force = false): Promise<void> {
-	// Initialize environment (loads backend)
-	const env = await import('../../env.ts');
-	await env.initializeEnvironment();
+	await runCommand(
+		{
+			configPath,
+			description: 'Setting up project structure and creating the default configuration file.',
+			nextSteps: ['Review configuration in config.jsonc', 'Run: {cli} symbol-add <SYMBOLS>', 'Run: {cli} sync', 'Run: {cli} train', 'Run: {cli} predict'],
+			title: 'Initialization',
+		},
+		async () => {
+			const spinner = ui.spinner('Initializing AI Stock Predictions CLI').start();
 
-	ui.log(chalk.bold.blue('\n=== AI Stock Predictions: Initialization ==='));
-	ui.log(chalk.dim('Setting up project structure and creating the default configuration file.\n'));
+			if (force) {
+				spinner.text = 'Wiping existing data and models...';
+				await FsUtils.deletePath(join(process.cwd(), 'data'));
+				await FsUtils.deletePath(join(process.cwd(), 'output'));
+				spinner.text = 'Data wiped successfully.';
+			} else if (configExists(configPath)) {
+				const resolvedPath = getConfigFilePath(configPath);
+				spinner.warn('Configuration file already exists');
+				ui.log(chalk.yellow(`Configuration file found at: ${resolvedPath}`));
+				ui.log(chalk.blue('To reinitialize and wipe data, use the --force flag.'));
+				return;
+			}
 
-	const startTime = Date.now();
+			// Create necessary directories
+			spinner.text = 'Creating directory structure...';
+			const directories = [join(process.cwd(), 'data'), join(process.cwd(), 'data', 'models'), join(process.cwd(), 'output')];
 
-	try {
-		const spinner = ui.spinner('Initializing AI Stock Predictions CLI').start();
+			for (const dir of directories) {
+				await FsUtils.ensureDir(dir);
+			}
 
-		if (force) {
-			spinner.text = 'Wiping existing data and models...';
-			await FsUtils.deletePath(join(process.cwd(), 'data'));
-			await FsUtils.deletePath(join(process.cwd(), 'output'));
-			spinner.text = 'Data wiped successfully.';
-		} else if (configExists(configPath)) {
+			spinner.text = 'Creating configuration file...';
+			const defaultConfig = getDefaultConfig();
 			const resolvedPath = getConfigFilePath(configPath);
-			spinner.warn('Configuration file already exists');
-			ui.log(chalk.yellow(`Configuration file found at: ${resolvedPath}`));
-			ui.log(chalk.blue('To reinitialize and wipe data, use the --force flag.'));
-			return;
-		}
 
-		// Create necessary directories
-		spinner.text = 'Creating directory structure...';
-		const directories = [join(process.cwd(), 'data'), join(process.cwd(), 'data', 'models'), join(process.cwd(), 'output')];
+			// Validate that configured indices exist in defaults.jsonc
+			const indices = getMarketIndices();
+			const primaryIndex = indices.find((idx) => idx.symbol === defaultConfig.market.primaryIndex);
+			const volatilityIndex = indices.find((idx) => idx.symbol === defaultConfig.market.volatilityIndex);
 
-		for (const dir of directories) {
-			await FsUtils.ensureDir(dir);
-		}
+			if (!primaryIndex) {
+				spinner.fail('Configuration error');
+				throw new Error(
+					`Primary index '${defaultConfig.market.primaryIndex}' not found in defaults.jsonc.\n` +
+						`Available indices: ${indices.map((idx) => idx.symbol).join(', ')}`,
+				);
+			}
 
-		spinner.text = 'Creating configuration file...';
-		const defaultConfig = getDefaultConfig();
-		const resolvedPath = getConfigFilePath(configPath);
+			if (!volatilityIndex) {
+				spinner.fail('Configuration error');
+				throw new Error(
+					`Volatility index '${defaultConfig.market.volatilityIndex}' not found in defaults.jsonc.\n` +
+						`Available indices: ${indices.map((idx) => idx.symbol).join(', ')}`,
+				);
+			}
 
-		// Validate that configured indices exist in defaults.jsonc
-		const indices = getMarketIndices();
-		const primaryIndex = indices.find((idx) => idx.symbol === defaultConfig.market.primaryIndex);
-		const volatilityIndex = indices.find((idx) => idx.symbol === defaultConfig.market.volatilityIndex);
+			await saveConfig(defaultConfig, configPath);
 
-		if (!primaryIndex) {
-			spinner.fail('Configuration error');
-			throw new Error(
-				`Primary index '${defaultConfig.market.primaryIndex}' not found in defaults.jsonc.\n` +
-					`Available indices: ${indices.map((idx) => idx.symbol).join(', ')}`,
-			);
-		}
+			// Initialize database with default indices from defaults.jsonc
+			spinner.text = 'Initializing database with market indices...';
+			const storage = new SqliteStorage();
 
-		if (!volatilityIndex) {
-			spinner.fail('Configuration error');
-			throw new Error(
-				`Volatility index '${defaultConfig.market.volatilityIndex}' not found in defaults.jsonc.\n` +
-					`Available indices: ${indices.map((idx) => idx.symbol).join(', ')}`,
-			);
-		}
+			for (const idx of indices) {
+				storage.saveSymbol(idx.symbol, idx.name, idx.type, idx.priority);
+			}
+			storage.close();
 
-		await saveConfig(defaultConfig, configPath);
+			spinner.succeed('Initialization complete!');
 
-		// Initialize database with default indices from defaults.jsonc
-		spinner.text = 'Initializing database with market indices...';
-		const storage = new SqliteStorage();
-
-		for (const idx of indices) {
-			storage.saveSymbol(idx.symbol, idx.name, idx.type, idx.priority);
-		}
-		storage.close();
-
-		spinner.succeed('Initialization complete!');
-
-		ui.log('\n' + chalk.green('✅ AI Stock Predictions CLI initialized successfully!'));
-		ui.log('\n' + chalk.bold('Configuration file created:'));
-		ui.log(chalk.cyan(`  ${resolvedPath}`));
-
-		ui.log('\n' + chalk.bold('Next steps:'));
-		ui.log(chalk.cyan('  1. Review configuration in config.jsonc'));
-		ui.log(chalk.cyan('  2. Run: ai-stock-predictions symbol-add <SYMBOLS>'));
-		ui.log(chalk.cyan('  3. Run: ai-stock-predictions sync'));
-		ui.log(chalk.cyan('  4. Run: ai-stock-predictions train'));
-		ui.log(chalk.cyan('  5. Run: ai-stock-predictions predict'));
-
-		ui.log(chalk.cyan(`\nProcess completed in ${Math.floor((Date.now() - startTime) / 1000)}s.`));
-	} catch (error) {
-		ui.error(chalk.red('\n❌ Initialization failed'));
-		if (error instanceof Error) {
-			ui.error(chalk.red(`Error: ${error.message}`));
-		}
-		process.exit(1);
-	}
+			ui.log('\n' + chalk.green('✅ AI Stock Predictions CLI initialized successfully!'));
+			ui.log('\n' + chalk.bold('Configuration file created:'));
+			ui.log(chalk.cyan(`  ${resolvedPath}`));
+		},
+		{},
+	);
 }

@@ -19,6 +19,7 @@ export async function exportCommand(configPath: string, exportPath = 'export.jso
 		{
 			configPath,
 			description: 'Serializing relational SQLite databases into a portable JSON format.',
+			nextSteps: ['Share the export file with others or use it to restore data on another system'],
 			title: 'Data Export',
 		},
 		async () => {

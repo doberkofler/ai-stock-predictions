@@ -2,10 +2,8 @@ import js from '@eslint/js';
 import importX from 'eslint-plugin-import-x';
 import jsdoc from 'eslint-plugin-jsdoc';
 import node from 'eslint-plugin-n';
-import perfectionist from 'eslint-plugin-perfectionist';
 import promise from 'eslint-plugin-promise';
 import regexp from 'eslint-plugin-regexp';
-import security from 'eslint-plugin-security';
 import sonarjs from 'eslint-plugin-sonarjs';
 import unicorn from 'eslint-plugin-unicorn';
 import tseslint from 'typescript-eslint';
@@ -19,17 +17,19 @@ export default tseslint.config(
 	jsdoc.configs['flat/recommended-error'],
 	regexp.configs['flat/recommended'],
 	unicorn.configs['flat/recommended'],
-	security.configs.recommended,
 	sonarjs.configs.recommended,
 	promise.configs['flat/recommended'],
 	node.configs['flat/recommended-module'],
-	perfectionist.configs['recommended-natural'],
 	{
 		languageOptions: {
 			parserOptions: {
 				projectService: true,
 				tsconfigRootDir: import.meta.dirname,
 			},
+		},
+		linterOptions: {
+			reportUnusedDisableDirectives: 'warn',
+			reportUnusedInlineConfigs: 'warn',
 		},
 	},
 	{
@@ -38,6 +38,14 @@ export default tseslint.config(
 			'@typescript-eslint/consistent-type-definitions': ['error', 'type'],
 			// TypeScript
 			'@typescript-eslint/no-explicit-any': 'error',
+			'@typescript-eslint/restrict-template-expressions': [
+				'error',
+				{
+					allowNumber: true,
+					allowBoolean: true,
+					allowNullish: true,
+				},
+			],
 			'@typescript-eslint/no-floating-promises': 'error',
 			'@typescript-eslint/no-misused-promises': [
 				'error',
@@ -51,15 +59,6 @@ export default tseslint.config(
 					argsIgnorePattern: 'Reference|_',
 					caughtErrorsIgnorePattern: 'Reference|_',
 					varsIgnorePattern: 'Reference|_',
-				},
-			],
-			'@typescript-eslint/restrict-template-expressions': [
-				'error',
-				{
-					allowAny: false,
-					allowBoolean: true,
-					allowNullish: true,
-					allowNumber: true,
 				},
 			],
 			'import-x/default': 'off',
@@ -87,27 +86,6 @@ export default tseslint.config(
 
 			'no-console': 'error',
 
-			// perfectionist - disable all sorting rules
-			'perfectionist/sort-array-includes': 'off',
-			'perfectionist/sort-classes': 'off',
-			'perfectionist/sort-enums': 'off',
-			'perfectionist/sort-exports': 'off',
-			'perfectionist/sort-imports': 'off',
-			'perfectionist/sort-interfaces': 'off',
-			'perfectionist/sort-intersection-types': 'off',
-			'perfectionist/sort-jsx-props': 'off',
-			'perfectionist/sort-maps': 'off',
-			'perfectionist/sort-named-exports': 'off',
-			'perfectionist/sort-named-imports': 'off',
-			'perfectionist/sort-object-types': 'off',
-			'perfectionist/sort-objects': 'off',
-			'perfectionist/sort-sets': 'off',
-			'perfectionist/sort-switch-case': 'off',
-			'perfectionist/sort-union-types': 'off',
-			'perfectionist/sort-variable-declarations': 'off',
-
-			// Security
-			'security/detect-object-injection': 'off',
 			// sonarjs
 			'sonarjs/cognitive-complexity': ['error', 18],
 			// Unicorn

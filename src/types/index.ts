@@ -26,8 +26,6 @@ export type StockDataPoint = z.infer<typeof StockDataPointSchema>;
  */
 export const SymbolTypeSchema = z.enum(['STOCK', 'INDEX', 'ETF', 'CRYPTO', 'VOLATILITY']);
 
-export type SymbolType = z.infer<typeof SymbolTypeSchema>;
-
 /**
  * Market feature configuration schema for enabling/disabling features
  */
@@ -123,5 +121,3 @@ export type TradingSignal = {
 	symbol: string;
 	timestamp: Date;
 };
-
-export type YahooQuote = z.infer<typeof YahooQuoteSchema>;

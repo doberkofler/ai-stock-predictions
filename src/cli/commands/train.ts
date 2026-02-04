@@ -28,6 +28,7 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 		{
 			configPath,
 			description: 'Optimizing TensorFlow.js LSTM neural networks for the specified portfolio.',
+			nextSteps: ['Run: {cli} predict to generate price forecasts'],
 			title: 'Model Training',
 		},
 		async ({config}) => {

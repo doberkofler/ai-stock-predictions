@@ -6,12 +6,12 @@ import {describe, expect, it} from 'vitest';
 
 import type {StockDataPoint} from '../../../src/types/index.ts';
 
-import {DataQualityPipeline} from '../../../src/gather/data-quality.ts';
+import {isQualityAcceptable, processData} from '../../../src/gather/data-quality.ts';
 
 describe('DataQualityPipeline', () => {
 	describe('processData', () => {
 		it('should handle empty data', () => {
-			const result = DataQualityPipeline.processData([]);
+			const result = processData([]);
 
 			expect(result.data).toEqual([]);
 			expect(result.interpolatedCount).toBe(0);
@@ -26,7 +26,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 105, close: 105, date: '2024-01-03', high: 106, low: 104, open: 103, volume: 1100000},
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.data).toHaveLength(3);
 			expect(result.interpolatedCount).toBe(0);
@@ -40,7 +40,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 105, close: 105, date: '2024-01-08', high: 106, low: 104, open: 103, volume: 1100000}, // 7-day gap
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.gapsDetected).toBe(1);
 		});
@@ -51,7 +51,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 103, close: 103, date: '2024-01-04', high: 104, low: 102, open: 102, volume: 1100000}, // 3-day gap
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.interpolatedCount).toBeGreaterThan(0);
 			expect(result.data.length).toBeGreaterThan(mockData.length);
@@ -64,7 +64,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 110, close: 110, date: '2024-01-10', high: 111, low: 109, open: 109, volume: 1100000}, // 9-day gap
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.interpolatedCount).toBe(0);
 			expect(result.data).toHaveLength(2); // No interpolation
@@ -77,7 +77,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 106, close: 106, date: '2024-01-04', high: 106, low: 106, open: 106, volume: 1300000}, // 3-day gap
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			// Should have interpolated 2 points (Jan 2 and Jan 3)
 			expect(result.interpolatedCount).toBe(2);
@@ -104,8 +104,8 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 120, close: 120, date: '2024-01-20', high: 121, low: 119, open: 119, volume: 1200000}, // Another large gap
 			];
 
-			const resultHigh = DataQualityPipeline.processData(mockDataHighQuality);
-			const resultLow = DataQualityPipeline.processData(mockDataLowQuality);
+			const resultHigh = processData(mockDataHighQuality);
+			const resultLow = processData(mockDataLowQuality);
 
 			expect(resultHigh.qualityScore).toBeGreaterThan(resultLow.qualityScore);
 			expect(resultHigh.qualityScore).toBeGreaterThan(80);
@@ -117,7 +117,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 103, close: 103, date: '2024-01-04', high: 104, low: 102, open: 102, volume: 1100000}, // 3-day gap
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.interpolatedIndices).toHaveLength(result.interpolatedCount);
 			for (const index of result.interpolatedIndices) {
@@ -132,7 +132,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 103, close: 103, date: '2024-01-04', high: 104, low: 102, open: 102, volume: 1100000}, // 3-day gap -> 2 interpolated
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.interpolatedPercent).toBe(result.interpolatedCount / result.data.length);
 			expect(result.interpolatedPercent).toBeGreaterThan(0);
@@ -146,7 +146,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 106, close: 106, date: '2024-01-08', high: 107, low: 105, open: 105, volume: 1200000},
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			// Check dates are in ascending order
 			for (let i = 1; i < result.data.length; i++) {
@@ -169,7 +169,7 @@ describe('DataQualityPipeline', () => {
 				qualityScore: 85,
 			};
 
-			expect(DataQualityPipeline.isQualityAcceptable(goodResult)).toBe(true);
+			expect(isQualityAcceptable(goodResult)).toBe(true);
 		});
 
 		it('should reject data with too much interpolation', () => {
@@ -183,7 +183,7 @@ describe('DataQualityPipeline', () => {
 				qualityScore: 70,
 			};
 
-			expect(DataQualityPipeline.isQualityAcceptable(badResult)).toBe(false);
+			expect(isQualityAcceptable(badResult)).toBe(false);
 		});
 
 		it('should reject data with low quality score', () => {
@@ -197,7 +197,7 @@ describe('DataQualityPipeline', () => {
 				qualityScore: 50, // <60 threshold
 			};
 
-			expect(DataQualityPipeline.isQualityAcceptable(badResult)).toBe(false);
+			expect(isQualityAcceptable(badResult)).toBe(false);
 		});
 
 		it('should accept data at the threshold boundaries', () => {
@@ -211,7 +211,7 @@ describe('DataQualityPipeline', () => {
 				qualityScore: 60, // Exactly 60
 			};
 
-			expect(DataQualityPipeline.isQualityAcceptable(boundaryResult)).toBe(true);
+			expect(isQualityAcceptable(boundaryResult)).toBe(true);
 		});
 	});
 
@@ -219,7 +219,7 @@ describe('DataQualityPipeline', () => {
 		it('should handle single data point', () => {
 			const mockData: StockDataPoint[] = [{adjClose: 100, close: 100, date: '2024-01-01', high: 101, low: 99, open: 100, volume: 1000000}];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.data).toHaveLength(1);
 			expect(result.interpolatedCount).toBe(0);
@@ -233,7 +233,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 106, close: 106, date: '2024-01-07', high: 107, low: 105, open: 105, volume: 1200000}, // Gap 2
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.gapsDetected).toBe(2);
 			expect(result.interpolatedCount).toBeGreaterThan(0);
@@ -246,7 +246,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 110, close: 110, date: '2024-01-15', high: 111, low: 109, open: 109, volume: 1200000}, // Large gap
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			expect(result.gapsDetected).toBe(2);
 			expect(result.interpolatedCount).toBeGreaterThan(0); // Only small gap interpolated
@@ -260,7 +260,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 102, close: 102, date: '2024-01-08', high: 103, low: 101, open: 101, volume: 1200000}, // Monday
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			// 3-day gap will be detected and interpolated (weekend days will be filled)
 			expect(result.gapsDetected).toBe(1);
@@ -273,7 +273,7 @@ describe('DataQualityPipeline', () => {
 				{adjClose: 103, close: 103, date: '2024-01-04', high: 103, low: 103, open: 103, volume: 1300000},
 			];
 
-			const result = DataQualityPipeline.processData(mockData);
+			const result = processData(mockData);
 
 			for (const point of result.data) {
 				expect(Number.isInteger(point.volume)).toBe(true);

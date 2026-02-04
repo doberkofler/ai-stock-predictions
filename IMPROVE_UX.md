@@ -2,15 +2,7 @@
 
 ## CLI UX
 
-### Change export/import command 
-Simplify export/import to only care about the symbols and the history.
-All other data is redundant and only the data actually defined by the user should and must be serialized.
-
 ## UI/UX & Output Module (Priority: Medium)
-
-### Historical Context
-Description: Overlay the last 30–60 days of actual data on the interactive charts to provide context for the prediction.
-Impact: Essential for visual validation.
 
 ### Confidence Ribbons
 Description: Visualize the prediction uncertainty (using MAE) as a shaded area around the prediction line. 
@@ -25,10 +17,6 @@ Impact: Better usability.
 ### Backtesting Command
 Description: Implement a backtest command. This simulates trading based on the model's past "next-day" predictions to calculate a hypothetical ROI.
 Impact: The only way to prove if the model works.
-
-### Unified Command
-Description: Add a sync or run-all command that sequentially runs gather, train, and predict for a seamless daily update.
-Impact: Better DX.
 
 ### Model Drift Detection
 Description: Lower confidence automatically if recent (last 5 days) real prices differ significantly from the model's past predictions.

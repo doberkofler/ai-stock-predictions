@@ -31,6 +31,7 @@ export async function predictCommand(configPath: string, quickTest = false, symb
 		{
 			configPath,
 			description: 'Generating multi-day trend forecasts and rendering the interactive HTML report.',
+			nextSteps: ['Open the generated HTML report in your browser to view predictions'],
 			title: 'Price Estimation',
 		},
 		async ({config}) => {
@@ -149,7 +150,6 @@ async function generateReport(predictions: ReportPrediction[], config: Config, s
 	try {
 		const htmlGenerator = new HtmlGenerator(config.prediction, storage);
 
-		// eslint-disable-next-line security/detect-non-literal-fs-filename -- Justification: CLI requires dynamic path resolution for user-provided config and data storage.
 		await mkdir(config.prediction.directory, {recursive: true});
 		const reportPath = await htmlGenerator.generateReport(predictions, config);
 		htmlSpinner.succeed('HTML report generated');

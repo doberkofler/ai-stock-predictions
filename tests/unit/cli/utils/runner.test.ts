@@ -1,12 +1,14 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {runCommand} from '../../../../src/cli/utils/runner.ts';
+import {getCliInvocation} from '../../../../src/cli/utils/cli-helper.ts';
 import {ui} from '../../../../src/cli/utils/ui.ts';
 import {configExists, loadConfig} from '../../../../src/config/config.ts';
 import {initializeEnvironment} from '../../../../src/env.ts';
 
 vi.mock('../../../../src/env.ts');
 vi.mock('../../../../src/config/config.ts');
+vi.mock('../../../../src/cli/utils/cli-helper.ts');
 vi.mock('../../../../src/cli/utils/ui.ts', () => ({
 	ui: {
 		error: vi.fn(),
@@ -104,5 +106,49 @@ describe('runCommand', () => {
 
 		expect(ui.error).toHaveBeenCalledWith(expect.stringContaining('Unknown error occurred during Test'));
 		expect(process.exit).toHaveBeenCalledWith(1);
+	});
+
+	it('should display next steps when provided and command succeeds', async () => {
+		vi.mocked(configExists).mockReturnValue(false);
+		const handler = vi.fn().mockResolvedValue(undefined);
+		vi.mocked(getCliInvocation).mockReturnValue('cli-command');
+
+		await runCommand({configPath: 'config.jsonc', nextSteps: ['Step 1: {cli} command1', 'Step 2: {cli} command2'], title: 'Test'}, handler, {});
+
+		expect(handler).toHaveBeenCalled();
+		expect(ui.log).toHaveBeenCalledWith(expect.stringContaining('Next steps:'));
+		expect(ui.log).toHaveBeenCalledWith(expect.stringContaining('1. Step 1: cli-command command1'));
+		expect(ui.log).toHaveBeenCalledWith(expect.stringContaining('2. Step 2: cli-command command2'));
+	});
+
+	it('should not display next steps when not provided', async () => {
+		vi.mocked(configExists).mockReturnValue(false);
+		const handler = vi.fn().mockResolvedValue(undefined);
+
+		await runCommand({configPath: 'config.jsonc', title: 'Test'}, handler, {});
+
+		expect(handler).toHaveBeenCalled();
+		expect(ui.log).not.toHaveBeenCalledWith(expect.stringContaining('Next steps:'));
+	});
+
+	it('should replace {cli} placeholder with actual invocation', async () => {
+		vi.mocked(configExists).mockReturnValue(false);
+		const handler = vi.fn().mockResolvedValue(undefined);
+		vi.mocked(getCliInvocation).mockReturnValue('node src/index.ts');
+
+		await runCommand({configPath: 'config.jsonc', nextSteps: ['Run: {cli} sync'], title: 'Test'}, handler, {});
+
+		expect(handler).toHaveBeenCalled();
+		expect(ui.log).toHaveBeenCalledWith(expect.stringContaining('Run: node src/index.ts sync'));
+	});
+
+	it('should not display next steps when command fails', async () => {
+		vi.mocked(configExists).mockReturnValue(false);
+		const handler = vi.fn().mockRejectedValue(new Error('Test error'));
+
+		await runCommand({configPath: 'config.jsonc', nextSteps: ['Step 1'], title: 'Test'}, handler, {});
+
+		expect(process.exit).toHaveBeenCalledWith(1);
+		expect(ui.log).not.toHaveBeenCalledWith(expect.stringContaining('Next steps:'));
 	});
 });
