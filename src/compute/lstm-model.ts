@@ -19,8 +19,10 @@ export type ModelMetadata = {
 	loss: number;
 	mape?: number | undefined;
 	metrics: Record<string, number>;
+	normalizationType?: 'global-minmax' | 'window-zscore';
 	symbol: string;
 	trainedAt: Date;
+	trainingMethod?: 'absolute-prices' | 'log-returns';
 	version: string;
 	windowSize: number;
 };
@@ -67,30 +69,40 @@ export class LstmModel {
 			throw new Error('Model not trained or loaded');
 		}
 
-		const {inputs, labels, max, min} = this.preprocessData(data, marketFeatures);
+		const {inputs, labels, prices} = this.preprocessData(data, marketFeatures);
 		const result = this.model.evaluate(inputs, labels) as tf.Scalar[];
 		const loss = result[0]?.dataSync()[0] ?? 0;
 
 		// Calculate MAPE (Mean Absolute Percentage Error)
 		const predictions = this.model.predict(inputs) as tf.Tensor;
-		const actuals = labels;
+		const predictedLogReturns = predictions.dataSync();
+		const actualLogReturns = labels.dataSync();
 
-		// Rescale to actual prices
-		const actualPrices = actuals.mul(max - min).add(min);
-		const predictedPrices = predictions.mul(max - min).add(min);
+		// Convert log returns back to prices for MAPE calculation
+		let mapeSum = 0;
+		let count = 0;
 
-		// MAPE = mean(|actual - predicted| / actual)
-		const absoluteDiff = actualPrices.sub(predictedPrices).abs();
-		const percentageError = absoluteDiff.div(actualPrices);
-		const mape = percentageError.mean().dataSync()[0] ?? 0;
+		for (const [i, predictedLogReturn] of predictedLogReturns.entries()) {
+			const baseIdx = i + this.config.windowSize;
+			const basePrice = prices[baseIdx] ?? 0;
+
+			const actualLogReturn = actualLogReturns[i] ?? 0;
+
+			const predictedPrice = basePrice * Math.exp(predictedLogReturn);
+			const actualPrice = basePrice * Math.exp(actualLogReturn);
+
+			if (actualPrice > 0) {
+				const percentError = Math.abs((actualPrice - predictedPrice) / actualPrice);
+				mapeSum += percentError;
+				count++;
+			}
+		}
+
+		const mape = count > 0 ? mapeSum / count : 0;
 
 		inputs.dispose();
 		labels.dispose();
 		predictions.dispose();
-		actualPrices.dispose();
-		predictedPrices.dispose();
-		absoluteDiff.dispose();
-		percentageError.dispose();
 
 		return {
 			accuracy: 1 - loss,
@@ -138,32 +150,75 @@ export class LstmModel {
 			throw new Error('Model not trained or loaded');
 		}
 
-		const {inputs, max, min} = this.preprocessData(data, marketFeatures);
+		const {inputs, logReturns, prices} = this.preprocessData(data, marketFeatures);
 		const predictions: number[] = [];
 
 		// Start with the last window
 		const inputDim = inputs.shape[2];
 		let lastWindow = inputs.slice([inputs.shape[0] - 1, 0, 0], [1, this.config.windowSize, inputDim]);
 
+		// Current price is the last price in the data
+		let currentPrice = prices.at(-1) ?? 0;
+
+		// Get last known market features for decay calculation
+		const lastMarketFeatures = marketFeatures && marketFeatures.length > 0 ? marketFeatures.at(-1) : undefined;
+
 		for (let i = 0; i < days; i++) {
 			const prediction = this.model.predict(lastWindow) as tf.Tensor2D;
 			const dataSync = prediction.dataSync();
-			const price = dataSync[0] ?? 0;
-			predictions.push(min + price * (max - min));
+			const predictedLogReturn = dataSync[0] ?? 0;
+
+			// Convert log return to price
+			const predictedPrice = currentPrice * Math.exp(predictedLogReturn);
+			predictions.push(predictedPrice);
+
+			// Calculate log return for the new predicted point
+			const newLogReturn = Math.log(predictedPrice / currentPrice);
 
 			// Update window for next prediction
-			// For future points, we use the predicted price and reuse the last known market features
-			const lastKnownFeatures = inputDim > 1 ? lastWindow.slice([0, this.config.windowSize - 1, 1], [1, 1, inputDim - 1]) : null;
+			// Calculate exponential decay for market features (half-life of 10 days)
+			const decayFactor = Math.exp(-i / 10);
 
-			const newPoint: tf.Tensor3D =
-				lastKnownFeatures === null
-					? tf.tensor3d([[[price]]])
-					: // eslint-disable-next-line unicorn/prefer-spread -- Justification: tf.concat requires an array of tensors.
-						tf.concat([tf.tensor3d([[[price]]]), lastKnownFeatures], 2);
+			// Neutral values for market features
+			const neutralMarketReturn = 0;
+			const neutralVix = 20;
+			const neutralRegime = 0.5;
+			const neutralDistanceFromMA = 0;
+			const neutralRelativeReturn = 0;
+			const neutralVolatilitySpread = 0;
 
-			if (lastKnownFeatures !== null) {
-				lastKnownFeatures.dispose();
-			}
+			// Build decayed market features
+			const decayedFeatures =
+				this.featureConfig?.enabled && lastMarketFeatures
+					? this.buildDecayedFeatureRow(lastMarketFeatures, decayFactor, {
+							distanceFromMA: neutralDistanceFromMA,
+							marketReturn: neutralMarketReturn,
+							regime: neutralRegime,
+							relativeReturn: neutralRelativeReturn,
+							vix: neutralVix,
+							volatilitySpread: neutralVolatilitySpread,
+						})
+					: [];
+
+			// Get the last technical indicators from the window
+			const lastWindowData = lastWindow.dataSync();
+			const lastPoint = [...lastWindowData].slice(-inputDim);
+
+			// Extract technical indicators (skip first element which is log return)
+			const technicalIndicators = lastPoint.slice(1, 4); // SMA, RSI, Returns
+
+			// Build new point with predicted log return + technical indicators + market features
+			const newPointData = [newLogReturn, ...technicalIndicators, ...decayedFeatures];
+
+			// Normalize the new log return using z-score from recent window
+			const recentLogReturns = logReturns.slice(-this.config.windowSize);
+			const {mean, std} = this.calculateMeanStd(recentLogReturns);
+			const normalizedNewLogReturn = std > 0 ? (newLogReturn - mean) / std : 0;
+
+			// Replace first element with normalized log return
+			newPointData[0] = normalizedNewLogReturn;
+
+			const newPoint = tf.tensor3d([[newPointData]]);
 
 			// eslint-disable-next-line unicorn/prefer-spread -- Justification: tf.concat requires an array of tensors.
 			const nextWindow = tf.concat([lastWindow.slice([0, 1, 0], [1, this.config.windowSize - 1, inputDim]), newPoint], 1);
@@ -172,6 +227,9 @@ export class LstmModel {
 			prediction.dispose();
 			newPoint.dispose();
 			lastWindow = nextWindow;
+
+			// Update current price for next iteration
+			currentPrice = predictedPrice;
 		}
 
 		inputs.dispose();
@@ -267,9 +325,11 @@ export class LstmModel {
 				meanAbsoluteError: (history.history.mae?.at(-1) as number) || 0,
 				validationLoss: finalValLoss,
 			},
+			normalizationType: 'window-zscore',
 			symbol: 'UNKNOWN',
 			trainedAt: new Date(),
-			version: '1.0.0',
+			trainingMethod: 'log-returns',
+			version: '2.0.0',
 			windowSize: this.config.windowSize,
 		};
 
@@ -288,6 +348,80 @@ export class LstmModel {
 			loss: finalLoss,
 			windowSize: this.config.windowSize,
 		};
+	}
+
+	/**
+	 * Build a feature row with exponential decay toward neutral values
+	 * Used during multi-step prediction to avoid frozen market conditions
+	 * @param f - Last known market features
+	 * @param decayFactor - Exponential decay factor (0 = full neutral, 1 = no decay)
+	 * @param neutralValues - Target neutral values for each feature
+	 * @param neutralValues.marketReturn - Neutral market return (typically 0)
+	 * @param neutralValues.relativeReturn - Neutral relative return (typically 0)
+	 * @param neutralValues.vix - Neutral VIX level (typically 20, historical mean)
+	 * @param neutralValues.volatilitySpread - Neutral volatility spread (typically 0)
+	 * @param neutralValues.regime - Neutral regime value (typically 0.5 for NEUTRAL)
+	 * @param neutralValues.distanceFromMA - Neutral distance from MA (typically 0)
+	 */
+	private buildDecayedFeatureRow(
+		f: MarketFeatures,
+		decayFactor: number,
+		neutralValues: {
+			distanceFromMA: number;
+			marketReturn: number;
+			regime: number;
+			relativeReturn: number;
+			vix: number;
+			volatilitySpread: number;
+		},
+	): number[] {
+		const row: number[] = [];
+
+		// Market returns (decayed toward 0)
+		if (this.featureConfig?.includeMarketReturn) {
+			const decayed = (f.marketReturn ?? 0) * decayFactor + neutralValues.marketReturn * (1 - decayFactor);
+			row.push(this.normalizeValue(decayed, -0.1, 0.1));
+		}
+		if (this.featureConfig?.includeRelativeReturn) {
+			const decayed = (f.relativeReturn ?? 0) * decayFactor + neutralValues.relativeReturn * (1 - decayFactor);
+			row.push(this.normalizeValue(decayed, -0.1, 0.1));
+		}
+
+		// Beta and correlation (kept stable - stock characteristics)
+		if (this.featureConfig?.includeBeta) {
+			row.push(this.normalizeValue(f.beta ?? 1, 0, 3));
+		}
+		if (this.featureConfig?.includeCorrelation) {
+			row.push(this.normalizeValue(f.indexCorrelation ?? 0, -1, 1));
+		}
+
+		// VIX (decayed toward 20, historical mean)
+		if (this.featureConfig?.includeVix) {
+			const decayed = (f.vix ?? 20) * decayFactor + neutralValues.vix * (1 - decayFactor);
+			row.push(this.normalizeValue(decayed, 10, 50));
+		}
+		if (this.featureConfig?.includeVolatilitySpread) {
+			const decayed = (f.volatilitySpread ?? 0) * decayFactor + neutralValues.volatilitySpread * (1 - decayFactor);
+			row.push(this.normalizeValue(decayed, -0.5, 0.5));
+		}
+
+		// Regime (decayed toward NEUTRAL = 0.5)
+		if (this.featureConfig?.includeRegime) {
+			let regimeVal = 0.5;
+			if (f.marketRegime === 'BULL') {
+				regimeVal = 1;
+			} else if (f.marketRegime === 'BEAR') {
+				regimeVal = 0;
+			}
+			const decayed = regimeVal * decayFactor + neutralValues.regime * (1 - decayFactor);
+			row.push(decayed);
+		}
+		if (this.featureConfig?.includeDistanceFromMA) {
+			const decayed = (f.distanceFromMA ?? 0) * decayFactor + neutralValues.distanceFromMA * (1 - decayFactor);
+			row.push(this.normalizeValue(decayed, -0.2, 0.2));
+		}
+
+		return row;
 	}
 
 	/**
@@ -404,29 +538,62 @@ export class LstmModel {
 	}
 
 	/**
-	 * Create sliding window sequences for LSTM
-	 * @param normalizedPrices
-	 * @param featureMatrix
-	 * @param useFeatures
+	 * Calculate mean and standard deviation
+	 * @param values - Array of values
 	 */
-	private createSequences(normalizedPrices: number[], featureMatrix: number[][], useFeatures: boolean): {inputs: number[][][]; labels: number[][]} {
+	private calculateMeanStd(values: number[]): {mean: number; std: number} {
+		if (values.length === 0) {
+			return {mean: 0, std: 1};
+		}
+
+		const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+		const variance = values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length;
+		const std = Math.sqrt(variance);
+
+		return {mean, std: std === 0 ? 1 : std};
+	}
+
+	/**
+	 * Create sliding window sequences for LSTM with window-based z-score normalization
+	 * Fixes data leakage by normalizing each window independently
+	 * @param logReturns - Log returns array
+	 * @param featureMatrix - Technical and market features
+	 * @param useFeatures - Whether to include features
+	 */
+	private createSequencesWithWindowNorm(logReturns: number[], featureMatrix: number[][], useFeatures: boolean): {inputs: number[][][]; labels: number[][]} {
 		const inputs: number[][][] = [];
 		const labels: number[][] = [];
 
-		for (let i = 0; i < normalizedPrices.length - this.config.windowSize; i++) {
+		for (let i = 0; i < logReturns.length - this.config.windowSize; i++) {
 			const window: number[][] = [];
+
+			// Extract log returns for this window
+			const windowLogReturns = logReturns.slice(i, i + this.config.windowSize);
+
+			// Calculate window-specific mean and std (z-score normalization)
+			const {mean, std} = this.calculateMeanStd(windowLogReturns);
+
+			// Normalize each point in the window
 			for (let j = 0; j < this.config.windowSize; j++) {
 				const idx = i + j;
-				const features = [normalizedPrices[idx] ?? 0.5];
+				const logReturn = logReturns[idx] ?? 0;
+				const normalizedLogReturn = std > 0 ? (logReturn - mean) / std : 0;
+
+				const features = [normalizedLogReturn];
 				const row = featureMatrix[idx];
 				if (useFeatures && row !== undefined) {
 					features.push(...row);
 				}
 				window.push(features);
 			}
+
 			inputs.push(window);
-			labels.push([normalizedPrices[i + this.config.windowSize] ?? 0.5]);
+
+			// Label is the next log return (not normalized - model predicts raw log return)
+			const nextLogReturn = logReturns[i + this.config.windowSize] ?? 0;
+			labels.push([nextLogReturn]);
 		}
+
 		return {inputs, labels};
 	}
 
@@ -478,27 +645,44 @@ export class LstmModel {
 
 	/**
 	 * Preprocess stock data into sequences for LSTM training
+	 * Uses log returns and window-based z-score normalization to fix data leakage
 	 * @param data - Historical stock data
 	 * @param marketFeatures - Optional market context features
-	 * @returns Normalized tensors
+	 * @returns Normalized tensors and metadata
 	 */
-	private preprocessData(data: StockDataPoint[], marketFeatures?: MarketFeatures[]): {inputs: tf.Tensor3D; labels: tf.Tensor2D; max: number; min: number} {
+	private preprocessData(
+		data: StockDataPoint[],
+		marketFeatures?: MarketFeatures[],
+	): {
+		inputs: tf.Tensor3D;
+		labels: tf.Tensor2D;
+		logReturns: number[];
+		prices: number[];
+	} {
 		const prices = data.map((d) => d.close);
-		const min = Math.min(...prices);
-		const max = Math.max(...prices);
 
-		// Normalize prices to [0, 1]
-		const normalizedPrices = prices.map((p) => (max === min ? 0.5 : (p - min) / (max - min)));
+		// Convert prices to log returns (more stationary than raw prices)
+		const logReturns: number[] = [0]; // First return is 0
+		for (let i = 1; i < prices.length; i++) {
+			const current = prices[i] ?? 0;
+			const previous = prices[i - 1] ?? 0;
+			const logReturn = previous > 0 ? Math.log(current / previous) : 0;
+			logReturns.push(logReturn);
+		}
 
-		// Calculate Technical Indicators
+		// Calculate Technical Indicators (still use prices for SMA/RSI)
 		const sma20 = calculateSma(prices, 20);
 		const rsi14 = calculateRsi(prices, 14);
 		const dailyReturns = calculateReturns(prices);
 
-		// Normalize indicators
-		const normalizedSma = sma20.map((v: number) => (max === min ? 0.5 : (v - min) / (max - min)));
+		// Normalize technical indicators (these don't have look-ahead bias)
 		const normalizedRsi = rsi14.map((v: number) => v / 100);
-		const normalizedReturns = dailyReturns.map((v: number) => Math.max(0, Math.min(1, (v + 0.1) / 0.2))); // Clip returns to [-10%, +10%] normalized to [0, 1]
+		const normalizedReturns = dailyReturns.map((v: number) => Math.max(0, Math.min(1, (v + 0.1) / 0.2)));
+
+		// Normalize SMA using same min/max as prices (for consistency)
+		const priceMin = Math.min(...prices);
+		const priceMax = Math.max(...prices);
+		const normalizedSma = sma20.map((v: number) => (priceMax === priceMin ? 0.5 : (v - priceMin) / (priceMax - priceMin)));
 
 		const technicalMatrix: number[][] = data.map((_, i) => [normalizedSma[i] ?? 0.5, normalizedRsi[i] ?? 0.5, normalizedReturns[i] ?? 0.5]);
 
@@ -512,13 +696,14 @@ export class LstmModel {
 			return [...techRow, ...marketRow];
 		});
 
-		const {inputs, labels} = this.createSequences(normalizedPrices, combinedFeatureMatrix, true);
+		// Create sequences with window-based z-score normalization for log returns
+		const {inputs, labels} = this.createSequencesWithWindowNorm(logReturns, combinedFeatureMatrix, true);
 
 		return {
 			inputs: tf.tensor3d(inputs),
 			labels: tf.tensor2d(labels),
-			max,
-			min,
+			logReturns,
+			prices,
 		};
 	}
 

@@ -34,8 +34,8 @@ describe('LstmModel', () => {
 				includeVix: true,
 				includeVolatilitySpread: true,
 			},
-			primaryIndex: "^GSPC",
-			volatilityIndex: "^VIX",
+			primaryIndex: '^GSPC',
+			volatilityIndex: '^VIX',
 		},
 		model: mockMlConfig,
 		prediction: {
@@ -113,5 +113,66 @@ describe('LstmModel', () => {
 			newModel.setModel(tfModel, metadata);
 			expect(newModel.isTrained()).toBe(true);
 		}
+	}, 30000);
+
+	it('should use log-returns training method', async () => {
+		await model.train(mockData, mockAppConfig);
+		const metadata = model.getMetadata();
+		expect(metadata?.trainingMethod).toBe('log-returns');
+		expect(metadata?.normalizationType).toBe('window-zscore');
+		expect(metadata?.version).toBe('2.0.0');
+	}, 30000);
+
+	it('should predict with market features using exponential decay', async () => {
+		const mockMarketFeatures = Array.from({length: 15}, (_, i) => ({
+			beta: 1.2,
+			date: `2023-01-${(i + 1).toString().padStart(2, '0')}`,
+			distanceFromMA: 0.05,
+			indexCorrelation: 0.8,
+			marketRegime: 'BULL' as const,
+			marketReturn: 0.01,
+			relativeReturn: 0.005,
+			symbol: 'AAPL',
+			vix: 18,
+			volatilitySpread: 0.02,
+		}));
+
+		const modelWithFeatures = new LstmModel(mockMlConfig, mockAppConfig.market.featureConfig);
+		await modelWithFeatures.train(mockData, mockAppConfig, undefined, mockMarketFeatures);
+		const predictions = modelWithFeatures.predict(mockData, 5, mockMarketFeatures);
+
+		expect(predictions).toHaveLength(5);
+		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
+	}, 30000);
+
+	it('should handle evaluation with market features', async () => {
+		const mockMarketFeatures = Array.from({length: 15}, (_, i) => ({
+			beta: 1.2,
+			date: `2023-01-${(i + 1).toString().padStart(2, '0')}`,
+			distanceFromMA: 0.05,
+			indexCorrelation: 0.8,
+			marketRegime: 'BULL' as const,
+			marketReturn: 0.01,
+			relativeReturn: 0.005,
+			symbol: 'AAPL',
+			vix: 18,
+			volatilitySpread: 0.02,
+		}));
+
+		const modelWithFeatures = new LstmModel(mockMlConfig, mockAppConfig.market.featureConfig);
+		await modelWithFeatures.train(mockData, mockAppConfig, undefined, mockMarketFeatures);
+		const performance = modelWithFeatures.evaluate(mockData, mockAppConfig, mockMarketFeatures);
+
+		expect(performance).toBeDefined();
+		expect(performance.mape).toBeDefined();
+		expect(performance.mape).toBeGreaterThanOrEqual(0);
+	}, 30000);
+
+	it('should handle prediction without market features', async () => {
+		await model.train(mockData, mockAppConfig);
+		const predictions = model.predict(mockData, 3);
+
+		expect(predictions).toHaveLength(3);
+		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
 	}, 30000);
 });
