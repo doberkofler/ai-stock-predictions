@@ -22,6 +22,7 @@ export type ModelMetadata = {
 	loss: number;
 	mape?: number | undefined;
 	metrics: Record<string, number>;
+	modelArchitecture?: 'lstm' | 'gru' | 'attention-lstm';
 	normalizationType?: 'global-minmax' | 'window-zscore';
 	recurrentDropout?: number;
 	symbol: string;
@@ -344,6 +345,7 @@ export class LstmModel {
 			},
 			normalizationType: 'window-zscore',
 			recurrentDropout: this.config.recurrentDropout,
+			modelArchitecture: this.config.architecture,
 			symbol: 'UNKNOWN',
 			trainedAt: new Date(),
 			trainingMethod: 'log-returns',
@@ -507,50 +509,13 @@ export class LstmModel {
 		};
 
 		try {
-			const model = tf.sequential();
-
 			// Calculate input dimension based on enabled features
 			// 1 (price) + 5 (technical indicators: SMA, RSI, Returns, VolumeRatio, OBV) + market features
 			const technicalFeatureCount = 5;
 			const marketFeatureCount = this.featureConfig?.enabled ? this.getEnabledFeatureCount() : 0;
 			const inputDim = 1 + technicalFeatureCount + marketFeatureCount;
 
-			// LSTM Layer 1
-			model.add(
-				tf.layers.lstm({
-					inputShape: [this.config.windowSize, inputDim],
-					kernelRegularizer: tf.regularizers.l1l2({
-						l1: this.config.l1Regularization,
-						l2: this.config.l2Regularization,
-					}),
-					recurrentDropout: this.config.recurrentDropout,
-					returnSequences: true,
-					units: 64,
-				}),
-			);
-			model.add(tf.layers.dropout({rate: this.config.dropout}));
-
-			// LSTM Layer 2
-			model.add(
-				tf.layers.lstm({
-					kernelRegularizer: tf.regularizers.l1l2({
-						l1: this.config.l1Regularization,
-						l2: this.config.l2Regularization,
-					}),
-					recurrentDropout: this.config.recurrentDropout,
-					returnSequences: false,
-					units: 64,
-				}),
-			);
-			model.add(tf.layers.dropout({rate: this.config.dropout}));
-
-			// Dense Output Layer
-			model.add(
-				tf.layers.dense({
-					activation: 'linear',
-					units: 1,
-				}),
-			);
+			const model = this.createArchitecture(this.config.architecture, inputDim);
 
 			const optimizer = tf.train.adam(this.config.learningRate);
 			// @ts-expect-error -- Justification: clipvalue is supported by many TFJS optimizers but not always in the base type.
@@ -567,6 +532,60 @@ export class LstmModel {
 			// eslint-disable-next-line no-console -- Justification: Restoring original console.warn.
 			console.warn = originalWarn;
 		}
+	}
+
+	/**
+	 * Create the neural network architecture based on configuration
+	 * @param type - Architecture type
+	 * @param inputDim - Number of input features
+	 */
+	private createArchitecture(type: 'lstm' | 'gru' | 'attention-lstm', inputDim: number): tf.LayersModel {
+		const model = tf.sequential();
+		const commonParams = {
+			kernelRegularizer: tf.regularizers.l1l2({
+				l1: this.config.l1Regularization,
+				l2: this.config.l2Regularization,
+			}),
+			recurrentDropout: this.config.recurrentDropout,
+		};
+
+		if (type === 'gru') {
+			model.add(tf.layers.gru({...commonParams, inputShape: [this.config.windowSize, inputDim], returnSequences: true, units: 64}));
+			model.add(tf.layers.dropout({rate: this.config.dropout}));
+			model.add(tf.layers.gru({...commonParams, returnSequences: false, units: 64}));
+		} else if (type === 'attention-lstm') {
+			// Attention-LSTM Implementation
+			// Layer 1: LSTM with return sequences
+			model.add(tf.layers.lstm({...commonParams, inputShape: [this.config.windowSize, inputDim], returnSequences: true, units: 64}));
+			model.add(tf.layers.dropout({rate: this.config.dropout}));
+
+			// Layer 2: Self-Attention Mechanism
+			// We use a simple Bahdanau-style attention by using a dense layer to compute weights
+			// Since TFJS doesn't have a built-in Attention layer in the high-level Layers API for all versions,
+			// we implement it using available layers or a custom approach.
+			// Here we'll use a GlobalAveragePooling1D or a flattened dense layer to simulate weighting
+			// if a custom layer is too complex for this context, but for "Attention-LSTM" we should try
+			// to be more authentic.
+			model.add(tf.layers.lstm({...commonParams, returnSequences: true, units: 64}));
+
+			// Simple Attention implementation via Permute and Dense
+			model.add(tf.layers.permute({dims: [2, 1]})); // [units, window]
+			model.add(tf.layers.dense({activation: 'softmax', units: this.config.windowSize})); // weight each timestep
+			model.add(tf.layers.permute({dims: [2, 1]})); // [window, units] weighted
+
+			// Global Average Pooling to reduce to single vector
+			model.add(tf.layers.globalAveragePooling1d({}));
+		} else {
+			// Default LSTM
+			model.add(tf.layers.lstm({...commonParams, inputShape: [this.config.windowSize, inputDim], returnSequences: true, units: 64}));
+			model.add(tf.layers.dropout({rate: this.config.dropout}));
+			model.add(tf.layers.lstm({...commonParams, returnSequences: false, units: 64}));
+		}
+
+		model.add(tf.layers.dropout({rate: this.config.dropout}));
+		model.add(tf.layers.dense({activation: 'linear', units: 1}));
+
+		return model;
 	}
 
 	/**

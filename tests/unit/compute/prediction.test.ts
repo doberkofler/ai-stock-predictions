@@ -29,6 +29,7 @@ describe('PredictionEngine', () => {
 			volatilityIndex: '^VIX',
 		},
 		model: {
+			architecture: 'lstm',
 			batchSize: 32,
 			dropout: 0.2,
 			epochs: 2,

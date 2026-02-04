@@ -46,6 +46,7 @@ const DataSourceSchema = z.object({
  * Machine Learning Model configuration schema
  */
 const ModelSchema = z.object({
+	architecture: z.enum(['lstm', 'gru', 'attention-lstm']).default('lstm').describe('The neural network architecture to use'),
 	batchSize: z.number().min(1).max(512).default(128).describe('Number of samples processed before updating model weights'),
 	dropout: z.number().min(0).max(1).default(0.2).describe('Dropout rate for preventing overfitting'),
 	epochs: z.number().min(10).max(200).default(50).describe('Maximum number of training cycles'),
@@ -147,6 +148,7 @@ export const DefaultConfig: Config = {
 		volatilityIndex: '^VIX',
 	},
 	model: {
+		architecture: 'lstm',
 		batchSize: 128,
 		dropout: 0.2,
 		epochs: 50,

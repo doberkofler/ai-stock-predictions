@@ -12,6 +12,7 @@ describe('LstmModel', () => {
 	});
 
 	const mockMlConfig = {
+		architecture: 'lstm' as const,
 		batchSize: 2,
 		dropout: 0.2,
 		epochs: 1,
@@ -178,5 +179,37 @@ describe('LstmModel', () => {
 
 		expect(predictions).toHaveLength(3);
 		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
+	}, 30000);
+
+	it('should train and predict with attention-lstm architecture', async () => {
+		const attentionConfig = {
+			...mockMlConfig,
+			architecture: 'attention-lstm' as const,
+		};
+		const attentionModel = new LstmModel(attentionConfig);
+		await attentionModel.train(mockData, mockAppConfig);
+		const predictions = attentionModel.predict(mockData, 3);
+
+		expect(predictions).toHaveLength(3);
+		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
+
+		const metadata = attentionModel.getMetadata();
+		expect(metadata?.modelArchitecture).toBe('attention-lstm');
+	}, 30000);
+
+	it('should train and predict with gru architecture', async () => {
+		const gruConfig = {
+			...mockMlConfig,
+			architecture: 'gru' as const,
+		};
+		const gruModel = new LstmModel(gruConfig);
+		await gruModel.train(mockData, mockAppConfig);
+		const predictions = gruModel.predict(mockData, 3);
+
+		expect(predictions).toHaveLength(3);
+		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
+
+		const metadata = gruModel.getMetadata();
+		expect(metadata?.modelArchitecture).toBe('gru');
 	}, 30000);
 });

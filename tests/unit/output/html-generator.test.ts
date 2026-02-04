@@ -95,6 +95,7 @@ describe('HtmlGenerator', () => {
 			volatilityIndex: '^VIX',
 		},
 		model: {
+			architecture: 'lstm',
 			batchSize: 128,
 			dropout: 0.2,
 			epochs: 50,

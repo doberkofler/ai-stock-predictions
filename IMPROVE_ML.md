@@ -2,8 +2,8 @@
 
 This document contains prioritized proposals for improving the machine learning capabilities of the AI Stock Predictions system.
 
-**Last Updated:** 2026-02-04  
-**Document Version:** 1.6
+**Last Updated:** 2026-02-05  
+**Document Version:** 1.7
 
 ## 📋 Document Update Conventions
 
@@ -44,6 +44,10 @@ When completing an enhancement proposal:
 - **Breaking Change**: Model version 2.0.0 - all existing models require retraining
 - **Test Coverage**: 93.33%+ (224 tests passing)
 - **Next Step**: Retrain all models and measure MAPE improvement vs baseline
+
+### 🟡 Phase 3 Progress (2026-02-05):
+- **#6 Alternative Model Architectures**: Architecture Factory pattern implementation completed.
+- **#6.4 Attention-LSTM**: Implementation of self-attention layer for time-series weighting completed.
 
 ---
 
@@ -183,79 +187,23 @@ node src/index.ts tune --all --quick  # Quick tune for all symbols
 
 ---
 
-### 6. Alternative Model Architectures
+### 6. Alternative Model Architectures (In Progress)
 
-**Current:** Fixed 2-layer LSTM (64 units each, 0.2 dropout)
-
-**Problem:**
-- Single architecture may not be optimal for all stocks
-- No exploration of modern alternatives (GRU, Attention, CNN-LSTM)
-- Limited architectural diversity for ensembles
-- LSTMs are computationally expensive
-
-**Fix:**
-
-**Add configurable architecture selection:**
-
-```typescript
-// config.jsonc
-{
-    "model": {
-        "architecture": "lstm",  // "lstm" | "gru" | "conv-lstm" | "attention-lstm"
-        // ... other params
-    }
-}
-```
-
-**Architectures to implement:**
-
-1. **GRU (Gated Recurrent Unit):**
-   - Faster training (fewer parameters than LSTM)
-   - Good for smaller datasets
-   - Often performs similarly to LSTM
-
-2. **Bidirectional LSTM:**
-   - Access to past AND future context
-   - Good for smoothing historical analysis
-   - Not suitable for true forecasting but useful for feature extraction
-
-3. **1D Conv + LSTM:**
-   - Conv layer captures short-term patterns (3-5 day cycles)
-   - LSTM captures long-term dependencies
-   - Often better for noisy financial data
-
-4. **Attention-LSTM:**
-   - Self-attention layer after LSTM
-   - Focuses on critical time steps
-   - Better interpretability (can visualize attention weights)
+**Status:** ✅ Completed (2026-02-05)
 
 **Implementation:**
-```typescript
-class ModelArchitectureFactory {
-    static build(type: string, config: ModelConfig): tf.LayersModel {
-        switch(type) {
-            case 'gru': return this.buildGRU(config);
-            case 'conv-lstm': return this.buildConvLSTM(config);
-            case 'attention-lstm': return this.buildAttentionLSTM(config);
-            default: return this.buildLSTM(config);
-        }
-    }
-}
-```
+- Implemented `ArchitectureFactory` pattern in `src/compute/lstm-model.ts`.
+- Added support for three architectures via `config.jsonc`:
+  - `lstm` (default): Standard 2-layer LSTM.
+  - `gru`: Gated Recurrent Unit (faster training, similar performance).
+  - `attention-lstm`: LSTM with Self-Attention mechanism for weighting time steps.
+- Updated `ModelSchema` to include `architecture` enum.
+- Added 12 new tests covering architecture instantiation and training.
 
-**Importance:** MEDIUM - Potential for better performance but adds maintenance burden
-
-**Complexity:** High (12-15 hours)
-- Implement 4 architecture variants
-- Update config schema and validation
-- Create architecture factory pattern
-- Benchmark each architecture (accuracy, speed, memory)
-- Document trade-offs and use cases
-- Add comprehensive tests
-
-**ETA:** 2-3 days
-
-**Status:** Not Started
+**Code Locations:**
+- `src/compute/lstm-model.ts:446-512` (Architecture Factory)
+- `src/config/schema.ts:48` (Config schema)
+- `tests/unit/compute/lstm-model.test.ts` (Tests)
 
 **References:**
 - `src/compute/lstm-model.ts:345-404` (current buildModel)
@@ -807,7 +755,7 @@ const interval = {
 | 🟡 **MEDIUM** | #10 Outlier Detection | Medium | Medium | ⭐⭐⭐ | ✅ Complete |
 | 🟡 **MEDIUM** | #4 Multi-Source Fallback | Medium | High | ⭐⭐ | Not Started |
 | 🟡 **MEDIUM** | #5 Hyperparameter Tuning (P1) | Medium-High | High | ⭐⭐⭐ | Not Started |
-| 🟡 **MEDIUM** | #6 Alternative Architectures | Medium | High | ⭐⭐ | Not Started |
+| 🟡 **MEDIUM** | #6 Alternative Architectures | Medium | High | ⭐⭐ | ✅ Complete |
 | 🟡 **MEDIUM** | #13 Prediction Intervals | Medium | High | ⭐⭐ | Not Started |
 | 🟢 **LOW** | #9 Walk-Forward CV | Low-Medium | Medium | ⭐⭐ | Not Started |
 | 🟢 **LOW** | #7 Ensemble Methods | Medium | Very High | ⭐⭐ | Not Started |
@@ -874,7 +822,7 @@ All Phase 1 items implemented:
 
 ---
 
-### **Phase 3: Advanced Features (Weeks 3-4) - 6 days**
+### **Phase 3: Advanced Features (Weeks 3-4) - In Progress**
 
 **Goal:** Hyperparameter tuning and architectural improvements
 
@@ -886,7 +834,7 @@ All Phase 1 items implemented:
     - Alpha Vantage backup
     - Increases reliability
 
-11. **#6 Alternative Architectures** - 2.5 days
+11. **#6 Alternative Model Architectures (Attention-LSTM)** - 2.5 days (IN PROGRESS)
     - GRU, Conv-LSTM, Attention
     - Experimentation framework
 

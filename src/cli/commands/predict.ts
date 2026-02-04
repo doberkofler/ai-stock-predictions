@@ -32,7 +32,7 @@ export async function predictCommand(configPath: string, quickTest = false, symb
 		{
 			configPath,
 			description: 'Generating multi-day trend forecasts and rendering the interactive HTML report.',
-			nextSteps: ['Open the generated HTML report in your browser to view predictions:', `  file://${join(process.cwd(), 'output', 'index.html')}`],
+			nextSteps: ['Open the generated HTML report in your browser to view predictions:', chalk.cyan(`  file://${join(process.cwd(), 'output', 'index.html')}`)],
 			title: 'Price Estimation',
 		},
 		async ({config}) => {
