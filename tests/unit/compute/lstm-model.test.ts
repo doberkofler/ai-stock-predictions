@@ -53,7 +53,7 @@ describe('LstmModel', () => {
 			sellThreshold: -0.05,
 			uncertaintyIterations: 10,
 		},
-		training: {minNewDataPoints: 5, minQualityScore: 60},
+		training: {maxHistoricalYears: 3, minNewDataPoints: 5, minQualityScore: 60},
 		tuning: {
 			architecture: ['lstm', 'gru', 'attention-lstm'],
 			batchSize: [64, 128, 256],

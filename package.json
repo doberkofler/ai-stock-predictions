@@ -17,7 +17,7 @@
 		"knip": "knip",
 		"ci": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run knip",
 		"example": "node src/index.ts init --force && node src/index.ts symbol-add AAPL,NVDA && node src/index.ts sync && node src/index.ts train --quick-test && node src/index.ts predict --quick-test",
-		"example:full": "node src/index.ts init --force && node src/index.ts symbol-add AAPL,NVDA,EBS.VI,ORCL,QS,WFC && node src/index.ts sync && node src/index.ts train && node src/index.ts predict"
+		"example:full": "node src/index.ts init --force && node src/index.ts symbol-add  AAPL,NVDA,EBS.VI,ORCL,QS,WFC,RKLB,GOOG,AMZN,MSFT,ABNB,AMRC,OTLY,DOCS.L,PYPL,432.F && node src/index.ts sync && node src/index.ts train && node src/index.ts predict"
 	},
 	"keywords": [
 		"stock",

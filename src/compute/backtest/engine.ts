@@ -10,6 +10,7 @@ import type {EnsembleModel} from '../ensemble.ts';
 import type {PredictionEngine} from '../prediction.ts';
 
 import {ErrorHandler} from '../../cli/utils/errors.ts';
+import {InterruptHandler} from '../../cli/utils/interrupt.ts';
 
 /**
  * Backtest engine class
@@ -119,6 +120,11 @@ export class BacktestEngine {
 		const totalIterations = historicalData.length - startIndex;
 
 		for (let i = startIndex; i < historicalData.length; i++) {
+			// Check for interrupt every 10 iterations
+			if ((i - startIndex) % 10 === 0) {
+				InterruptHandler.throwIfInterrupted();
+			}
+
 			const currentPoint = historicalData[i];
 			if (!currentPoint) continue;
 

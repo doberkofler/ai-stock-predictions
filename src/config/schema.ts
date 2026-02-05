@@ -35,6 +35,7 @@ const PredictionSchema = z.object({
  * Training configuration schema
  */
 const TrainingSchema = z.object({
+	maxHistoricalYears: z.number().min(1).max(50).default(3).describe('Maximum years of historical data to use for training and prediction context'),
 	minNewDataPoints: z.number().min(10).max(1000).default(50).describe('Minimum new data points required before retraining a model'),
 	minQualityScore: z.number().min(0).max(100).default(40).describe('Minimum data quality score (0-100) required to train a model'),
 });
@@ -193,6 +194,7 @@ export const DefaultConfig: Config = {
 		uncertaintyIterations: 20,
 	},
 	training: {
+		maxHistoricalYears: 3,
 		minNewDataPoints: 50,
 		minQualityScore: 40,
 	},

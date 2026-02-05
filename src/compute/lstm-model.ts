@@ -8,26 +8,29 @@ import * as tf from '@tensorflow/tfjs';
 import type {Config} from '../config/schema.ts';
 import type {FeatureConfig, MarketFeatures, StockDataPoint} from '../types/index.ts';
 
+import {InterruptHandler} from '../cli/utils/interrupt.ts';
 import {calculateOBV, calculateReturns, calculateRsi, calculateSma, calculateVolumeRatio} from './indicators.ts';
 
 /**
  * Metadata stored with the saved model
  */
 export type ModelMetadata = {
+	dataHash?: string | undefined;
 	dataPoints: number;
-	dropout?: number;
+	dropout?: number | undefined;
 	featureConfig?: FeatureConfig | undefined;
-	l1Regularization?: number;
-	l2Regularization?: number;
+	l1Regularization?: number | undefined;
+	l2Regularization?: number | undefined;
+	lastDataDate?: string | undefined;
 	loss: number;
 	mape?: number | undefined;
 	metrics: Record<string, number>;
-	modelArchitecture?: 'lstm' | 'gru' | 'attention-lstm';
-	normalizationType?: 'global-minmax' | 'window-zscore';
-	recurrentDropout?: number;
+	modelArchitecture?: 'lstm' | 'gru' | 'attention-lstm' | undefined;
+	normalizationType?: 'global-minmax' | 'window-zscore' | undefined;
+	recurrentDropout?: number | undefined;
 	symbol: string;
 	trainedAt: Date;
-	trainingMethod?: 'absolute-prices' | 'log-returns';
+	trainingMethod?: 'absolute-prices' | 'log-returns' | undefined;
 	version: string;
 	windowSize: number;
 };
@@ -37,10 +40,12 @@ export type ModelMetadata = {
  */
 export type PerformanceMetrics = {
 	accuracy: number;
+	dataHash?: string | undefined;
 	dataPoints: number;
 	isValid: boolean;
+	lastDataDate?: string | undefined;
 	loss: number;
-	mape?: number;
+	mape?: number | undefined;
 	windowSize: number;
 };
 
@@ -297,6 +302,12 @@ export class LstmModel {
 			batchSize: this.config.batchSize,
 			callbacks: {
 				onEpochEnd: (epoch: number, logs?: tf.Logs) => {
+					// Check for interrupt signal
+					if (InterruptHandler.isInterrupted() && this.model) {
+						this.model.stopTraining = true;
+						return;
+					}
+
 					if (onProgress && logs) {
 						onProgress(epoch + 1, logs.loss ?? 0);
 					}

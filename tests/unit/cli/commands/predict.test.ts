@@ -62,6 +62,7 @@ const mockAppConfig = {
 	},
 	model: {learningRate: 0.001, windowSize: 10},
 	prediction: {days: 30, directory: 'output'},
+	training: {maxHistoricalYears: 3},
 };
 
 vi.mock('../../../../src/cli/utils/runner.ts', () => ({
@@ -121,15 +122,25 @@ describe('predictCommand', () => {
 	});
 
 	it('should handle quick-test mode', async () => {
-		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL', 'MSFT', 'GOOG', 'TSLA']);
-		mockStorage.getSymbolName.mockReturnValue('Company');
-		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL', 'MSFT', 'GOOG', 'META']);
 		mockPersistence.modelExists.mockReturnValue(true);
-		mockPersistence.loadModel.mockResolvedValue({});
+		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
 
 		await predictCommand('config.jsonc', true);
 		// Should only process 3 symbols
 		expect(mockStorage.getStockData).toHaveBeenCalledTimes(3);
+		expect(mockStorage.getStockData).toHaveBeenCalledWith(expect.any(String), expect.any(String));
+	});
+
+	it('should handle init mode', async () => {
+		mockStorage.getAvailableSymbols.mockResolvedValue(['AAPL', 'MSFT', 'GOOG', 'META']);
+		mockPersistence.modelExists.mockReturnValue(true);
+		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
+
+		await predictCommand('config.jsonc', true);
+		// Should only process 3 symbols
+		expect(mockStorage.getStockData).toHaveBeenCalledTimes(3);
+		expect(mockStorage.getStockData).toHaveBeenCalledWith(expect.any(String), expect.any(String));
 	});
 
 	it('should handle init mode', async () => {

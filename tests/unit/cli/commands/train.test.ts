@@ -25,7 +25,9 @@ vi.mock('../../../../src/compute/lstm-model.ts', () => {
 
 const mockStorage = {
 	getAvailableSymbols: vi.fn(),
+	getDataQuality: vi.fn(),
 	getMarketFeatures: vi.fn(),
+	getModelMetadata: vi.fn(),
 	getStockData: vi.fn(),
 	getSymbolName: vi.fn(),
 };
@@ -69,6 +71,7 @@ const mockAppConfig = {
 		windowSize: 30,
 	},
 	training: {
+		maxHistoricalYears: 3,
 		minNewDataPoints: 50,
 		minQualityScore: 60,
 	},
@@ -160,12 +163,11 @@ describe('trainCommand', () => {
 		mockStorage.getStockData.mockResolvedValue(Array.from({length: 100}).fill({}));
 
 		await trainCommand('config.jsonc');
-
 		// Should only train 2 stocks (AAPL, MSFT), not the 2 indices (^GSPC, ^DJI)
 		expect(mockStorage.getStockData).toHaveBeenCalledTimes(2);
-		expect(mockStorage.getStockData).toHaveBeenCalledWith('AAPL');
-		expect(mockStorage.getStockData).toHaveBeenCalledWith('MSFT');
-		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^GSPC');
+		expect(mockStorage.getStockData).toHaveBeenCalledWith('AAPL', expect.any(String));
+		expect(mockStorage.getStockData).toHaveBeenCalledWith('MSFT', expect.any(String));
+		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^GSPC', expect.any(String));
 		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^DJI');
 	});
 
@@ -189,7 +191,7 @@ describe('trainCommand', () => {
 
 		// Should only train AAPL
 		expect(mockStorage.getStockData).toHaveBeenCalledTimes(1);
-		expect(mockStorage.getStockData).toHaveBeenCalledWith('AAPL');
-		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^DJI');
+		expect(mockStorage.getStockData).toHaveBeenCalledWith('AAPL', expect.any(String));
+		expect(mockStorage.getStockData).not.toHaveBeenCalledWith('^DJI', expect.any(String));
 	});
 });

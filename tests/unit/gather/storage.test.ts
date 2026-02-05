@@ -171,7 +171,9 @@ describe('SqliteStorage', () => {
 		it('should export and import metadata correctly', async () => {
 			const metadata = [
 				{
+					dataHash: null,
 					dataPoints: 100,
+					lastDataDate: null,
 					loss: 0.01,
 					metrics: JSON.stringify({mae: 0.05}),
 					symbol: 'AAPL',

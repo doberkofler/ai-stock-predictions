@@ -86,7 +86,7 @@ describe('SyncService', () => {
 			uncertaintyIterations: 10,
 		},
 		training: {
-			minNewDataPoints: 50,
+			maxHistoricalYears: 3, minNewDataPoints: 50,
 			minQualityScore: 60,
 		},
 		tuning: {

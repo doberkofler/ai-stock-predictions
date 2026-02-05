@@ -33,8 +33,10 @@ const StockDataSchema = z.array(StockDataPointSchema);
  * Model metadata schema for validation
  */
 export const ModelMetadataSchema = z.object({
+	dataHash: z.string().optional(),
 	dataPoints: z.number(),
 	featureConfig: FeatureConfigSchema.optional(),
+	lastDataDate: z.string().optional(),
 	loss: z.number(),
 	mape: z.number().optional(),
 	metrics: z.record(z.string(), z.number()),
@@ -67,7 +69,9 @@ export type HistoricalRow = z.infer<typeof HistoricalRowSchema>;
  * Model metadata row schema
  */
 const MetadataRowSchema = z.object({
+	dataHash: z.string().nullable().optional(),
 	dataPoints: z.number(),
+	lastDataDate: z.string().nullable().optional(),
 	loss: z.number(),
 	metrics: z.string(),
 	symbol: z.string(),
@@ -260,11 +264,17 @@ export class SqliteStorage {
 	/**
 	 * Get market features for a symbol
 	 * @param symbol - Stock symbol
+	 * @param sinceDate - Optional start date (YYYY-MM-DD)
 	 * @returns Array of market features
 	 */
-	public getMarketFeatures(symbol: string): MarketFeatures[] | null {
-		const stmt = this.historicalDb.prepare('SELECT * FROM market_features WHERE symbol = ? ORDER BY date ASC');
-		const rows = stmt.all(symbol);
+	public getMarketFeatures(symbol: string, sinceDate?: string): MarketFeatures[] | null {
+		const sql = sinceDate
+			? 'SELECT * FROM market_features WHERE symbol = ? AND date >= ? ORDER BY date ASC'
+			: 'SELECT * FROM market_features WHERE symbol = ? ORDER BY date ASC';
+		const params = sinceDate ? [symbol, sinceDate] : [symbol];
+
+		const stmt = this.historicalDb.prepare(sql);
+		const rows = stmt.all(...params);
 
 		if (!Array.isArray(rows) || rows.length === 0) {
 			return null;
@@ -305,8 +315,10 @@ export class SqliteStorage {
 				.parse(metricsData);
 
 			const metadataRaw: unknown = {
+				dataHash: metadataRow.dataHash ?? undefined,
 				dataPoints: metadataRow.dataPoints,
 				featureConfig: metricsObj.featureConfig,
+				lastDataDate: metadataRow.lastDataDate ?? undefined,
 				loss: metadataRow.loss,
 				metrics: metricsObj.metrics ?? metricsData,
 				symbol: metadataRow.symbol,
@@ -318,8 +330,10 @@ export class SqliteStorage {
 			const validated = ModelMetadataSchema.parse(metadataRaw);
 
 			return {
+				...(validated.dataHash ? {dataHash: validated.dataHash} : {}),
 				dataPoints: validated.dataPoints,
 				featureConfig: validated.featureConfig,
+				...(validated.lastDataDate ? {lastDataDate: validated.lastDataDate} : {}),
 				loss: validated.loss,
 				metrics: validated.metrics,
 				symbol: validated.symbol,
@@ -346,18 +360,25 @@ export class SqliteStorage {
 	/**
 	 * Get stock data for a symbol
 	 * @param symbol - Stock symbol
+	 * @param sinceDate - Optional start date (YYYY-MM-DD)
 	 * @returns Array of stock data points or null if not found
 	 */
-	public getStockData(symbol: string): Promise<null | StockDataPoint[]> {
+	public getStockData(symbol: string, sinceDate?: string): Promise<null | StockDataPoint[]> {
 		const context = {
 			operation: 'get-stock-data',
+			sinceDate,
 			step: 'sqlite-read',
 			symbol,
 		};
 
 		const result = ErrorHandler.wrapSync(() => {
-			const stmt = this.historicalDb.prepare('SELECT date, open, high, low, close, volume, adjClose FROM quotes WHERE symbol = ? ORDER BY date ASC');
-			const rows: unknown = stmt.all(symbol);
+			const sql = sinceDate
+				? 'SELECT date, open, high, low, close, volume, adjClose FROM quotes WHERE symbol = ? AND date >= ? ORDER BY date ASC'
+				: 'SELECT date, open, high, low, close, volume, adjClose FROM quotes WHERE symbol = ? ORDER BY date ASC';
+			const params = sinceDate ? [symbol, sinceDate] : [symbol];
+
+			const stmt = this.historicalDb.prepare(sql);
+			const rows: unknown = stmt.all(...params);
 
 			if (!Array.isArray(rows) || rows.length === 0) {
 				return null;
@@ -532,8 +553,8 @@ export class SqliteStorage {
 
 		ErrorHandler.wrapSync(() => {
 			const upsert = this.modelsDb.prepare(`
-				INSERT OR REPLACE INTO metadata (symbol, version, trainedAt, dataPoints, loss, windowSize, metrics)
-				VALUES (?, ?, ?, ?, ?, ?, ?)
+				INSERT OR REPLACE INTO metadata (symbol, version, trainedAt, dataPoints, dataHash, lastDataDate, loss, windowSize, metrics)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`);
 
 			upsert.run(
@@ -541,6 +562,8 @@ export class SqliteStorage {
 				metadata.version,
 				metadata.trainedAt instanceof Date ? metadata.trainedAt.toISOString() : metadata.trainedAt,
 				metadata.dataPoints,
+				metadata.dataHash ?? null,
+				metadata.lastDataDate ?? null,
 				metadata.loss,
 				metadata.windowSize,
 				JSON.stringify({
@@ -670,6 +693,8 @@ export class SqliteStorage {
 				version TEXT,
 				trainedAt TEXT,
 				dataPoints INTEGER,
+				dataHash TEXT,
+				lastDataDate TEXT,
 				loss REAL,
 				windowSize INTEGER,
 				metrics TEXT

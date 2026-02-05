@@ -69,4 +69,16 @@ export const DateUtils = {
 		today.setHours(0, 0, 0, 0);
 		return today;
 	},
+
+	/**
+	 * Subtract years from a date
+	 * @param date - Base date
+	 * @param years - Number of years to subtract
+	 * @returns New Date object
+	 */
+	subtractYears: (date: Date, years: number): Date => {
+		const newDate = new Date(date);
+		newDate.setFullYear(newDate.getFullYear() - years);
+		return newDate;
+	},
 };

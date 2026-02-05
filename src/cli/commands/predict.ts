@@ -17,6 +17,8 @@ import {ModelPersistence} from '../../compute/persistence.ts';
 import {PredictionEngine} from '../../compute/prediction.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
 import {HtmlGenerator} from '../../output/html-generator.ts';
+import {DateUtils} from '../utils/date.ts';
+import {InterruptHandler} from '../utils/interrupt.ts';
 import {ProgressTracker} from '../utils/progress.ts';
 import {runCommand} from '../utils/runner.ts';
 import {ui} from '../utils/ui.ts';
@@ -133,6 +135,9 @@ async function generatePredictions(
 	const predictions: ReportPrediction[] = [];
 
 	for (const [i, entry] of symbols.entries()) {
+		// Check for interrupt before processing each symbol
+		InterruptHandler.throwIfInterrupted();
+
 		const {name, symbol} = entry;
 		const prefix = chalk.dim(`[${i + 1}/${symbols.length}]`);
 		const symbolSpinner = ui.spinner(`${prefix} Predicting ${name} (${symbol})`).start();
@@ -252,11 +257,17 @@ async function predictSymbol(
 	quickTest = false,
 ): Promise<null | ReportPrediction> {
 	spinner.text = `${prefix} Loading model for ${name} (${symbol})...`;
-	const stockDataFull = await storage.getStockData(symbol);
+
+	// Calculate window cutoff date
+	const cutoffDate = DateUtils.subtractYears(new Date(), config.training.maxHistoricalYears);
+	const sinceDate = DateUtils.formatIso(cutoffDate);
+
+	// Load windowed stock data
+	const stockDataFull = await storage.getStockData(symbol, sinceDate);
 	const model = await modelPersistence.loadModel(symbol, config);
 
 	if (!stockDataFull || stockDataFull.length < config.model.windowSize) {
-		spinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
+		spinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data in last ${config.training.maxHistoricalYears} years)`);
 		return null;
 	}
 
@@ -268,7 +279,7 @@ async function predictSymbol(
 	const stockData = quickTest ? stockDataFull.slice(-500) : stockDataFull;
 
 	spinner.text = `${prefix} Fetching market context for ${name} (${symbol})...`;
-	const marketFeatures = config.market.featureConfig.enabled ? (storage.getMarketFeatures(symbol) ?? []) : [];
+	const marketFeatures = config.market.featureConfig.enabled ? (storage.getMarketFeatures(symbol, sinceDate) ?? []) : [];
 
 	spinner.text = `${prefix} Predicting future price for ${name} (${symbol})...`;
 	const prediction = await predictionEngine.predict(model, stockData, config, marketFeatures);

@@ -6,6 +6,7 @@ import {configExists, loadConfig} from '../../config/config.ts';
 import {initializeEnvironment} from '../../env.ts';
 import {DateUtils} from './date.ts';
 import {getCliInvocation} from './cli-helper.ts';
+import {InterruptError, InterruptHandler} from './interrupt.ts';
 import {ui} from './ui.ts';
 
 type CommandContext = {
@@ -39,12 +40,8 @@ export async function runCommand<T>(options: RunOptions, handler: CommandHandler
 
 	const startTime = Date.now();
 
-	// Listen for SIGINT to ensure graceful exit
-	const sigintHandler = (): void => {
-		ui.log(chalk.yellow('\n\n🛑 Operation interrupted by user. Exiting immediately...'));
-		process.exit(0);
-	};
-	process.on('SIGINT', sigintHandler);
+	// Initialize interrupt handler for graceful Ctrl+C support
+	InterruptHandler.initialize();
 
 	try {
 		// Only load config if it exists
@@ -63,7 +60,10 @@ export async function runCommand<T>(options: RunOptions, handler: CommandHandler
 			}
 		}
 	} catch (error) {
-		if (error instanceof Error) {
+		if (error instanceof InterruptError) {
+			ui.log(chalk.yellow('\n\n🛑 Operation interrupted by user. Partial progress may be saved.'));
+			process.exit(130); // Standard SIGINT exit code
+		} else if (error instanceof Error) {
 			ui.error(chalk.red(`\n❌ ${options.title} failed`));
 			ui.error(chalk.red(`Error: ${error.message}`));
 		} else {
@@ -71,6 +71,7 @@ export async function runCommand<T>(options: RunOptions, handler: CommandHandler
 		}
 		process.exit(1);
 	} finally {
-		process.off('SIGINT', sigintHandler);
+		// Reset interrupt state for next command (if applicable)
+		InterruptHandler.reset();
 	}
 }

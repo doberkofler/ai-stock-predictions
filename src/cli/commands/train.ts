@@ -13,6 +13,9 @@ import type {MockOra} from '../utils/ui.ts';
 import {LstmModel} from '../../compute/lstm-model.ts';
 import {ModelPersistence} from '../../compute/persistence.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
+import {DateUtils} from '../utils/date.ts';
+import {calculateDataHash} from '../utils/hash.ts';
+import {InterruptHandler} from '../utils/interrupt.ts';
 import {ProgressTracker} from '../utils/progress.ts';
 import {runCommand} from '../utils/runner.ts';
 import {ui} from '../utils/ui.ts';
@@ -128,9 +131,18 @@ async function executeTraining(
 	quickTest: boolean,
 ): Promise<void> {
 	for (const [i, entry] of symbols.entries()) {
+		// Check for interrupt before processing each symbol
+		InterruptHandler.throwIfInterrupted();
+
 		const {name, symbol} = entry;
 		const prefix = chalk.dim(`[${i + 1}/${symbols.length}]`);
 		const symbolSpinner = ui.spinner(`${prefix} Processing ${name} (${symbol})`).start();
+
+		// Register spinner for cleanup on interrupt to prevent it from overwriting the interrupt message
+		const cleanup = (): void => {
+			symbolSpinner.stop();
+		};
+		InterruptHandler.registerCleanup(cleanup);
 
 		try {
 			await trainSingleSymbol(symbol, name, storage, modelPersistence, progress, config, quickTest, prefix, symbolSpinner);
@@ -138,6 +150,9 @@ async function executeTraining(
 			symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);
 			progress.complete(symbol, 'error');
 			if (error instanceof Error) ui.error(chalk.red(`  Error: ${error.message}`));
+		} finally {
+			// Remove this specific cleanup handler if we finished normally
+			InterruptHandler.unregisterCleanup(cleanup);
 		}
 	}
 }
@@ -260,17 +275,47 @@ async function trainSingleSymbol(
 	prefix: string,
 	spinner: MockOra | Ora,
 ): Promise<void> {
-	let stockData = await storage.getStockData(symbol);
+	// Calculate window cutoff date
+	const cutoffDate = DateUtils.subtractYears(new Date(), config.training.maxHistoricalYears);
+	const sinceDate = DateUtils.formatIso(cutoffDate);
+
+	// Load windowed stock data
+	let stockData = await storage.getStockData(symbol, sinceDate);
+
 	if (!stockData || stockData.length < config.model.windowSize) {
-		spinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data)`);
+		spinner.fail(`${prefix} ${name} (${symbol}) ✗ (insufficient data in last ${config.training.maxHistoricalYears} years)`);
 		progress.complete(symbol, 'error');
+		return;
+	}
+
+	// Check if model needs retraining (smart skip based on data hash)
+	const currentDataHash = calculateDataHash(stockData);
+	const lastDataDate = stockData.at(-1)?.date;
+	const existingMetadata = await storage.getModelMetadata(symbol);
+
+	// Skip training if data hasn't changed (unless in quick test mode)
+	const dataUnchanged = existingMetadata?.dataHash === currentDataHash && existingMetadata.lastDataDate === lastDataDate;
+	if (dataUnchanged && !quickTest) {
+		spinner.succeed(`${prefix} ${name} (${symbol}) ✓ (model up-to-date, no data changes)`);
+		progress.complete(symbol, 'trained');
 		return;
 	}
 
 	// Check data quality
 	const quality = storage.getDataQuality(symbol);
 	if (quality && quality.qualityScore < config.training.minQualityScore) {
-		spinner.warn(`${prefix} ${name} (${symbol}) ⚠️ (Quality score ${quality.qualityScore} < ${config.training.minQualityScore})`);
+		// Build detailed quality breakdown
+		const details = [
+			`Quality: ${quality.qualityScore}/${config.training.minQualityScore} required`,
+			quality.interpolatedCount > 0 ? `${quality.interpolatedCount} interpolated (${(quality.interpolatedPercent * 100).toFixed(1)}%)` : null,
+			quality.outlierCount > 0 ? `${quality.outlierCount} outliers` : null,
+			quality.gapsDetected > 0 ? `${quality.gapsDetected} gaps` : null,
+		]
+			.filter(Boolean)
+			.join(', ');
+
+		spinner.warn(`${prefix} ${name} (${symbol}) ⚠️ (${details})`);
+		ui.log(chalk.dim(`  💡 Suggestion: Check data source quality or try different provider`));
 		progress.complete(symbol, 'low-quality');
 		return;
 	}
@@ -280,7 +325,7 @@ async function trainSingleSymbol(
 	}
 
 	spinner.text = `${prefix} Fetching market context for ${name} (${symbol})...`;
-	const marketFeatures = config.market.featureConfig.enabled ? (storage.getMarketFeatures(symbol) ?? []) : [];
+	const marketFeatures = config.market.featureConfig.enabled ? (storage.getMarketFeatures(symbol, sinceDate) ?? []) : [];
 
 	spinner.text = `${prefix} Creating fresh ${name} (${symbol}) model...`;
 	const model = new LstmModel(config.model, config.market.featureConfig);
@@ -301,7 +346,9 @@ async function trainSingleSymbol(
 	if (performance.isValid || quickTest) {
 		await modelPersistence.saveModel(symbol, model, {
 			...performance,
+			dataHash: currentDataHash,
 			dataPoints: stockData.length,
+			lastDataDate,
 			windowSize: config.model.windowSize,
 		});
 		const perfMsg = performance.isValid ? `(Loss: ${performance.loss.toFixed(6)})` : `(Loss: ${performance.loss.toFixed(6)} - Forced save)`;
