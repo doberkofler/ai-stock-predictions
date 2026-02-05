@@ -56,6 +56,35 @@ node src/index.ts predict                # Generates predictions
 - `npx vitest run -t "test name"`: Run a specific test by name.
 - `npm run test:coverage`: Verify 90% coverage mandate.
 
+### Quick-Test Performance Mode
+
+The `--quick-test` flag applies aggressive optimizations for rapid iteration during development:
+
+**Limitations:**
+- **Symbols**: Limited to 3 symbols (vs all available)
+- **Data Points**: 500 most recent points (vs full history)
+- **Forecast Window**: 5 days (vs configured `prediction.days`)
+- **Monte Carlo Iterations**: 5 (vs 30, reduces uncertainty quantification accuracy)
+- **Backtesting**: DISABLED (no validation metrics: Win Rate, Sharpe Ratio, Alpha, Drawdown)
+
+**Performance:**
+- Normal Mode: ~4-5 minutes per symbol
+- Quick-Test Mode: ~10-15 seconds per symbol (~95% faster)
+
+**Use Cases:**
+- ✅ Rapid model validation after training
+- ✅ Configuration testing
+- ✅ CI/CD pipeline integration
+- ✅ Development iteration
+- ❌ Production predictions (use normal mode)
+- ❌ Model performance evaluation (use normal mode)
+
+**Example:**
+```bash
+node src/index.ts predict --quick-test  # Fast predictions, no backtest
+node src/index.ts predict                # Full predictions with backtesting
+```
+
 ## 3. Code Style Guidelines
 
 ### Naming Conventions

@@ -23,7 +23,12 @@ const PredictionSchema = z.object({
 	historyChartDays: z.number().min(30).max(10000).default(1825).describe('Number of days shown in the full history chart (5 years)'),
 	minConfidence: z.number().min(0.5).max(1).default(0.6).describe('Minimum required model confidence for a valid signal'),
 	sellThreshold: z.number().min(-1).max(0).default(-0.05).describe('Price decrease threshold to trigger a SELL signal'),
-	uncertaintyIterations: z.number().min(10).max(100).default(30).describe('Number of Monte Carlo Dropout iterations for uncertainty estimation'),
+	uncertaintyIterations: z
+		.number()
+		.min(1)
+		.max(100)
+		.default(30)
+		.describe('Number of Monte Carlo Dropout iterations for uncertainty estimation (reduced to 5 in quick-test mode)'),
 });
 
 /**

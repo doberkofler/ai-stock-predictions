@@ -59,6 +59,7 @@ export async function predictCommand(configPath: string, quickTest = false, symb
 						prediction: {
 							...config.prediction,
 							days: 5,
+							uncertaintyIterations: 5,
 						},
 					}
 				: config;
@@ -217,7 +218,8 @@ async function getSymbolsToProcess(
 
 	if (quickTest) {
 		symbols = symbols.slice(0, 3);
-		ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing 3 symbols, 500 data points, and 5-day forecast`));
+		ui.log(chalk.yellow(`⚠️ Quick test mode active: Processing 3 symbols, 500 data points, 5-day forecast`));
+		ui.log(chalk.yellow(`   Optimizations: 5 Monte Carlo iterations, backtesting disabled`));
 	}
 
 	return symbols;
@@ -273,9 +275,9 @@ async function predictSymbol(
 	const signal = predictionEngine.generateSignal(prediction, config.prediction);
 
 	let backtest;
-	if (config.backtest.enabled) {
+	if (config.backtest.enabled && !quickTest) {
 		const backtestStartTime = Date.now();
-		const backtestDays = quickTest ? 30 : 126;
+		const backtestDays = 126;
 		const progress = new ProgressTracker();
 
 		spinner.text = `${prefix} Starting walk-forward backtest (${backtestDays} days)...`;

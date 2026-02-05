@@ -28,8 +28,8 @@ export default tseslint.config(
 			},
 		},
 		linterOptions: {
-			reportUnusedDisableDirectives: 'warn',
-			reportUnusedInlineConfigs: 'warn',
+			reportUnusedDisableDirectives: 'error',
+			reportUnusedInlineConfigs: 'error',
 		},
 	},
 	{
