@@ -139,6 +139,7 @@ async function executeTraining(
 		const symbolSpinner = ui.spinner(`${prefix} Processing ${name} (${symbol})`).start();
 
 		// Register spinner for cleanup on interrupt to prevent it from overwriting the interrupt message
+		// eslint-disable-next-line unicorn/consistent-function-scoping -- Justification: Cleanup function requires access to symbolSpinner instance which is created within the loop.
 		const cleanup = (): void => {
 			symbolSpinner.stop();
 		};

@@ -23,6 +23,7 @@ export class InterruptHandler {
 	private static sigintCount = 0;
 	private static cleanupHandlers: (() => void)[] = [];
 	private static initialized = false;
+	private static onSigInt: (() => void) | null = null;
 
 	/**
 	 * Initialize the interrupt handler to listen for SIGINT signals
@@ -35,7 +36,7 @@ export class InterruptHandler {
 
 		this.initialized = true;
 
-		process.on('SIGINT', () => {
+		this.onSigInt = (): void => {
 			this.sigintCount++;
 
 			if (this.sigintCount === 1) {
@@ -68,7 +69,12 @@ export class InterruptHandler {
 				console.log('\n⚡ Force exit!');
 				process.exit(130);
 			}
-		});
+		};
+
+		process.on('SIGINT', this.onSigInt);
+
+		// Also handle SIGTERM (for cloud environments/Docker)
+		process.on('SIGTERM', this.onSigInt);
 	}
 
 	/**
@@ -86,6 +92,13 @@ export class InterruptHandler {
 		this.interrupted = false;
 		this.sigintCount = 0;
 		this.cleanupHandlers = [];
+
+		if (this.initialized && this.onSigInt) {
+			process.off('SIGINT', this.onSigInt);
+			process.off('SIGTERM', this.onSigInt);
+			this.initialized = false;
+			this.onSigInt = null;
+		}
 	}
 
 	/**
