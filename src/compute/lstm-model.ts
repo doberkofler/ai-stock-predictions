@@ -148,9 +148,11 @@ export class LstmModel {
 	 * @param data - Historical data context
 	 * @param days - Number of days to predict
 	 * @param marketFeatures - Optional market context features
+	 * @param options - Prediction options
+	 * @param options.training - Enable training mode (dropout) during inference
 	 * @returns Predicted prices
 	 */
-	public predict(data: StockDataPoint[], days: number, marketFeatures?: MarketFeatures[]): number[] {
+	public predict(data: StockDataPoint[], days: number, marketFeatures?: MarketFeatures[], options: {training?: boolean} = {}): number[] {
 		if (!this.model) {
 			throw new Error('Model not trained or loaded');
 		}
@@ -169,7 +171,7 @@ export class LstmModel {
 		const lastMarketFeatures = marketFeatures && marketFeatures.length > 0 ? marketFeatures.at(-1) : undefined;
 
 		for (let i = 0; i < days; i++) {
-			const prediction = this.model.predict(lastWindow) as tf.Tensor2D;
+			const prediction = (options.training ? this.model.apply(lastWindow, {training: true}) : this.model.predict(lastWindow)) as tf.Tensor2D;
 			const dataSync = prediction.dataSync();
 			const predictedLogReturn = dataSync[0] ?? 0;
 

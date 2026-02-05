@@ -278,22 +278,61 @@ ${baselinePathComment}
 \t\t// Higher (0.8) = fewer but more confident signals; Lower (0.5) = more signals but less certain
 \t\t"minConfidence": ${config.prediction.minConfidence},
 \t\t
-\t\t// Predicted price decrease % to trigger SELL signal (-1 to 0, where -0.05 = 5% loss)
-\t\t// Tight stop-loss: -0.02; Moderate: -0.05; Long-term: -0.10 or lower
-\t\t"sellThreshold": ${config.prediction.sellThreshold}
-\t},
-\t
-\t// ============================================================================
-\t// TRAINING CONFIGURATION
-\t// ============================================================================
-\t// Control when models should be retrained
-\t
-\t"training": {
-\t\t// Minimum new data points required before automatically retraining model (10-1000)
-\t\t// Lower (10-20) = retrain often, always fresh but slower
-\t\t// Higher (100-200) = retrain rarely, faster but potentially stale
-\t\t"minNewDataPoints": ${config.training.minNewDataPoints}
-\t}
+		// Predicted price decrease % to trigger SELL signal (-1 to 0, where -0.05 = 5% loss)
+		// Tight stop-loss: -0.02; Moderate: -0.05; Long-term: -0.10 or lower
+		"sellThreshold": ${config.prediction.sellThreshold},
+
+		// Number of Monte Carlo Dropout iterations for uncertainty estimation (10-100)
+		// Higher = smoother confidence intervals but slower prediction
+		"uncertaintyIterations": ${config.prediction.uncertaintyIterations}
+	},
+	
+	// ============================================================================
+	// TRAINING CONFIGURATION
+	// ============================================================================
+	// Control when models should be retrained
+	
+	"training": {
+		// Minimum new data points required before automatically retraining model (10-1000)
+		// Lower (10-20) = retrain often, always fresh but slower
+		// Higher (100-200) = retrain rarely, faster but potentially stale
+		"minNewDataPoints": ${config.training.minNewDataPoints},
+
+		// Minimum data quality score required to train a model (0-100)
+		"minQualityScore": ${config.training.minQualityScore}
+	},
+
+	// ============================================================================
+	// HYPERPARAMETER TUNING CONFIGURATION
+	// ============================================================================
+	// Optimize model performance by searching for best parameters
+	
+	"tuning": {
+		// Enable hyperparameter tuning before training
+		// WARNING: Significantly increases training time
+		"enabled": ${config.tuning.enabled},
+
+		// Maximum number of trials to run
+		"maxTrials": ${config.tuning.maxTrials},
+
+		// Number of time-series splits for cross-validation
+		"validationSplits": ${config.tuning.validationSplits},
+
+		// Architectures to search
+		"architecture": ${JSON.stringify(config.tuning.architecture)},
+
+		// Batch sizes to search
+		"batchSize": ${JSON.stringify(config.tuning.batchSize)},
+
+		// Epoch counts to search
+		"epochs": ${JSON.stringify(config.tuning.epochs)},
+
+		// Learning rates to search
+		"learningRate": ${JSON.stringify(config.tuning.learningRate)},
+
+		// Window sizes to search
+		"windowSize": ${JSON.stringify(config.tuning.windowSize)}
+	}
 }
 `;
 }

@@ -48,6 +48,8 @@ When completing an enhancement proposal:
 ### 🟡 Phase 3 Progress (2026-02-05):
 - **#6 Alternative Model Architectures**: Architecture Factory pattern implementation completed.
 - **#6.4 Attention-LSTM**: Implementation of self-attention layer for time-series weighting completed.
+- **#5 Hyperparameter Optimization (Phase 1)**: Grid search with time-series cross-validation completed.
+- **#13 Prediction Intervals**: Monte Carlo Dropout for uncertainty quantification with 95% confidence intervals.
 
 ---
 
@@ -130,60 +132,44 @@ class DataSourceFallbackChain {
 
 ### 5. Hyperparameter Optimization
 
-**Current:** Fixed hyperparameters defined in config (windowSize=30, epochs=50, learningRate=0.001, batchSize=128)
+**Status:** ✅ Phase 1 Completed (2026-02-05)
 
-**Problem:**
-- One-size-fits-all approach may be suboptimal for different stocks
-- High-volatility stocks (e.g., TSLA) may need different windows than stable dividend stocks
-- No systematic exploration of hyperparameter space
-- Manual tuning is time-consuming and non-reproducible
+**Impact:** Enables per-symbol hyperparameter optimization using grid search and time-series cross-validation. Systematically explores the hyperparameter space to find optimal configurations for individual stocks.
 
-**Fix:**
+**Implementation:**
+- Created `HyperparameterTuner` class with grid search functionality in `src/compute/tuner.ts`
+- Implemented expanding window time-series cross-validation to evaluate hyperparameter combinations
+- Added `tune` CLI command for interactive hyperparameter optimization
+- Configurable search space via `tuning` section in `config.jsonc`:
+  - `architecture`: ['lstm', 'gru', 'attention-lstm']
+  - `windowSize`: [20, 30, 60]
+  - `learningRate`: [0.001, 0.0005]
+  - `batchSize`: [64, 128, 256]
+  - `epochs`: [30, 50, 100]
+  - `maxTrials`: Limits total trials to prevent excessive runtime
+  - `validationSplits`: Number of CV folds (default: 3)
+- Progress tracking with real-time MAPE updates
+- Returns best configuration based on validation MAPE
 
-**Phase 1 (Quick Win - Grid Search):**
-```typescript
-class HyperparameterTuner {
-    async gridSearch(symbol: string, data: StockDataPoint[]): Promise<BestConfig> {
-        const searchSpace = {
-            windowSize: [20, 30, 60],
-            learningRate: [0.0005, 0.001, 0.002],
-            batchSize: [64, 128, 256]
-        };
-        // Time-series cross-validation
-        // Return best config based on validation MAPE
-    }
-}
+**CLI Usage:**
+```bash
+node src/index.ts tune AAPL
+# Outputs optimal hyperparameters for symbol AAPL
 ```
 
-**Phase 2 (Advanced - Bayesian Optimization):**
+**Code Locations:**
+- `src/compute/tuner.ts` - Grid search implementation with CV
+- `src/cli/commands/tune.ts` - CLI command
+- `src/config/schema.ts:88-96` - Tuning configuration schema
+- `src/index.ts:82-88` - Command registration
+- `tests/unit/compute/tuner.test.ts` - Test coverage (4 tests)
+
+**Phase 2 (Future - Bayesian Optimization):**
 - Use TensorFlow.js with custom Bayesian implementation
 - Explore continuous hyperparameter space efficiently
-- 20-30 trials vs 27 trials in grid search
+- 20-30 trials vs full grid search
 
-**CLI Integration:**
-```bash
-node src/index.ts tune AAPL --trials=20 --cv-folds=3
-node src/index.ts tune --all --quick  # Quick tune for all symbols
-```
-
-**Importance:** MEDIUM - Improves performance but requires significant compute time (2-4x longer training)
-
-**Complexity:** High (10-12 hours for Phase 1, 20+ hours for Phase 2)
-- Create hyperparameter search framework
-- Implement time-series cross-validation scoring
-- Add parallel execution support (multiple workers)
-- Save best config per symbol in model metadata
-- Add `tune` command with progress tracking
-- Extensive testing and documentation
-
-**ETA:** Phase 1: 2 days, Phase 2: 3-4 days
-
-**Status:** Not Started
-
-**References:**
-- `src/config/schema.ts:45-52` (model config)
-- `src/compute/lstm-model.ts:200-291` (training method)
-- Add new command: `src/cli/commands/tune.ts`
+**Status:** Phase 1 ✅ Complete, Phase 2 Not Started
 
 ---
 
@@ -577,129 +563,53 @@ class ModelPerformanceMonitor {
 
 ### 13. Prediction Intervals (Uncertainty Quantification)
 
-**Current:** Single confidence score (MAPE-based: `confidence = max(0.1, min(0.95, 1 - mape))`)
+**Status:** ✅ Completed (2026-02-05)
 
-**Problem:**
-- Point estimates don't capture uncertainty range
-- No upper/lower bounds for predictions
-- Users cannot assess risk (e.g., "price will be $150 ± $5" vs "$150 ± $30")
-- Difficult to make risk-adjusted decisions
+**Impact:** Provides honest uncertainty communication through 95% confidence intervals. Users can now assess risk ranges and make informed decisions based on prediction uncertainty.
 
-**Fix:**
+**Implementation:**
+- **Method Used:** Monte Carlo Dropout (Method 2) - Already implemented, enhanced visualization
+- **Technique:** Run predictions multiple times with dropout enabled (`training: true`) to generate distribution
+- **Confidence Intervals:** Calculate mean ± 1.96 * stdDev for 95% CI per day
+- **Iterations:** Configurable via `config.prediction.uncertaintyIterations` (default: 10)
 
-**Method 1 - Quantile Regression:**
+**What Was Enhanced:**
+1. **Chart Visualization** (`src/output/assets/report.js`):
+   - Added dashed border lines for upper/lower bounds
+   - Shaded confidence band with semi-transparent fill
+   - Clear legend labels: "95% Upper Bound", "95% Lower Bound", "Forecast (Mean)"
+   - Increased opacity for better visibility
+
+2. **HTML Report** (`src/output/html-generator.ts`):
+   - Added explanatory text: "Shaded area represents 95% confidence interval"
+   - New table row showing prediction interval range
+   - Display format: "$X.XX - $Y.YY (Range: ±$Z.ZZ)"
+
+3. **Testing** (`tests/unit/compute/prediction.test.ts`):
+   - Added test for Monte Carlo Dropout with 10 iterations
+   - Verifies bounds are calculated and make logical sense
+   - Confirms `training: true` parameter is passed correctly
+
+**Code Locations:**
+- `src/compute/prediction.ts:81-115` - Monte Carlo Dropout implementation
+- `src/output/assets/report.js:132-149` - Confidence band visualization
+- `src/output/html-generator.ts:375-386` - Interval display in reports
+- `tests/unit/compute/prediction.test.ts:120-170` - Test coverage
+
+**Data Flow:**
 ```typescript
-// Train model to predict 10th, 50th, 90th percentiles
-class QuantileModel extends LstmModel {
-    buildModel(): tf.LayersModel {
-        // ... LSTM layers ...
-        
-        // Output 3 values instead of 1
-        model.add(tf.layers.dense({units: 3}));  // [p10, p50, p90]
-        
-        // Custom quantile loss
-        model.compile({
-            loss: (yTrue, yPred) => {
-                const quantiles = [0.1, 0.5, 0.9];
-                const losses = quantiles.map((q, i) => {
-                    const error = yTrue.sub(yPred.slice([0, i], [-1, 1]));
-                    return error.mul(q).where(error.greater(0), error.mul(q - 1));
-                });
-                return tf.stack(losses).mean();
-            }
-        });
-    }
-}
+// For each prediction:
+1. Run model.predict() N times with {training: true}
+2. Calculate mean, stdDev for each day
+3. Compute bounds: mean ± 1.96 * stdDev
+4. Return in predictedData[].{price, lowerBound, upperBound}
+5. Visualize as shaded band in Chart.js
 ```
 
-**Method 2 - Monte Carlo Dropout:**
-```typescript
-// Run prediction multiple times with dropout enabled
-class UncertaintyEstimator {
-    async estimateUncertainty(
-        model: LstmModel,
-        data: StockDataPoint[],
-        nSamples: number = 100
-    ): Promise<PredictionInterval> {
-        const predictions: number[] = [];
-        
-        for (let i = 0; i < nSamples; i++) {
-            // Enable dropout during inference
-            const pred = model.predict(data, {training: true});
-            predictions.push(pred);
-        }
-        
-        // Calculate statistics
-        const mean = calculateMean(predictions);
-        const std = calculateStd(predictions);
-        
-        return {
-            mean,
-            lower: mean - 1.96 * std,  // 95% CI
-            upper: mean + 1.96 * std
-        };
-    }
-}
-```
-
-**Method 3 - Ensemble Variance:**
-```typescript
-// Use standard deviation across ensemble predictions
-const ensemblePredictions = models.map(m => m.predict(data));
-const mean = calculateMean(ensemblePredictions);
-const std = calculateStd(ensemblePredictions);
-
-const interval = {
-    prediction: mean,
-    lowerBound: mean - 2 * std,
-    upperBound: mean + 2 * std,
-    confidence: 0.95
-};
-```
-
-**Visualization:**
-```html
-<!-- In HTML report -->
-<canvas id="predictionChart"></canvas>
-<script>
-    // Show prediction as a shaded band instead of single line
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            datasets: [
-                {label: 'Predicted Price', data: predictions, borderColor: 'blue'},
-                {label: 'Upper Bound (95%)', data: upperBounds, borderColor: 'lightblue', fill: '+1'},
-                {label: 'Lower Bound (95%)', data: lowerBounds, borderColor: 'lightblue', fill: '-1'}
-            ]
-        }
-    });
-</script>
-```
-
-**Importance:** MEDIUM - Better risk assessment and more honest uncertainty communication
-
-**Complexity:** High (10-12 hours)
-- Implement quantile loss function (Method 1) OR
-- Implement Monte Carlo dropout (Method 2) OR
-- Use ensemble variance (Method 3 - requires Item #7)
-- Modify prediction engine to return intervals
-- Update HTML charts to show prediction bands
-- Add uncertainty metrics to reports
-- Test calibration (do 95% intervals actually contain 95% of outcomes?)
-- Document which method to use when
-
-**ETA:** 2 days
-
-**Status:** Not Started
-
-**Dependencies:** Method 3 requires Item #7 (Ensemble Methods)
-
-**References:**
-- `src/compute/prediction.ts` (prediction engine)
-- `src/output/html-generator.ts` (chart generation)
-- Research: 
-  - "Probabilistic Forecasting with Deep Learning" (Salinas et al., 2020)
-  - "Simple and Scalable Predictive Uncertainty Estimation using Deep Ensembles" (Lakshminarayanan et al., 2017)
+**Future Enhancements:**
+- Method 3 (Ensemble Variance) - Can be added when Item #7 (Ensemble Methods) is completed
+- Calibration testing - Verify 95% intervals contain 95% of actual outcomes
+- Configurable confidence levels (68%, 95%, 99%)
 
 ---
 
@@ -754,15 +664,15 @@ const interval = {
 | 🟡 **MEDIUM** | #8 Enhanced Regularization | Medium | Medium | ⭐⭐⭐ | ✅ Complete |
 | 🟡 **MEDIUM** | #10 Outlier Detection | Medium | Medium | ⭐⭐⭐ | ✅ Complete |
 | 🟡 **MEDIUM** | #4 Multi-Source Fallback | Medium | High | ⭐⭐ | Not Started |
-| 🟡 **MEDIUM** | #5 Hyperparameter Tuning (P1) | Medium-High | High | ⭐⭐⭐ | Not Started |
-| 🟡 **MEDIUM** | #6 Alternative Architectures | Medium | High | ⭐⭐ | ✅ Complete |
-| 🟡 **MEDIUM** | #13 Prediction Intervals | Medium | High | ⭐⭐ | Not Started |
+| ~~🟡 **MEDIUM**~~ | ~~#5 Hyperparameter Tuning (P1)~~ | ~~Medium-High~~ | ~~High~~ | ~~⭐⭐⭐~~ | ✅ Complete |
+| ~~🟡 **MEDIUM**~~ | ~~#6 Alternative Architectures~~ | ~~Medium~~ | ~~High~~ | ~~⭐⭐~~ | ✅ Complete |
+| ~~🟡 **MEDIUM**~~ | ~~#13 Prediction Intervals~~ | ~~Medium~~ | ~~High~~ | ~~⭐⭐~~ | ✅ Complete |
 | 🟢 **LOW** | #9 Walk-Forward CV | Low-Medium | Medium | ⭐⭐ | Not Started |
 | 🟢 **LOW** | #7 Ensemble Methods | Medium | Very High | ⭐⭐ | Not Started |
 | 🟢 **LOW** | #12 Incremental Learning | Medium | Very High | ⭐ | Not Started |
 
-**Completed:** 5 items (3 days)  
-**Remaining Effort:** ~24 days
+**Completed:** 12 items  
+**Remaining Effort:** ~12 days
 
 ---
 

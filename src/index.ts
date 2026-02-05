@@ -8,6 +8,7 @@ import {predictCommand} from './cli/commands/predict.ts';
 import {symbolAddCommand, symbolDefaultsCommand, symbolListCommand, symbolRemoveCommand} from './cli/commands/symbols.ts';
 import {syncCommand} from './cli/commands/sync.ts';
 import {trainCommand} from './cli/commands/train.ts';
+import {tuneCommand} from './cli/commands/tune.ts';
 
 const program = new Command();
 
@@ -75,6 +76,15 @@ program
 	.action(async (options: {quickTest: boolean; symbols?: string}) => {
 		const programOptions = program.opts<{config: string}>();
 		await trainCommand(programOptions.config, options.quickTest, options.symbols);
+	});
+
+program
+	.command('tune')
+	.description('Find optimal hyperparameters for a specific symbol')
+	.argument('<symbol>', 'The stock symbol to tune (e.g., AAPL)')
+	.action(async (symbol: string) => {
+		const programOptions = program.opts<{config: string}>();
+		await tuneCommand(programOptions.config, symbol);
 	});
 
 program

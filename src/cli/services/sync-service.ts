@@ -7,10 +7,12 @@ import type {StockDataPoint} from '../../types/index.ts';
 import type {MockOra} from '../utils/ui.ts';
 
 import {SqliteStorage} from '../../gather/storage.ts';
-import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
+import {DataSourceRegistry} from '../../gather/registry.ts';
 import {DateUtils} from '../utils/date.ts';
 import {ProgressTracker} from '../utils/progress.ts';
 import {ui} from '../utils/ui.ts';
+
+import type {IDataSourceProvider} from '../../gather/interfaces.ts';
 
 /**
  * Service for synchronizing stock data with the external data source
@@ -24,7 +26,8 @@ export const SyncService = {
 	 */
 	// eslint-disable-next-line sonarjs/cognitive-complexity -- Complex but well-structured sync flow with validation
 	syncSymbols: async (symbols: {name: string; symbol: string}[], config: Config, quickTest = false): Promise<void> => {
-		const dataSource = new YahooFinanceDataSource(config.dataSource);
+		const registry = new DataSourceRegistry(config.dataSource);
+		const dataSource = registry.getProvider();
 		const storage = new SqliteStorage();
 		const progress = new ProgressTracker();
 
@@ -127,7 +130,7 @@ async function syncSingleSymbol(
 	symbol: string,
 	name: string,
 	storage: SqliteStorage,
-	dataSource: YahooFinanceDataSource,
+	dataSource: IDataSourceProvider,
 	progress: ProgressTracker,
 	spinner: MockOra | Ora,
 	_config: Config,

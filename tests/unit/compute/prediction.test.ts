@@ -47,8 +47,19 @@ describe('PredictionEngine', () => {
 			historyChartDays: 1825,
 			minConfidence: 0.6,
 			sellThreshold: -0.05,
+			uncertaintyIterations: 1,
 		},
 		training: {minNewDataPoints: 5, minQualityScore: 60},
+		tuning: {
+			architecture: ['lstm', 'gru', 'attention-lstm'],
+			batchSize: [64, 128, 256],
+			enabled: false,
+			epochs: [30, 50, 100],
+			learningRate: [0.001, 0.0005],
+			maxTrials: 20,
+			validationSplits: 3,
+			windowSize: [20, 30, 60],
+		},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 20}, (_, i) => ({
@@ -84,6 +95,54 @@ describe('PredictionEngine', () => {
 			expect(result.predictedPrices).toEqual([110]);
 			expect(result.confidence).toBeGreaterThan(0);
 			expect(result.fullHistory).toBeDefined();
+		});
+
+		it('should calculate prediction intervals with Monte Carlo Dropout', async () => {
+			// Mock model that returns slightly different predictions each iteration
+			let callCount = 0;
+			const mockModel = {
+				getMetadata: vi.fn().mockReturnValue({
+					dataPoints: 100,
+					loss: 0.01,
+					mape: 0.05,
+					metrics: {mape: 0.05, meanAbsoluteError: 0.02},
+					symbol: 'AAPL',
+				}),
+				isTrained: vi.fn().mockReturnValue(true),
+				predict: vi.fn().mockImplementation(() => {
+					// Return different values to simulate Monte Carlo Dropout
+					callCount++;
+					return [110 + callCount * 0.5]; // Slight variation each time
+				}),
+			};
+
+			// Use more iterations to test Monte Carlo Dropout
+			const configWithMoreIterations = {
+				...mockAppConfig,
+				prediction: {
+					...mockAppConfig.prediction,
+					uncertaintyIterations: 10,
+				},
+			};
+
+			const result = await engine.predict(mockModel as unknown as LstmModel, mockData, configWithMoreIterations);
+
+			// Verify prediction intervals are present
+			expect(result.lowerBound).toBeDefined();
+			expect(result.upperBound).toBeDefined();
+			expect(result.predictedData[0]?.lowerBound).toBeDefined();
+			expect(result.predictedData[0]?.upperBound).toBeDefined();
+
+			// Verify bounds make sense
+			expect(result.lowerBound).toBeLessThan(result.predictedPrice);
+			expect(result.upperBound).toBeGreaterThan(result.predictedPrice);
+
+			// Verify Monte Carlo iterations were called
+			expect(mockModel.predict).toHaveBeenCalledTimes(10);
+
+			// Verify the last argument includes training: true for Monte Carlo Dropout
+			const lastCall = mockModel.predict.mock.calls.at(-1);
+			expect(lastCall?.at(-1)).toEqual({training: true});
 		});
 
 		it('should throw error if model is not trained', async () => {

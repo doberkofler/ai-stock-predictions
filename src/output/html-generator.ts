@@ -108,8 +108,16 @@ export class HtmlGenerator {
 				labels: [...recentHistory.map((d) => d.date), ...predictionLabels],
 				actualDataset: [...contextPrices, ...Array.from({length: predictionPrices.length}, () => null)],
 				predictedDataset: [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices],
-				upperDataset: [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices.map((v) => v + mae)],
-				lowerDataset: [...Array.from({length: contextPrices.length - 1}, () => null), lastActualPrice, ...predictionPrices.map((v) => v - mae)],
+				upperDataset: [
+					...Array.from({length: contextPrices.length - 1}, () => null),
+					lastActualPrice,
+					...p.prediction.predictedData.map((d) => d.upperBound ?? d.price + mae),
+				],
+				lowerDataset: [
+					...Array.from({length: contextPrices.length - 1}, () => null),
+					lastActualPrice,
+					...p.prediction.predictedData.map((d) => d.lowerBound ?? d.price - mae),
+				],
 				signalColor,
 				signalRgb,
 			},
@@ -365,6 +373,9 @@ export class HtmlGenerator {
 				</div>
 				<div class="chart-section">
 					<div class="chart-title">Recent Trend & Forecast (Last ${appConfig.prediction.contextDays} Days + Prediction)</div>
+					<div style="font-size: 12px; color: #666; margin: 5px 0 10px 0; text-align: center;">
+						Shaded area represents 95% confidence interval (Monte Carlo Dropout with ${appConfig.prediction.uncertaintyIterations} iterations)
+					</div>
 					<div class="chart-container">
 						<canvas id="chart-prediction-${p.symbol}"></canvas>
 					</div>
@@ -382,6 +393,15 @@ export class HtmlGenerator {
 						<th>Expected Change</th>
 						<td style="color: ${firstPredicted !== undefined && firstPredicted > p.prediction.currentPrice ? 'var(--buy-color)' : 'var(--sell-color)'}">
 							${firstPredicted === undefined ? '0.00' : (((firstPredicted - p.prediction.currentPrice) / p.prediction.currentPrice) * 100).toFixed(2)}%
+						</td>
+					</tr>
+					<tr>
+						<th>Prediction Interval (95%)</th>
+						<td>
+							$${(p.prediction.predictedData[0]?.lowerBound ?? 0).toFixed(2)} - $${(p.prediction.predictedData[0]?.upperBound ?? 0).toFixed(2)}
+							<div style="font-size: 11px; color: #666; margin-top: 2px;">
+								Range: ±$${(((p.prediction.predictedData[0]?.upperBound ?? 0) - (p.prediction.predictedData[0]?.lowerBound ?? 0)) / 2).toFixed(2)}
+							</div>
 						</td>
 					</tr>
 					${this.renderQualityMetrics(p.symbol)}

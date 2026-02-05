@@ -89,14 +89,16 @@ export type PredictionResult = {
 	days: number;
 	fullHistory: StockDataPoint[];
 	historicalData: StockDataPoint[];
+	lowerBound?: number; // 95% Confidence Interval Lower Bound
 	meanAbsoluteError: number;
 	percentChange: number;
-	predictedData: {date: string; price: number}[];
+	predictedData: {date: string; lowerBound?: number; price: number; upperBound?: number}[];
 	predictedPrice: number;
 	predictedPrices: number[];
 	predictionDate: Date;
 	priceChange: number;
 	symbol: string;
+	upperBound?: number; // 95% Confidence Interval Upper Bound
 };
 
 /**

@@ -82,7 +82,14 @@ describe('ModelPersistence', () => {
 	});
 
 	it('should load a model', async () => {
-		vi.mocked(fs.existsSync).mockReturnValue(true);
+		// Mock file existence - return false for ensemble.json, true for metadata.json and model.json
+		vi.mocked(fs.existsSync).mockImplementation((path) => {
+			const pathStr = String(path);
+			if (pathStr.includes('ensemble.json')) return false;
+			if (pathStr.includes('metadata.json')) return true;
+			if (pathStr.includes('model.json')) return true;
+			return false;
+		});
 		vi.mocked(fsPromises.readFile).mockResolvedValue(
 			JSON.stringify({
 				dataPoints: 100,

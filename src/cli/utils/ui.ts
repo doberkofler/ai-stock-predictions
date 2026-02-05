@@ -48,6 +48,19 @@ class UiService {
 	}
 
 	/**
+	 * Log a warning message (only interactive)
+	 * @param message - The warning message
+	 */
+	public warn(message: string): void {
+		/* v8 ignore start */
+		if (this.isInteractive) {
+			// eslint-disable-next-line no-console -- Justification: UI service is the designated abstraction for terminal communication.
+			console.warn(message);
+		}
+		/* v8 ignore stop */
+	}
+
+	/**
 	 * Log decorative or status text.
 	 * Only shows in interactive terminals to prevent cluttering test/CI logs.
 	 * @param message - The message to log.

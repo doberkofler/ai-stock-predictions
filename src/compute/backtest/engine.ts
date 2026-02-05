@@ -6,6 +6,7 @@
 import type {Config} from '../../config/schema.ts';
 import type {BacktestResult, MarketFeatures, StockDataPoint, Trade} from '../../types/index.ts';
 import type {LstmModel} from '../lstm-model.ts';
+import type {EnsembleModel} from '../ensemble.ts';
 import type {PredictionEngine} from '../prediction.ts';
 
 import {ErrorHandler} from '../../cli/utils/errors.ts';
@@ -38,7 +39,7 @@ export class BacktestEngine {
 	 */
 	public async run(
 		symbol: string,
-		model: LstmModel,
+		model: LstmModel | EnsembleModel,
 		historicalData: StockDataPoint[],
 		marketFeatures: MarketFeatures[] = [],
 		days = 252,
@@ -103,7 +104,7 @@ export class BacktestEngine {
 	 * @param onProgress
 	 */
 	private async simulateTrades(
-		model: LstmModel,
+		model: LstmModel | EnsembleModel,
 		historicalData: StockDataPoint[],
 		marketFeatures: MarketFeatures[],
 		startIndex: number,
@@ -155,7 +156,7 @@ export class BacktestEngine {
 	 * @param trades
 	 */
 	private async handleTradeSignal(
-		model: LstmModel,
+		model: LstmModel | EnsembleModel,
 		historicalData: StockDataPoint[],
 		marketFeatures: MarketFeatures[],
 		currentIndex: number,

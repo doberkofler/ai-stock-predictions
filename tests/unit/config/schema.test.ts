@@ -43,8 +43,19 @@ describe('ConfigSchema', () => {
 				historyChartDays: 1825,
 				minConfidence: 0.6,
 				sellThreshold: -0.05,
+				uncertaintyIterations: 20,
 			},
-			training: {minNewDataPoints: 50},
+			training: {minNewDataPoints: 50, minQualityScore: 40},
+			tuning: {
+				architecture: ['lstm'],
+				batchSize: [32],
+				enabled: false,
+				epochs: [10],
+				learningRate: [0.001],
+				maxTrials: 5,
+				validationSplits: 3,
+				windowSize: [20],
+			},
 		};
 
 		const result = ConfigSchema.safeParse(validConfig);

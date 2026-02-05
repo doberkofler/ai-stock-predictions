@@ -22,6 +22,7 @@ describe('HtmlGenerator', () => {
 		historyChartDays: 10,
 		minConfidence: 0.6,
 		sellThreshold: -0.05,
+		uncertaintyIterations: 10,
 	};
 
 	const mockPredictions: ReportPrediction[] = [
@@ -107,6 +108,16 @@ describe('HtmlGenerator', () => {
 		},
 		prediction: mockOutputConfig,
 		training: {minNewDataPoints: 50, minQualityScore: 60},
+		tuning: {
+			architecture: ['lstm', 'gru', 'attention-lstm'],
+			batchSize: [64, 128, 256],
+			enabled: false,
+			epochs: [30, 50, 100],
+			learningRate: [0.001, 0.0005],
+			maxTrials: 20,
+			validationSplits: 3,
+			windowSize: [20, 30, 60],
+		},
 	};
 
 	beforeEach(() => {

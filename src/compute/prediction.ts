@@ -6,6 +6,7 @@
 import type {Config} from '../config/schema.ts';
 import type {MarketFeatures, PredictionResult, StockDataPoint, TradingSignal} from '../types/index.ts';
 import type {LstmModel} from './lstm-model.ts';
+import type {EnsembleModel} from './ensemble.ts';
 
 import {DateUtils} from '../cli/utils/date.ts';
 import {ErrorHandler, PredictionError} from '../cli/utils/errors.ts';
@@ -51,7 +52,12 @@ export class PredictionEngine {
 	 * @param marketFeatures - Optional market context features
 	 * @returns Prediction results
 	 */
-	public async predict(model: LstmModel, historicalData: StockDataPoint[], appConfig: Config, marketFeatures?: MarketFeatures[]): Promise<PredictionResult> {
+	public async predict(
+		model: LstmModel | EnsembleModel,
+		historicalData: StockDataPoint[],
+		appConfig: Config,
+		marketFeatures?: MarketFeatures[],
+	): Promise<PredictionResult> {
 		const metadata = model.getMetadata();
 		const symbol = metadata?.symbol ?? 'UNKNOWN';
 
@@ -72,13 +78,41 @@ export class PredictionEngine {
 				throw new PredictionError(`Insufficient data for prediction. Need at least ${appConfig.model.windowSize} points.`, symbol);
 			}
 
-			// Multi-step prediction
+			// Multi-step prediction with Monte Carlo Dropout for Uncertainty Quantification
 			context.step = 'model-inference';
 			const recentData = historicalData.slice(-appConfig.model.windowSize * 2);
 			const recentFeatures = marketFeatures ? marketFeatures.slice(-appConfig.model.windowSize * 2) : undefined;
 
-			// Multi-step prediction
-			const predictedPrices = model.predict(recentData, appConfig.prediction.days, recentFeatures);
+			const iterations = appConfig.prediction.uncertaintyIterations;
+			const allPredictions: number[][] = [];
+
+			// Run multiple iterations with dropout enabled (Monte Carlo Dropout)
+			// This generates a distribution of predictions to estimate uncertainty
+			for (let i = 0; i < iterations; i++) {
+				const runPredictions = model.predict(recentData, appConfig.prediction.days, recentFeatures, {training: true});
+				allPredictions.push(runPredictions);
+			}
+
+			// Calculate statistics for each day (Mean, StdDev, Confidence Intervals)
+			const predictedPrices: number[] = [];
+			const lowerBounds: number[] = [];
+			const upperBounds: number[] = [];
+
+			for (let day = 0; day < appConfig.prediction.days; day++) {
+				const dayPrices = allPredictions.map((p) => p[day] ?? 0);
+
+				// Calculate Mean
+				const mean = dayPrices.reduce((sum, val) => sum + val, 0) / dayPrices.length;
+				predictedPrices.push(mean);
+
+				// Calculate Standard Deviation
+				const variance = dayPrices.reduce((sum, val) => sum + (val - mean) ** 2, 0) / dayPrices.length;
+				const stdDev = Math.sqrt(variance);
+
+				// Calculate 95% Confidence Interval (Mean ± 1.96 * StdDev)
+				lowerBounds.push(mean - 1.96 * stdDev);
+				upperBounds.push(mean + 1.96 * stdDev);
+			}
 
 			const lastActualPoint = historicalData.at(-1);
 			const lastPrice = lastActualPoint?.close ?? 0;
@@ -95,19 +129,26 @@ export class PredictionEngine {
 			const mape = metadata?.mape ?? 0.2; // Default to 20% error if not available
 			const confidence = Math.max(0.1, Math.min(0.95, 1 - mape));
 
+			// Safe access for bounds with fallbacks (though they should exist given the loop above)
+			const finalLowerBound = lowerBounds.at(-1) ?? predictedPrices.at(-1) ?? 0;
+			const finalUpperBound = upperBounds.at(-1) ?? predictedPrices.at(-1) ?? 0;
+
 			return {
 				confidence,
 				currentPrice: lastPrice,
 				days: appConfig.prediction.days,
 				fullHistory: historicalData,
 				historicalData: recentData,
+				lowerBound: finalLowerBound,
 				meanAbsoluteError: metadata?.metrics.meanAbsoluteError ?? 0,
 				percentChange,
 				predictedData: predictedPrices.map((price, i) => {
 					const date = futureDates.at(i) ?? '';
 					return {
 						date,
+						lowerBound: lowerBounds[i] ?? price,
 						price,
+						upperBound: upperBounds[i] ?? price,
 					};
 				}),
 				predictedPrice: targetPrice,
@@ -115,6 +156,7 @@ export class PredictionEngine {
 				predictionDate: new Date(),
 				priceChange,
 				symbol,
+				upperBound: finalUpperBound,
 			};
 		}, context);
 	}

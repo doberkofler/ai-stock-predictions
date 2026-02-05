@@ -14,6 +14,7 @@ import {MarketFeatureEngineer} from '../compute/market-features.ts';
 import {StockDataPointSchema, YahooQuoteSchema} from '../types/index.ts';
 
 import {isQualityAcceptable, processData, type DataQualityResult} from './data-quality.ts';
+import type {IDataSourceProvider} from './interfaces.ts';
 
 const StockDataSchema = z.array(StockDataPointSchema);
 
@@ -43,7 +44,7 @@ type RawYahooQuote = {
 /**
  * Yahoo Finance data source class
  */
-export class YahooFinanceDataSource {
+export class YahooFinanceDataSource implements IDataSourceProvider {
 	private readonly api: InstanceType<typeof yahooFinance>;
 	private readonly config: ApiConfig;
 	private readonly marketFeatureEngineer: MarketFeatureEngineer;
