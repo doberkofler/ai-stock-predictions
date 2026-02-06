@@ -8,12 +8,12 @@ import {runCommand} from '../utils/runner.ts';
 
 /**
  * Sync command implementation
- * @param configPath - Path to the configuration file
+ * @param workspaceDir - Path to the workspace directory
  */
-export async function syncCommand(configPath: string): Promise<void> {
+export async function syncCommand(workspaceDir: string): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Updating historical market data for all symbols in the portfolio.',
 			nextSteps: ['Run: {cli} train to build prediction models'],
 			title: 'Data Synchronization',
@@ -22,9 +22,9 @@ export async function syncCommand(configPath: string): Promise<void> {
 			if (!config) {
 				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
 			}
-			const storage = new SqliteStorage();
+			const storage = new SqliteStorage(workspaceDir);
 			const symbols = storage.getAllSymbols();
-			await SyncService.syncSymbols(symbols, config);
+			await SyncService.syncSymbols(symbols, config, workspaceDir);
 		},
 		{},
 	);

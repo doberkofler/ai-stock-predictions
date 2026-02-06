@@ -16,8 +16,20 @@
 		"format:check": "prettier --check src/**/*.ts",
 		"knip": "knip",
 		"ci": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run knip",
-		"example": "node src/index.ts init --force && node src/index.ts symbol-add AAPL,NVDA && node src/index.ts sync && node src/index.ts train --quick-test && node src/index.ts predict --quick-test",
-		"example:full": "node src/index.ts init --force && node src/index.ts symbol-add  AAPL,NVDA,EBS.VI,ORCL,QS,WFC,RKLB,GOOG,AMZN,MSFT,ABNB,AMRC,OTLY,DOCS.L,PYPL,432.F && node src/index.ts sync && node src/index.ts train && node src/index.ts predict"
+		"example": "node src/index.ts init --workspace-dir=data_example --force && node src/index.ts symbol-add AAPL,NVDA --workspace-dir=data_example && node src/index.ts sync --workspace-dir=data_example && node src/index.ts train --workspace-dir=data_example --quick-test && node src/index.ts predict --workspace-dir=data_example --quick-test",
+		"example:full": "node src/index.ts init --force && node src/index.ts symbol-add  AAPL,NVDA,EBS.VI,ORCL,QS,WFC,RKLB,GOOG,AMZN,MSFT,ABNB,AMRC,OTLY,DOCS.L,PYPL,432.F && node src/index.ts sync && node src/index.ts train && node src/index.ts predict",
+		"docker:build": "docker build -t ai-stock-predictions:latest .",
+		"docker:init": "docker run --rm -it -v ai-stock-data:/app/data ai-stock-predictions:latest init",
+		"docker:symbol-add": "docker run --rm -it -v ai-stock-data:/app/data ai-stock-predictions:latest symbol-add",
+		"docker:symbol-defaults": "docker run --rm -it -v ai-stock-data:/app/data ai-stock-predictions:latest symbol-defaults",
+		"docker:sync": "docker run --rm -it -v ai-stock-data:/app/data ai-stock-predictions:latest sync",
+		"docker:train": "docker run --rm -it -v ai-stock-data:/app/data ai-stock-predictions:latest train",
+		"docker:predict": "docker run --rm -it -v ai-stock-data:/app/data ai-stock-predictions:latest predict",
+		"docker:copy-output": "docker run --rm -v ai-stock-data:/app/data -v $(pwd)/docker-output:/host alpine sh -c 'mkdir -p /host && cp -r /app/data/output/* /host/ 2>/dev/null || true'",
+		"docker:copy-export": "docker run --rm -v ai-stock-data:/app/data -v $(pwd)/docker-export:/host alpine sh -c 'mkdir -p /host && cp -r /app/data/export/* /host/ 2>/dev/null || true'",
+		"docker:clean-volumes": "docker volume rm ai-stock-config ai-stock-data ai-stock-output ai-stock-export 2>/dev/null || true",
+		"docker:shell": "docker run --rm -it -v ai-stock-data:/app/data --entrypoint sh ai-stock-predictions:latest",
+		"docker:save": "docker save ai-stock-predictions:latest -o ai-stock-predictions.tar"
 	},
 	"keywords": [
 		"stock",

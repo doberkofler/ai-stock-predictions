@@ -12,6 +12,7 @@ session*.md
 
 # Runtime directories
 /data/
+/data_example/
 /export/
 /output/
 

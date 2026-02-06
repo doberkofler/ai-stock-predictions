@@ -11,14 +11,15 @@ import {ui} from '../utils/ui.ts';
 
 /**
  * Tune command implementation
- * @param configPath - Path to the configuration file
+ * @param workspaceDir - Path to the workspace directory
  * @param symbol - The symbol to tune
  */
-export async function tuneCommand(configPath: string, symbol: string): Promise<void> {
+export async function tuneCommand(workspaceDir: string, symbol: string): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Hyperparameter tuning using Grid Search and Cross-Validation',
+			needsTensorFlow: true,
 			nextSteps: ['Update your config.jsonc with the discovered parameters'],
 			title: 'Hyperparameter Tuning',
 		},
@@ -27,7 +28,7 @@ export async function tuneCommand(configPath: string, symbol: string): Promise<v
 				throw new Error('Configuration file missing.');
 			}
 
-			const storage = new SqliteStorage();
+			const storage = new SqliteStorage(workspaceDir);
 			const tuner = new HyperparameterTuner(config);
 
 			// Validate symbol

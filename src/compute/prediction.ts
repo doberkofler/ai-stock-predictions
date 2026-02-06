@@ -11,6 +11,8 @@ import type {EnsembleModel} from './ensemble.ts';
 import {DateUtils} from '../cli/utils/date.ts';
 import {ErrorHandler, PredictionError} from '../cli/utils/errors.ts';
 
+import {InterruptHandler} from '../cli/utils/interrupt.ts';
+
 /**
  * Prediction engine class
  */
@@ -89,7 +91,12 @@ export class PredictionEngine {
 			// Run multiple iterations with dropout enabled (Monte Carlo Dropout)
 			// This generates a distribution of predictions to estimate uncertainty
 			for (let i = 0; i < iterations; i++) {
-				const runPredictions = model.predict(recentData, appConfig.prediction.days, recentFeatures, {training: true});
+				// Check for interrupt signal
+				if (i % 5 === 0) {
+					InterruptHandler.throwIfInterrupted();
+				}
+
+				const runPredictions = await model.predict(recentData, appConfig.prediction.days, recentFeatures, {training: true});
 				allPredictions.push(runPredictions);
 			}
 

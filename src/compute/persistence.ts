@@ -3,7 +3,6 @@
  * Handles saving and loading TensorFlow.js models and metadata to/from the filesystem
  */
 
-import * as tf from '@tensorflow/tfjs';
 import {join} from 'node:path';
 
 import type {Config} from '../config/schema.ts';
@@ -126,6 +125,7 @@ export class ModelPersistence {
 
 		// Load TensorFlow model
 		try {
+			const tf = await import('@tensorflow/tfjs');
 			const tfModel = await tf.loadLayersModel(`file://${modelPath}`);
 
 			// Re-compile model with current configuration
@@ -157,15 +157,7 @@ export class ModelPersistence {
 		const ensembleData = ensembleDataRaw as {architectures: string[]; timestamp: string; weights?: number[]};
 
 		const ensemble = new EnsembleModel(appConfig);
-		// We need to access private properties or add public methods to set models.
-		// For now, let's assume we populate it by manually loading sub-models.
-
-		// But wait, EnsembleModel doesn't have a public "addModel" method.
-		// I should create a "load" method on EnsembleModel or allow setting models.
-		// The cleanest way is to just construct it and populate it via a new method or "reflection".
-
-		// Actually, I'll update EnsembleModel to allow setting models/weights, or use a helper.
-		// For now, I'll assume I can't easily access private props, so I'll add a public method to EnsembleModel.
+		const tf = await import('@tensorflow/tfjs');
 
 		const models: LstmModel[] = [];
 		const weights: number[] = ensembleData.weights ?? [];

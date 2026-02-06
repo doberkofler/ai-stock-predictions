@@ -21,7 +21,7 @@ vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
-			await handler({config: {}, startTime: Date.now()}, commandOptions);
+			await handler({config: {storage: {dataDirectory: 'data'}}, startTime: Date.now()}, commandOptions);
 		} catch {
 			process.exit(1);
 		}

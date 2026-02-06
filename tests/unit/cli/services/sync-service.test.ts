@@ -1,6 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {Config} from '../../../../src/config/schema.ts';
+import {DefaultConfig} from '../../../../src/config/schema.ts';
 
 import {SyncService} from '../../../../src/cli/services/sync-service.ts';
 import {DateUtils} from '../../../../src/cli/utils/date.ts';
@@ -10,12 +11,14 @@ const mockStorage = {
 	getAllSymbols: vi.fn(),
 	getDataTimestamp: vi.fn(),
 	getStockData: vi.fn(),
+	saveMarketFeatures: vi.fn(),
 	saveStockData: vi.fn(),
 	saveSymbol: vi.fn(),
 	symbolExists: vi.fn(),
 };
 
 const mockDataSource = {
+	calculateMarketFeatures: vi.fn(),
 	getHistoricalData: vi.fn(),
 };
 
@@ -46,58 +49,10 @@ vi.mock('../../../../src/cli/utils/ui.ts', () => ({
 
 describe('SyncService', () => {
 	const mockConfig: Config = {
-		aBTesting: {enabled: false},
-		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
-		dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
-		market: {
-			featureConfig: {
-				enabled: true,
-				includeBeta: true,
-				includeCorrelation: true,
-				includeDistanceFromMA: true,
-				includeMarketReturn: true,
-				includeRegime: true,
-				includeRelativeReturn: true,
-				includeVix: true,
-				includeVolatilitySpread: true,
-			},
-			primaryIndex: '^GSPC',
-			volatilityIndex: '^VIX',
-		},
-		model: {
-			architecture: 'lstm',
-			batchSize: 128,
-			dropout: 0.2,
-			epochs: 50,
-			l1Regularization: 0.001,
-			l2Regularization: 0.001,
-			learningRate: 0.001,
-			recurrentDropout: 0.1,
-			windowSize: 30,
-		},
-		prediction: {
-			buyThreshold: 0.05,
-			contextDays: 15,
-			days: 30,
-			directory: 'output',
-			historyChartDays: 1825,
-			minConfidence: 0.6,
-			sellThreshold: -0.05,
-			uncertaintyIterations: 10,
-		},
+		...DefaultConfig,
 		training: {
-			maxHistoricalYears: 3, minNewDataPoints: 50,
+			...DefaultConfig.training,
 			minQualityScore: 60,
-		},
-		tuning: {
-			architecture: ['lstm', 'gru', 'attention-lstm'],
-			batchSize: [64, 128, 256],
-			enabled: false,
-			epochs: [30, 50, 100],
-			learningRate: [0.001, 0.0005],
-			maxTrials: 20,
-			validationSplits: 3,
-			windowSize: [20, 30, 60],
 		},
 	};
 
@@ -114,7 +69,7 @@ describe('SyncService', () => {
 		mockStorage.getDataTimestamp.mockResolvedValue(null);
 		mockStorage.symbolExists.mockReturnValue(false);
 
-		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig, 'data');
 
 		expect(mockStorage.saveSymbol).toHaveBeenCalledWith('AAPL', 'Apple Inc.');
 		expect(mockDataSource.getHistoricalData).toHaveBeenCalled();
@@ -126,7 +81,7 @@ describe('SyncService', () => {
 		mockStorage.getDataTimestamp.mockResolvedValue(today);
 		mockStorage.symbolExists.mockReturnValue(true);
 
-		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig, 'data');
 
 		expect(mockStorage.saveStockData).not.toHaveBeenCalled();
 	});
@@ -143,7 +98,7 @@ describe('SyncService', () => {
 		});
 		mockStorage.getDataTimestamp.mockResolvedValue(null);
 
-		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig, 'data');
 		expect(mockStorage.saveStockData).not.toHaveBeenCalled();
 	});
 
@@ -151,7 +106,7 @@ describe('SyncService', () => {
 		mockDataSource.getHistoricalData.mockRejectedValue(new Error('API Down'));
 		mockStorage.getDataTimestamp.mockResolvedValue(null);
 
-		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig);
+		await SyncService.syncSymbols([{name: 'Apple Inc.', symbol: 'AAPL'}], mockConfig, 'data');
 		expect(mockStorage.saveStockData).not.toHaveBeenCalled();
 	});
 });

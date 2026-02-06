@@ -58,7 +58,7 @@ vi.mock('../../../../src/cli/utils/runner.ts', () => ({
 	runCommand: vi.fn().mockImplementation(async (_options, handler, commandOptions) => {
 		await handler(
 			{
-				config: mockAppConfig,
+				config: mockAppConfig as any,
 				startTime: Date.now(),
 			},
 			commandOptions,
@@ -124,7 +124,7 @@ describe('symbols commands', () => {
 
 			await symbolRemoveCommand('config.jsonc', 'AAPL');
 
-			expect(SymbolService.removeSymbol).toHaveBeenCalledWith('AAPL');
+			expect(SymbolService.removeSymbol).toHaveBeenCalledWith('AAPL', expect.any(Object), 'config.jsonc');
 		});
 
 		it('should add default symbols', async () => {

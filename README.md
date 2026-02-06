@@ -34,7 +34,7 @@ The application is controlled via a simple set of CLI commands.
 
 Complete workflow from initialization to predictions:
 ```bash
-# 1. Initialize project and add market indices
+# 1. Create workspace and default configuration file
 node src/index.ts init
 
 # 2. Add your stock symbols
@@ -46,19 +46,25 @@ node src/index.ts sync
 # 4. Train models
 node src/index.ts train
 
-# 5. Generate predictions and report
+# 5. Optional: Optimize hyperparameters for a symbol
+node src/index.ts tune AAPL
+
+# 6. Optional: Evaluate strategy performance
+node src/index.ts backtest AAPL
+
+# 7. Generate predictions and report
 node src/index.ts predict
 ```
-The report will be saved in the `output/` directory as `index.html`.
+The workspace defaults to the `data/` directory. The report will be saved in the `data/output/` directory as `index.html`.
 
 ### Command Details
 
 #### 1. Initialize
-Create the default `config.jsonc` and add market indices to the database:
+Create the workspace and default `config.jsonc`:
 ```bash
 node src/index.ts init
 ```
-This automatically adds 7 market indices (^GSPC, ^VIX, ^DJI, ^IXIC, ^FTSE, ^GDAXI, ^N225) to the database.
+This command creates the workspace directory and the configuration file. All other initialization (database creation, market indices) happens dynamically when first needed. For example, running `symbol-add` or `sync` will automatically set up the database.
 
 #### 2. Add Symbols
 Add stock symbols to your portfolio:
@@ -89,7 +95,19 @@ Generate predictions and interactive HTML report:
 node src/index.ts predict
 ```
 
-### 6. Symbol Management
+#### 6. Hyperparameter Tuning (Optional)
+Optimize LSTM parameters for a specific symbol using Grid Search:
+```bash
+node src/index.ts tune AAPL
+```
+
+#### 7. Backtesting (Optional)
+Evaluate trading strategy performance over historical data:
+```bash
+node src/index.ts backtest AAPL --days 252
+```
+
+### 8. Symbol Management
 List all symbols in your portfolio:
 ```bash
 node src/index.ts symbol-list
@@ -109,9 +127,9 @@ node src/index.ts import [path]
 
 ## ⚙️ Configuration
 
-All settings are managed via `config.jsonc` (JSON with comments). You can also specify a custom configuration file:
+All settings are managed via `config.jsonc` (JSON with comments). The configuration file is always stored within the workspace directory. You can specify a custom workspace directory:
 ```bash
-node src/index.ts --config my-portfolio.jsonc sync
+node src/index.ts --workspace-dir ./my-portfolio sync
 ```
 
 ### Market Feature Configuration
@@ -160,6 +178,167 @@ This limits the run to 3 symbols and the most recent 50 data points for training
 -   **Linting**: `npm run lint`
 -   **Typecheck**: `npm run typecheck`
 -   **CI Workflow**: `npm run ci` (Runs all checks)
+
+## 🐳 Docker Deployment
+
+Docker support uses a **self-contained image** with **named volumes** for persistent data, eliminating volume mount conflicts and providing a clean separation between application code (immutable) and runtime data (mutable).
+
+### Docker Quick Start
+
+Complete workflow using npm scripts:
+
+```bash
+# 1. Build the Docker image
+npm run docker:build
+
+# 2. Initialize workspace and configuration (required first time)
+npm run docker:init
+
+# 3. Add your stock symbols
+npm run docker:symbol-add AAPL,NVDA,TSLA
+
+# 4. Download historical data for all symbols
+npm run docker:sync
+
+# 5. Train models
+npm run docker:train
+
+# 6. Generate predictions
+npm run docker:predict
+
+# 7. Extract results to local directory
+npm run docker:copy-output    # Copies data/output/index.html to ./docker-output/
+npm run docker:copy-export    # Copies data/export.json to ./docker-export/
+```
+
+Open `./docker-output/index.html` in your browser to view the prediction report.
+
+### Docker-Compose Alternative
+
+For simplified multi-command workflows:
+
+```bash
+# Build the image
+docker-compose build
+
+# Run commands
+docker-compose run --rm app init --force
+docker-compose run --rm app symbol-add AAPL,NVDA,TSLA
+docker-compose run --rm app sync
+docker-compose run --rm app train
+docker-compose run --rm app predict
+
+# Extract results (same as above)
+npm run docker:copy-output
+npm run docker:copy-export
+```
+
+### Docker NPM Scripts Reference
+
+| Script | Description |
+|--------|-------------|
+| `npm run docker:build` | Build the self-contained Docker image |
+| `npm run docker:init` | Create default configuration file |
+| `npm run docker:symbol-add` | Add stock symbols (prompts for input) |
+| `npm run docker:symbol-defaults` | Add default portfolio (top 100 companies) |
+| `npm run docker:sync` | Download historical data for all symbols |
+| `npm run docker:train` | Train LSTM models |
+| `npm run docker:predict` | Generate predictions and HTML report |
+| `npm run docker:copy-output` | Copy output files to `./docker-output/` |
+| `npm run docker:copy-export` | Copy export.json to `./docker-export/` |
+| `npm run docker:shell` | Open interactive shell in container (debugging) |
+| `npm run docker:clean-volumes` | Delete all named volumes (reset data) |
+| `npm run docker:save` | Export image to `ai-stock-predictions.tar` |
+
+### Named Volumes
+
+Data persists across container runs using a named Docker volume:
+
+| Volume Name | Container Path | Purpose |
+|-------------|---------------|---------|
+| `ai-stock-data` | `/app/data` | Workspace (config, database, models, output) |
+
+**Key Benefits:**
+- ✅ **Persistent**: Data survives container restarts
+- ✅ **Isolated**: Multiple projects can use different named volumes
+- ✅ **Performance**: No filesystem translation overhead (vs bind mounts)
+- ✅ **Clean**: Code is baked into image (immutable), data is separate (mutable)
+
+### Volume Management
+
+```bash
+# List all volumes
+docker volume ls | grep ai-stock
+
+# Inspect volume details
+docker volume inspect ai-stock-data
+
+# Backup volumes (example for data volume)
+docker run --rm -v ai-stock-data:/data -v $(pwd)/backup:/backup alpine tar czf /backup/ai-stock-data.tar.gz -C /data .
+
+# Restore volumes (example for data volume)
+docker run --rm -v ai-stock-data:/data -v $(pwd)/backup:/backup alpine tar xzf /backup/ai-stock-data.tar.gz -C /data
+
+# Delete all volumes (WARNING: Deletes all data!)
+npm run docker:clean-volumes
+# or
+docker volume rm ai-stock-data
+```
+
+### Architecture: Self-Contained vs Bind Mounts
+
+**This project uses a self-contained approach:**
+
+```bash
+# ✅ CORRECT (Self-contained with named volumes)
+npm run docker:init
+# Runs: docker run --rm -it -v ai-stock-data:/app/data ... ai-stock-predictions:latest init
+
+# ❌ INCORRECT (Old approach with bind mounts - DEPRECATED)
+docker run --rm -it -v $(PWD):/app ai-stock-predictions:latest init
+# This overwrites the container's /app directory with host files, breaking dependencies
+```
+
+**Why Self-Contained?**
+- **No volume conflicts**: Named volumes don't overwrite container internals
+- **No dependency issues**: `node_modules` stay intact inside the container
+- **Production-ready**: Same image runs everywhere (dev, CI, prod)
+- **Clean separation**: Code changes require rebuild (enforces discipline)
+- **Easy extraction**: Helper scripts copy results to host when needed
+
+### Troubleshooting
+
+#### "Cannot find module '/app/src/index.ts'"
+❌ **Cause**: Using bind mount `-v $(PWD):/app` which overwrites the container's `/app` directory.  
+✅ **Fix**: Use the npm scripts (`npm run docker:init`) or named volumes as shown above.
+
+#### View container logs with full output
+```bash
+# Enable debug output (shows spinners and progress)
+docker run --rm -it \
+  -e DEBUG_UI=true \
+  -v ai-stock-data:/app/data \
+  ai-stock-predictions:latest sync
+```
+
+#### Access container filesystem for debugging
+```bash
+npm run docker:shell
+# Opens an interactive shell inside the container
+```
+
+#### Rebuild after code changes
+```bash
+npm run docker:build
+# Source code is baked into the image, so rebuild after any code modifications
+```
+
+#### Reset everything and start fresh
+```bash
+npm run docker:clean-volumes  # Delete all data
+npm run docker:build           # Rebuild image
+npm run docker:init            # Reinitialize
+```
 
 ## 🏗️ Tech Stack
 

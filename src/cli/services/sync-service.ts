@@ -22,13 +22,14 @@ export const SyncService = {
 	 * Synchronizes data for a list of symbols
 	 * @param symbols - Array of symbols to sync
 	 * @param config - Application configuration
+	 * @param workspaceDir - Workspace directory
 	 * @param quickTest - Whether to limit the data points for verification
 	 */
 	// eslint-disable-next-line sonarjs/cognitive-complexity -- Complex but well-structured sync flow with validation
-	syncSymbols: async (symbols: {name: string; symbol: string}[], config: Config, quickTest = false): Promise<void> => {
+	syncSymbols: async (symbols: {name: string; symbol: string}[], config: Config, workspaceDir: string, quickTest = false): Promise<void> => {
 		const registry = new DataSourceRegistry(config.dataSource);
 		const dataSource = registry.getProvider();
-		const storage = new SqliteStorage();
+		const storage = new SqliteStorage(workspaceDir);
 		const progress = new ProgressTracker();
 
 		// Filter out configured market indices to sync them first

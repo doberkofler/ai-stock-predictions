@@ -4,7 +4,7 @@
  */
 
 import Database from 'better-sqlite3';
-import {join} from 'node:path';
+import {join, resolve} from 'node:path';
 import {z} from 'zod';
 
 import type {ModelMetadata} from '../compute/lstm-model.ts';
@@ -12,6 +12,7 @@ import type {MarketFeatures, StockDataPoint} from '../types/index.ts';
 
 import {ErrorHandler} from '../cli/utils/errors.ts';
 import {FsUtils} from '../cli/utils/fs.ts';
+import {getMarketIndices} from '../constants/defaults-loader.ts';
 import {FeatureConfigSchema, MarketFeaturesSchema} from '../types/index.ts';
 
 /**
@@ -108,8 +109,8 @@ export class SqliteStorage {
 	private readonly historicalDb: Database.Database;
 	private readonly modelsDb: Database.Database;
 
-	public constructor() {
-		this.dataDir = join(process.cwd(), 'data');
+	public constructor(workspaceDir?: string) {
+		this.dataDir = workspaceDir ? resolve(process.cwd(), workspaceDir) : join(process.cwd(), 'data');
 		FsUtils.ensureDirSync(this.dataDir);
 
 		this.historicalDb = new Database(join(this.dataDir, 'historical_data.db'));
@@ -700,5 +701,15 @@ export class SqliteStorage {
 				metrics TEXT
 			);
 		`);
+
+		// Populate default indices if the symbols table is empty
+		const symbolCount = (this.historicalDb.prepare('SELECT COUNT(*) as count FROM symbols').get() as {count: number}).count;
+		if (symbolCount === 0) {
+			const indices = getMarketIndices();
+			const insert = this.historicalDb.prepare('INSERT INTO symbols (symbol, name, type, priority) VALUES (?, ?, ?, ?)');
+			for (const idx of indices) {
+				insert.run(idx.symbol, idx.name, idx.type, idx.priority);
+			}
+		}
 	}
 }

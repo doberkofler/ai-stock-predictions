@@ -45,6 +45,9 @@ describe('ConfigSchema', () => {
 				sellThreshold: -0.05,
 				uncertaintyIterations: 20,
 			},
+			storage: {
+				dataDirectory: 'data',
+			},
 			training: {minNewDataPoints: 50, minQualityScore: 40},
 			tuning: {
 				architecture: ['lstm'],

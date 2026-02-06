@@ -1,6 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {SymbolService} from '../../../../src/cli/services/symbol-service.ts';
+import {DefaultConfig} from '../../../../src/config/schema.ts';
 
 const mockStorage = {
 	deleteSymbol: vi.fn(),
@@ -31,7 +32,7 @@ describe('SymbolService', () => {
 	it('should remove symbol and its model', async () => {
 		mockPersistence.deleteModel.mockResolvedValue(undefined);
 
-		await SymbolService.removeSymbol('AAPL');
+		await SymbolService.removeSymbol('AAPL', DefaultConfig, 'data');
 
 		expect(mockStorage.deleteSymbol).toHaveBeenCalledWith('AAPL');
 		expect(mockPersistence.deleteModel).toHaveBeenCalledWith('AAPL');
@@ -40,7 +41,7 @@ describe('SymbolService', () => {
 	it('should get all symbols', () => {
 		mockStorage.getAllSymbols.mockReturnValue([{name: 'Apple Inc.', symbol: 'AAPL'}]);
 
-		const symbols = SymbolService.getAllSymbols();
+		const symbols = SymbolService.getAllSymbols('data');
 		expect(symbols).toEqual([{name: 'Apple Inc.', symbol: 'AAPL'}]);
 	});
 });

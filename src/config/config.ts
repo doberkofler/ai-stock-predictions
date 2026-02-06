@@ -5,7 +5,7 @@
 
 import chalk from 'chalk';
 import {parse} from 'jsonc-parser';
-import {join} from 'node:path';
+import {resolve} from 'node:path';
 
 import type {Config} from './schema.ts';
 
@@ -15,20 +15,21 @@ import {ConfigSchema, DefaultConfig} from './schema.ts';
 
 /**
  * Check if configuration file exists
- * @param [configPath] - Optional custom path
+ * @param [workspaceDir] - Optional workspace directory
  * @returns True if configuration file exists
  */
-export function configExists(configPath?: string): boolean {
-	return FsUtils.exists(getConfigFilePath(configPath));
+export function configExists(workspaceDir?: string): boolean {
+	return FsUtils.exists(getConfigFilePath(workspaceDir));
 }
 
 /**
  * Get configuration file path
- * @param [configPath] - Optional custom path
+ * @param [workspaceDir] - Optional workspace directory
  * @returns Resolved configuration file path
  */
-export function getConfigFilePath(configPath?: string): string {
-	return join(process.cwd(), configPath ?? 'config.jsonc');
+export function getConfigFilePath(workspaceDir?: string): string {
+	const baseDir = workspaceDir ? resolve(process.cwd(), workspaceDir) : process.cwd();
+	return resolve(baseDir, 'config.jsonc');
 }
 
 /**
@@ -53,12 +54,12 @@ export function getDefaultConfig(): Config {
 
 /**
  * Load and validate configuration from file
- * @param [configPath] - Optional custom path
+ * @param [workspaceDir] - Optional workspace directory
  * @throws {Error} If configuration file doesn't exist or is invalid
  * @returns Validated configuration object
  */
-export function loadConfig(configPath?: string): Config {
-	const resolvedPath = getConfigFilePath(configPath);
+export function loadConfig(workspaceDir?: string): Config {
+	const resolvedPath = getConfigFilePath(workspaceDir);
 	if (!FsUtils.exists(resolvedPath)) {
 		throw new Error(
 			`${chalk.red('Configuration file not found')}: ${resolvedPath}\n` + `Run ${chalk.cyan('ai-stock-predictions init')} to create a configuration file.`,
@@ -84,11 +85,11 @@ export function loadConfig(configPath?: string): Config {
 /**
  * Save configuration to file with validation and comprehensive comments
  * @param config - Configuration object to save
- * @param [configPath] - Optional custom path
+ * @param [workspaceDir] - Optional workspace directory
  * @throws {Error} If configuration is invalid or file cannot be written
  */
-export async function saveConfig(config: Config, configPath?: string): Promise<void> {
-	const resolvedPath = getConfigFilePath(configPath);
+export async function saveConfig(config: Config, workspaceDir?: string): Promise<void> {
+	const resolvedPath = getConfigFilePath(workspaceDir);
 	try {
 		const validatedConfig = ConfigSchema.parse(config);
 

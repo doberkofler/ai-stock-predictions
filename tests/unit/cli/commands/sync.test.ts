@@ -33,6 +33,6 @@ describe('syncCommand', () => {
 	it('should call syncSymbols with all symbols', async () => {
 		mockStorage.getAllSymbols.mockReturnValue([{name: 'Apple Inc.', symbol: 'AAPL'}]);
 		await syncCommand('config.jsonc');
-		expect(SyncService.syncSymbols).toHaveBeenCalledWith([{name: 'Apple Inc.', symbol: 'AAPL'}], expect.any(Object));
+		expect(SyncService.syncSymbols).toHaveBeenCalledWith([{name: 'Apple Inc.', symbol: 'AAPL'}], expect.any(Object), 'config.jsonc');
 	});
 });

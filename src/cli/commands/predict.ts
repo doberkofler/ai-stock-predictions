@@ -6,7 +6,7 @@ import type {Ora} from 'ora';
 
 import chalk from 'chalk';
 import {mkdir} from 'node:fs/promises';
-import {join} from 'node:path';
+import {join, resolve} from 'node:path';
 
 import type {Config} from '../../config/schema.ts';
 import type {ReportPrediction} from '../../types/index.ts';
@@ -25,24 +25,29 @@ import {ui} from '../utils/ui.ts';
 
 /**
  * Predict command implementation
- * @param configPath - Path to the configuration file
+ * @param workspaceDir - Path to the workspace directory
  * @param quickTest - Whether to run with limited symbols and forecast window
  * @param symbolList - Optional list of symbols to predict
  */
-export async function predictCommand(configPath: string, quickTest = false, symbolList?: string): Promise<void> {
+export async function predictCommand(workspaceDir: string, quickTest = false, symbolList?: string): Promise<void> {
+	const resolvedWorkspace = resolve(process.cwd(), workspaceDir);
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Generating multi-day trend forecasts and rendering the interactive HTML report.',
-			nextSteps: ['Open the generated HTML report in your browser to view predictions:', chalk.cyan(`  file://${join(process.cwd(), 'output', 'index.html')}`)],
+			needsTensorFlow: true,
+			nextSteps: [
+				'Open the generated HTML report in your browser to view predictions:',
+				chalk.cyan(`  file://${join(resolvedWorkspace, 'output', 'index.html')}`),
+			],
 			title: 'Price Estimation',
 		},
 		async ({config}) => {
 			if (!config) {
 				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
 			}
-			const storage = new SqliteStorage();
-			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
+			const storage = new SqliteStorage(workspaceDir);
+			const modelPersistence = new ModelPersistence(join(resolvedWorkspace, 'models'));
 			const predictionEngine = new PredictionEngine();
 			const backtestEngine = new BacktestEngine(config, predictionEngine);
 			const progress = new ProgressTracker();
@@ -142,18 +147,36 @@ async function generatePredictions(
 		const prefix = chalk.dim(`[${i + 1}/${symbols.length}]`);
 		const symbolSpinner = ui.spinner(`${prefix} Predicting ${name} (${symbol})`).start();
 
+		// Register spinner for cleanup on interrupt
+		// eslint-disable-next-line unicorn/consistent-function-scoping -- Justification: Local cleanup requires closure over symbolSpinner
+		const cleanup = (): void => {
+			symbolSpinner.stop();
+		};
+		InterruptHandler.registerCleanup(cleanup);
+
 		try {
-			const result = await predictSymbol(symbol, name, storage, modelPersistence, predictionEngine, backtestEngine, config, prefix, symbolSpinner, quickTest);
-			if (result) {
-				predictions.push(result);
-				progress.complete(symbol, 'predicted', result.confidence);
-			} else {
-				progress.complete(symbol, 'error');
+			const prediction = await predictSymbol(
+				symbol,
+				name,
+				storage,
+				modelPersistence,
+				predictionEngine,
+				backtestEngine,
+				config,
+				prefix,
+				symbolSpinner,
+				quickTest,
+			);
+			if (prediction) {
+				predictions.push(prediction);
 			}
+			progress.complete(symbol, 'predicted');
 		} catch (error) {
 			symbolSpinner.fail(`${prefix} ${name} (${symbol}) ✗`);
 			progress.complete(symbol, 'error');
 			if (error instanceof Error) ui.error(chalk.red(`  Error: ${error.message}`));
+		} finally {
+			InterruptHandler.unregisterCleanup(cleanup);
 		}
 	}
 

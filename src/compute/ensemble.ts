@@ -91,7 +91,7 @@ export class EnsembleModel {
 	 * @param options.training - Whether to enable dropout during prediction (Monte Carlo Dropout)
 	 * @returns Aggregated predicted prices
 	 */
-	public predict(data: StockDataPoint[], days: number, marketFeatures?: MarketFeatures[], options: {training?: boolean} = {}): number[] {
+	public async predict(data: StockDataPoint[], days: number, marketFeatures?: MarketFeatures[], options: {training?: boolean} = {}): Promise<number[]> {
 		if (this.models.length === 0) {
 			throw new Error('Ensemble not trained or loaded');
 		}
@@ -100,7 +100,7 @@ export class EnsembleModel {
 
 		// Gather predictions from all models
 		for (const model of this.models) {
-			allPredictions.push(model.predict(data, days, marketFeatures, options));
+			allPredictions.push(await model.predict(data, days, marketFeatures, options));
 		}
 
 		// Weighted average of predictions

@@ -1,6 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {Config} from '../../../src/config/schema.ts';
+import {DefaultConfig} from '../../../src/config/schema.ts';
 import type {MarketFeatures, StockDataPoint} from '../../../src/types/index.ts';
 
 import {HyperparameterTuner} from '../../../src/compute/tuner.ts';
@@ -34,49 +35,7 @@ vi.mock('../../../src/compute/lstm-model.ts', () => {
 
 describe('HyperparameterTuner', () => {
 	const mockConfig: Config = {
-		aBTesting: {enabled: false},
-		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
-		dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
-		market: {
-			featureConfig: {
-				enabled: true,
-				includeBeta: true,
-				includeCorrelation: true,
-				includeDistanceFromMA: true,
-				includeMarketReturn: true,
-				includeRegime: true,
-				includeRelativeReturn: true,
-				includeVix: true,
-				includeVolatilitySpread: true,
-			},
-			primaryIndex: '^GSPC',
-			volatilityIndex: '^VIX',
-		},
-		model: {
-			architecture: 'lstm',
-			batchSize: 128,
-			dropout: 0.2,
-			epochs: 50,
-			l1Regularization: 0.001,
-			l2Regularization: 0.001,
-			learningRate: 0.001,
-			recurrentDropout: 0.1,
-			windowSize: 30,
-		},
-		prediction: {
-			buyThreshold: 0.05,
-			contextDays: 15,
-			days: 30,
-			directory: 'output',
-			historyChartDays: 1825,
-			minConfidence: 0.6,
-			sellThreshold: -0.05,
-			uncertaintyIterations: 10,
-		},
-		training: {
-			maxHistoricalYears: 3, minNewDataPoints: 50,
-			minQualityScore: 60,
-		},
+		...DefaultConfig,
 		tuning: {
 			architecture: ['lstm'],
 			batchSize: [32, 64],

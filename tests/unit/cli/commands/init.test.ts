@@ -63,7 +63,6 @@ describe('initCommand', () => {
 		vi.mocked(configExists).mockReturnValue(false);
 		await initCommand('config.yaml');
 		expect(FsUtils.writeText).toHaveBeenCalled();
-		expect(FsUtils.ensureDir).toHaveBeenCalled();
 	});
 
 	it('should wipe data if force is true', async () => {
@@ -75,6 +74,21 @@ describe('initCommand', () => {
 		vi.mocked(configExists).mockReturnValue(true);
 		await initCommand('config.yaml', false);
 		expect(FsUtils.writeText).not.toHaveBeenCalled();
+	});
+
+	it('should create config with custom workspace directory', async () => {
+		vi.mocked(configExists).mockReturnValue(false);
+
+		let capturedJsonc = '';
+		vi.mocked(FsUtils.writeText).mockImplementation((_path, content) => {
+			capturedJsonc = content;
+			return Promise.resolve();
+		});
+
+		await initCommand('custom-data');
+
+		const parsed = parse(capturedJsonc);
+		expect(ConfigSchema.parse(parsed)).toBeDefined();
 	});
 
 	it('should throw error if writeFile fails', async () => {

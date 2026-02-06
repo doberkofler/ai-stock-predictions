@@ -3,7 +3,7 @@
  * Handles model architecture, training, and evaluation
  */
 
-import * as tf from '@tensorflow/tfjs';
+import type * as tf from '@tensorflow/tfjs';
 
 import type {Config} from '../config/schema.ts';
 import type {FeatureConfig, MarketFeatures, StockDataPoint} from '../types/index.ts';
@@ -74,12 +74,13 @@ export class LstmModel {
 	 * @param marketFeatures - Optional market context features
 	 * @returns Final evaluation metrics
 	 */
-	public evaluate(data: StockDataPoint[], _appConfig: Config, marketFeatures?: MarketFeatures[]): PerformanceMetrics & {mape: number} {
+	public async evaluate(data: StockDataPoint[], _appConfig: Config, marketFeatures?: MarketFeatures[]): Promise<PerformanceMetrics & {mape: number}> {
 		if (!this.model) {
 			throw new Error('Model not trained or loaded');
 		}
 
-		const {inputs, labels, prices} = this.preprocessData(data, marketFeatures);
+		const tf = await import('@tensorflow/tfjs');
+		const {inputs, labels, prices} = this.preprocessData(data, tf, marketFeatures);
 		const result = this.model.evaluate(inputs, labels) as tf.Scalar[];
 		const loss = result[0]?.dataSync()[0] ?? 0;
 
@@ -157,12 +158,13 @@ export class LstmModel {
 	 * @param options.training - Enable training mode (dropout) during inference
 	 * @returns Predicted prices
 	 */
-	public predict(data: StockDataPoint[], days: number, marketFeatures?: MarketFeatures[], options: {training?: boolean} = {}): number[] {
+	public async predict(data: StockDataPoint[], days: number, marketFeatures?: MarketFeatures[], options: {training?: boolean} = {}): Promise<number[]> {
 		if (!this.model) {
 			throw new Error('Model not trained or loaded');
 		}
 
-		const {inputs, logReturns, prices} = this.preprocessData(data, marketFeatures);
+		const tf = await import('@tensorflow/tfjs');
+		const {inputs, logReturns, prices} = this.preprocessData(data, tf, marketFeatures);
 		const predictions: number[] = [];
 
 		// Start with the last window
@@ -280,8 +282,9 @@ export class LstmModel {
 			throw new Error(`Insufficient data for training. Need at least ${this.config.windowSize + 5} points.`);
 		}
 
-		this.model = this.buildModel();
-		const {inputs, labels} = this.preprocessData(data, marketFeatures);
+		const tf = await import('@tensorflow/tfjs');
+		this.model = this.buildModel(tf);
+		const {inputs, labels} = this.preprocessData(data, tf, marketFeatures);
 
 		// Time-series split (last 10% for validation)
 		const totalSamples = inputs.shape[0];
@@ -507,9 +510,10 @@ export class LstmModel {
 
 	/**
 	 * Build the LSTM model architecture
+	 * @param tf - TensorFlow instance
 	 * @returns Compiled TensorFlow.js model
 	 */
-	private buildModel(): tf.LayersModel {
+	private buildModel(tf: typeof import('@tensorflow/tfjs')): tf.LayersModel {
 		// Suppress persistent TFJS orthogonal initializer warnings
 		// eslint-disable-next-line no-console -- Justification: Temporary override to silence specific library noise.
 		const originalWarn = console.warn;
@@ -528,7 +532,7 @@ export class LstmModel {
 			const marketFeatureCount = this.featureConfig?.enabled ? this.getEnabledFeatureCount() : 0;
 			const inputDim = 1 + technicalFeatureCount + marketFeatureCount;
 
-			const model = this.createArchitecture(this.config.architecture, inputDim);
+			const model = this.createArchitecture(tf, this.config.architecture, inputDim);
 
 			const optimizer = tf.train.adam(this.config.learningRate);
 			// @ts-expect-error -- Justification: clipvalue is supported by many TFJS optimizers but not always in the base type.
@@ -549,10 +553,11 @@ export class LstmModel {
 
 	/**
 	 * Create the neural network architecture based on configuration
+	 * @param tf - TensorFlow instance
 	 * @param type - Architecture type
 	 * @param inputDim - Number of input features
 	 */
-	private createArchitecture(type: 'lstm' | 'gru' | 'attention-lstm', inputDim: number): tf.LayersModel {
+	private createArchitecture(tf: typeof import('@tensorflow/tfjs'), type: 'lstm' | 'gru' | 'attention-lstm', inputDim: number): tf.LayersModel {
 		const model = tf.sequential();
 		const commonParams = {
 			kernelRegularizer: tf.regularizers.l1l2({
@@ -711,11 +716,13 @@ export class LstmModel {
 	 * Preprocess stock data into sequences for LSTM training
 	 * Uses log returns and window-based z-score normalization to fix data leakage
 	 * @param data - Historical stock data
+	 * @param tf - TensorFlow instance
 	 * @param marketFeatures - Optional market context features
 	 * @returns Normalized tensors and metadata
 	 */
 	private preprocessData(
 		data: StockDataPoint[],
+		tf: typeof import('@tensorflow/tfjs'),
 		marketFeatures?: MarketFeatures[],
 	): {
 		inputs: tf.Tensor3D;

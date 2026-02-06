@@ -51,16 +51,24 @@ vi.mock('../../../../src/compute/persistence.ts', () => ({
 const mockAppConfig = {
 	aBTesting: {enabled: false},
 	backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
+	dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
 	market: {
 		featureConfig: {
 			enabled: true,
 			includeBeta: true,
 			includeCorrelation: true,
+			includeDistanceFromMA: true,
+			includeMarketReturn: true,
 			includeRegime: true,
+			includeRelativeReturn: true,
 			includeVix: true,
+			includeVolatilitySpread: true,
 		},
+		primaryIndex: '^GSPC',
+		volatilityIndex: '^VIX',
 	},
 	model: {
+		architecture: 'lstm',
 		batchSize: 128,
 		dropout: 0.2,
 		epochs: 50,
@@ -70,10 +78,33 @@ const mockAppConfig = {
 		recurrentDropout: 0.1,
 		windowSize: 30,
 	},
+	prediction: {
+		buyThreshold: 0.05,
+		contextDays: 15,
+		days: 30,
+		directory: 'output',
+		historyChartDays: 1825,
+		minConfidence: 0.6,
+		sellThreshold: -0.05,
+		uncertaintyIterations: 20,
+	},
+	storage: {
+		dataDirectory: 'data',
+	},
 	training: {
 		maxHistoricalYears: 3,
 		minNewDataPoints: 50,
 		minQualityScore: 60,
+	},
+	tuning: {
+		architecture: ['lstm', 'gru', 'attention-lstm'],
+		batchSize: [64, 128, 256],
+		enabled: false,
+		epochs: [30, 50, 100],
+		learningRate: [0.001, 0.0005],
+		maxTrials: 20,
+		validationSplits: 3,
+		windowSize: [20, 30, 60],
 	},
 };
 

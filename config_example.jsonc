@@ -172,6 +172,16 @@
 	},
 	
 	// ============================================================================
+	// STORAGE CONFIGURATION
+	// ============================================================================
+	// Control where data and models are stored
+	
+	"storage": {
+		// Directory for SQLite databases and models
+		"dataDirectory": "data_example"
+	},
+	
+	// ============================================================================
 	// TRAINING CONFIGURATION
 	// ============================================================================
 	// Control when models should be retrained

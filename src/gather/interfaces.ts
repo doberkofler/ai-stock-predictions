@@ -1,6 +1,6 @@
 /**
  * Data Source Provider Interface
- * Defines the contract for all data source implementations (Yahoo Finance, Alpha Vantage, etc.)
+ * Defines the contract for all data source implementations (Yahoo Finance, etc.)
  */
 
 import type {MarketFeatures, StockDataPoint} from '../types/index.ts';

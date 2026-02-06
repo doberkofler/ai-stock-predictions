@@ -5,7 +5,7 @@
 import type {Ora} from 'ora';
 
 import chalk from 'chalk';
-import {join} from 'node:path';
+import {join, resolve} from 'node:path';
 
 import type {Config} from '../../config/schema.ts';
 import type {MockOra} from '../utils/ui.ts';
@@ -22,15 +22,16 @@ import {ui} from '../utils/ui.ts';
 
 /**
  * Train command implementation
- * @param configPath - Path to the configuration file
+ * @param workspaceDir - Path to the workspace directory
  * @param quickTest - Whether to run with limited data and epochs
  * @param symbolList - Optional list of symbols to train
  */
-export async function trainCommand(configPath: string, quickTest = false, symbolList?: string): Promise<void> {
+export async function trainCommand(workspaceDir: string, quickTest = false, symbolList?: string): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Optimizing TensorFlow.js LSTM neural networks for the specified portfolio.',
+			needsTensorFlow: true,
 			nextSteps: ['Run: {cli} predict to generate price forecasts'],
 			title: 'Model Training',
 		},
@@ -38,8 +39,9 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 			if (!config) {
 				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
 			}
-			const storage = new SqliteStorage();
-			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
+			const dataDir = resolve(process.cwd(), workspaceDir);
+			const storage = new SqliteStorage(workspaceDir);
+			const modelPersistence = new ModelPersistence(join(dataDir, 'models'));
 			const progress = new ProgressTracker();
 
 			// 1. Determine symbols to process
@@ -63,6 +65,7 @@ export async function trainCommand(configPath: string, quickTest = false, symbol
 
 			// 3. Log backend info
 			const tf = await import('@tensorflow/tfjs');
+			await tf.ready();
 			ui.log(chalk.dim(`TensorFlow.js backend: ${tf.getBackend()}`));
 			ui.log(chalk.blue(`\n🧠 Training models for ${symbolsToProcess.length} symbols`));
 
@@ -342,7 +345,7 @@ async function trainSingleSymbol(
 	await model.train(stockData, config, trainingProgress, marketFeatures);
 
 	spinner.text = `${prefix} Validating ${name} (${symbol}) model...`;
-	const performance = model.evaluate(stockData, config, marketFeatures);
+	const performance = await model.evaluate(stockData, config, marketFeatures);
 
 	if (performance.isValid || quickTest) {
 		await modelPersistence.saveModel(symbol, model, {

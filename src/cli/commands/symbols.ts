@@ -3,25 +3,48 @@
  */
 
 import chalk from 'chalk';
-import {join} from 'node:path';
+import {join, resolve} from 'node:path';
+import {z} from 'zod';
 
 import {ModelPersistence} from '../../compute/persistence.ts';
 import {getDefaultSymbols} from '../../constants/defaults-loader.ts';
 import {SqliteStorage} from '../../gather/storage.ts';
 import {YahooFinanceDataSource} from '../../gather/yahoo-finance.ts';
 import {SymbolService} from '../services/symbol-service.ts';
+import {FsUtils} from '../utils/fs.ts';
 import {runCommand} from '../utils/runner.ts';
 import {ui} from '../utils/ui.ts';
 
 /**
+ * Single symbol import schema for validation
+ */
+const SingleSymbolImportSchema = z.object({
+	history: z.array(
+		z.object({
+			adjClose: z.number().optional(),
+			close: z.number(),
+			date: z.string(),
+			high: z.number().optional(),
+			low: z.number().optional(),
+			open: z.number().optional(),
+			volume: z.number().optional(),
+		}),
+	),
+	name: z.string(),
+	priority: z.number().default(100),
+	symbol: z.string(),
+	type: z.string().default('STOCK'),
+});
+
+/**
  * Adds symbols to the database and synchronizes data
- * @param configPath - Path to the config file
+ * @param workspaceDir - Path to the workspace directory
  * @param symbolsStr - Comma-separated symbols
  */
-export async function symbolAddCommand(configPath: string, symbolsStr: string): Promise<void> {
+export async function symbolAddCommand(workspaceDir: string, symbolsStr: string): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Adding new symbols to the portfolio.',
 			nextSteps: ['Run: {cli} sync to download historical data'],
 			title: 'Add Symbols',
@@ -30,7 +53,7 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 			if (!config) {
 				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
 			}
-			const storage = new SqliteStorage();
+			const storage = new SqliteStorage(workspaceDir);
 			const dataSource = new YahooFinanceDataSource(config.dataSource);
 			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());
 			const addedSymbols: {name: string; symbol: string}[] = [];
@@ -73,12 +96,12 @@ export async function symbolAddCommand(configPath: string, symbolsStr: string): 
 
 /**
  * Adds default symbols and synchronizes data
- * @param configPath - Path to the config file
+ * @param workspaceDir - Path to the workspace directory
  */
-export async function symbolDefaultsCommand(configPath: string): Promise<void> {
+export async function symbolDefaultsCommand(workspaceDir: string): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Populating the database with default symbols.',
 			nextSteps: ['Run: {cli} sync to download historical data'],
 			title: 'Add Default Symbols',
@@ -88,7 +111,7 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 			if (!config) {
 				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
 			}
-			const storage = new SqliteStorage();
+			const storage = new SqliteStorage(workspaceDir);
 			const defaults = getDefaultSymbols();
 			const addedSymbols: {name: string; symbol: string}[] = [];
 
@@ -107,17 +130,21 @@ export async function symbolDefaultsCommand(configPath: string): Promise<void> {
 
 /**
  * Lists all symbols in the database
- * @param configPath - Path to the config file
+ * @param workspaceDir - Path to the workspace directory
  */
-export async function symbolListCommand(configPath: string): Promise<void> {
+export async function symbolListCommand(workspaceDir: string): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			title: 'Portfolio List',
 		},
-		async () => {
-			const storage = new SqliteStorage();
-			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
+		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
+			const resolvedWorkspace = resolve(process.cwd(), workspaceDir);
+			const storage = new SqliteStorage(workspaceDir);
+			const modelPersistence = new ModelPersistence(join(resolvedWorkspace, 'models'));
 			const symbols = storage.getAllSymbols();
 
 			ui.log(chalk.blue(`\n📊 Current Portfolio (${symbols.length} symbols):\n`));
@@ -154,24 +181,77 @@ export async function symbolListCommand(configPath: string): Promise<void> {
 
 /**
  * Removes symbols from the database
- * @param configPath - Path to the config file
+ * @param workspaceDir - Path to the workspace directory
  * @param symbolsStr - Comma-separated symbols
  */
-export async function symbolRemoveCommand(configPath: string, symbolsStr: string): Promise<void> {
+export async function symbolRemoveCommand(workspaceDir: string, symbolsStr: string): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Removing symbols and associated data/models from the portfolio.',
 			title: 'Remove Symbols',
 		},
-		async () => {
+		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
 			const symbols = symbolsStr.split(',').map((s) => s.trim().toUpperCase());
 
 			for (const symbol of symbols) {
 				const spinner = ui.spinner(`Removing symbol ${symbol}...`).start();
-				await SymbolService.removeSymbol(symbol);
+				await SymbolService.removeSymbol(symbol, config, workspaceDir);
 				spinner.succeed(`Removed ${symbol} and all associated data/models`);
 			}
+		},
+		{},
+	);
+}
+
+/**
+ * Import a symbol and its history from a JSON file
+ * @param workspaceDir - Path to the workspace directory
+ * @param importPath - Path to the JSON file
+ */
+export async function symbolImportCommand(workspaceDir: string, importPath: string): Promise<void> {
+	await runCommand(
+		{
+			workspaceDir,
+			description: 'Importing a custom symbol and its history from a JSON file.',
+			nextSteps: ['Run: {cli} sync to calculate market features'],
+			title: 'Symbol Import',
+		},
+		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing. Run "init" first to create a default configuration.');
+			}
+			const spinner = ui.spinner(`Reading ${importPath}...`).start();
+
+			const resolvedPath = join(process.cwd(), importPath);
+			const rawData = await FsUtils.readJson(resolvedPath);
+
+			spinner.text = 'Validating import data...';
+			const validated = SingleSymbolImportSchema.parse(rawData);
+			const symbol = validated.symbol.toUpperCase();
+
+			const storage = new SqliteStorage(workspaceDir);
+
+			spinner.text = `Saving symbol ${symbol}...`;
+			storage.saveSymbol(symbol, validated.name, validated.type, validated.priority);
+
+			spinner.text = `Saving ${validated.history.length} historical data points for ${symbol}...`;
+			const stockData = validated.history.map((h) => ({
+				adjClose: h.adjClose ?? h.close,
+				close: h.close,
+				date: h.date,
+				high: h.high ?? h.close,
+				low: h.low ?? h.close,
+				open: h.open ?? h.close,
+				volume: h.volume ?? 0,
+			}));
+
+			await storage.saveStockData(symbol, stockData);
+
+			spinner.succeed(`Successfully imported ${validated.name} (${symbol}) with ${validated.history.length} data points.`);
 		},
 		{},
 	);

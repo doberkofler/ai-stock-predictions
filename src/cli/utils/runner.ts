@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import type {Config} from '../../config/schema.ts';
 
 import {configExists, loadConfig} from '../../config/config.ts';
-import {initializeEnvironment} from '../../env.ts';
+import {initializeEnvironment, initializeTensorFlow} from '../../env.ts';
 import {DateUtils} from './date.ts';
 import {getCliInvocation} from './cli-helper.ts';
 import {InterruptError, InterruptHandler} from './interrupt.ts';
@@ -17,8 +17,9 @@ type CommandContext = {
 type CommandHandler<T> = (context: CommandContext, options: T) => Promise<void>;
 
 type RunOptions = {
-	configPath: string;
+	workspaceDir: string;
 	description?: string;
+	needsTensorFlow?: boolean;
 	nextSteps?: string[];
 	title: string;
 };
@@ -32,6 +33,9 @@ type RunOptions = {
  */
 export async function runCommand<T>(options: RunOptions, handler: CommandHandler<T>, commandOptions: T): Promise<void> {
 	await initializeEnvironment();
+	if (options.needsTensorFlow) {
+		await initializeTensorFlow();
+	}
 
 	ui.log(chalk.bold.blue(`\n=== AI Stock Predictions: ${options.title} ===`));
 	if (options.description) {
@@ -45,7 +49,7 @@ export async function runCommand<T>(options: RunOptions, handler: CommandHandler
 
 	try {
 		// Only load config if it exists
-		const config = configExists(options.configPath) ? loadConfig(options.configPath) : undefined;
+		const config = configExists(options.workspaceDir) ? loadConfig(options.workspaceDir) : undefined;
 		await handler({config, startTime}, commandOptions);
 
 		ui.log(chalk.cyan(`\nProcess completed in ${DateUtils.formatDuration(Date.now() - startTime)}.`));

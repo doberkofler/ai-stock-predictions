@@ -8,13 +8,9 @@ import util from 'node:util';
 
 /**
  * Initialize the application environment
- * Attempts to load the optimized TensorFlow.js Node.js backend with a fallback
+ * Sets up global shims and non-TensorFlow related settings
  */
 export async function initializeEnvironment(): Promise<void> {
-	// Suppress TensorFlow C++ informational logs (AVX2 FMA, etc.)
-	// Must be set before importing @tensorflow/tfjs-node
-	process.env.TF_CPP_MIN_LOG_LEVEL = '2';
-
 	// Justification: Environment shims for library compatibility (better-sqlite3/ora/tfjs-node).
 	// Runtime validation impossible as we are dynamically extending properties on core modules.
 	// eslint-disable-next-line n/no-deprecated-api
@@ -36,14 +32,6 @@ export async function initializeEnvironment(): Promise<void> {
 	/* v8 ignore stop */
 
 	try {
-		// Attempt to dynamic import the native Node.js backend for hardware acceleration
-		await import('@tensorflow/tfjs-node');
-
-		// Suppress the "Hi, looks like you are running TensorFlow.js in Node.js" message
-		// and the Orthogonal initializer warnings by setting the production flag
-		const tf = await import('@tensorflow/tfjs');
-		tf.env().set('PROD', true);
-
 		// Suppress Yahoo Finance survey notices
 		const yahooFinanceModule = await import('yahoo-finance2');
 		const yahooFinance = yahooFinanceModule.default;
@@ -54,6 +42,33 @@ export async function initializeEnvironment(): Promise<void> {
 			});
 		}
 	} catch {
+		// Ignore if yahoo-finance2 is not available
+	}
+}
+
+/**
+ * Initialize the TensorFlow environment
+ * Attempts to load the optimized TensorFlow.js Node.js backend with a fallback
+ */
+let tfInitialized = false;
+export async function initializeTensorFlow(): Promise<void> {
+	if (tfInitialized) {
+		return;
+	}
+
+	// Suppress TensorFlow C++ informational logs (AVX2 FMA, etc.)
+	// Must be set before importing @tensorflow/tfjs-node
+	process.env.TF_CPP_MIN_LOG_LEVEL = '2';
+
+	try {
+		// Attempt to dynamic import the native Node.js backend for hardware acceleration
+		await import('@tensorflow/tfjs-node');
+
+		// Suppress the "Hi, looks like you are running TensorFlow.js in Node.js" message
+		// and the Orthogonal initializer warnings by setting the production flag
+		const tf = await import('@tensorflow/tfjs');
+		tf.env().set('PROD', true);
+	} catch {
 		/* v8 ignore start */
 		// Fallback to CPU backend if native bindings are unavailable (common on Windows without build tools)
 		// eslint-disable-next-line no-console -- Justification: Global fallback notification.
@@ -62,4 +77,6 @@ export async function initializeEnvironment(): Promise<void> {
 		console.warn('💡 To speed up training dramatically, try installing build tools or using a compatible environment.\n');
 		/* v8 ignore stop */
 	}
+
+	tfInitialized = true;
 }

@@ -24,22 +24,25 @@
 ### Command Workflow (Separation of Concerns)
 
 **IMPORTANT**: Symbol commands and data sync are now separate:
-- `symbol-add` / `symbol-defaults` - ONLY add symbols to the database registry
+- `init` - ONLY creates the `config.jsonc` file. No directories or databases are created.
+- `symbol-add` / `symbol-defaults` - Adds symbols to the database registry (triggers dynamic creation of DB and directories if needed)
 - `sync` - Downloads historical data for ALL symbols in the database
 
 **Correct Workflow:**
 ```bash
-node src/index.ts init --force           # Creates config + adds market indices to DB
-node src/index.ts symbol-add AAPL,NVDA   # Adds stocks to DB (no sync)
+node src/index.ts init --force           # Creates/resets config (no sync, no DB)
+node src/index.ts symbol-add AAPL,NVDA   # Adds stocks to DB (dynamically creates DB + indices)
 node src/index.ts sync                   # Downloads data for ALL symbols
 node src/index.ts train                  # Trains models
+node src/index.ts tune AAPL              # Optional: Optimizes hyperparameters for a symbol
+node src/index.ts backtest AAPL          # Optional: Evaluates strategy performance
 node src/index.ts predict                # Generates predictions
 ```
 
 **Why This Design:**
-- Market indices (^GSPC, ^VIX) must exist in DB before syncing stocks
-- Stocks require market index data for feature calculation (beta, correlation, etc.)
-- Separating add/sync prevents race conditions and allows batch operations
+- Dynamic Initialization: Market indices (^GSPC, ^VIX) are added automatically when the database is first accessed.
+- Just-in-Time Setup: Directories and SQLite files are created only when a command actually needs to store data.
+- Separation of Concerns: `init` is strictly for configuration management.
 
 ### Core Commands
 

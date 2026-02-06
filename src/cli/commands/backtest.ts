@@ -3,7 +3,7 @@
  */
 
 import chalk from 'chalk';
-import {join} from 'node:path';
+import {join, resolve} from 'node:path';
 
 import {BacktestEngine} from '../../compute/backtest/engine.ts';
 import {ModelPersistence} from '../../compute/persistence.ts';
@@ -14,15 +14,16 @@ import {ui} from '../utils/ui.ts';
 
 /**
  * Backtest command implementation
- * @param configPath - Path to the configuration file
+ * @param workspaceDir - Path to the workspace directory
  * @param symbolList - Optional comma-separated list of symbols
  * @param days - Number of historical days to backtest
  */
-export async function backtestCommand(configPath: string, symbolList?: string, days = 252): Promise<void> {
+export async function backtestCommand(workspaceDir: string, symbolList?: string, days = 252): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Simulating trading strategy based on historical predictions to evaluate performance.',
+			needsTensorFlow: true,
 			nextSteps: ['Review the backtest metrics to evaluate model profitability.'],
 			title: 'Strategy Backtesting',
 		},
@@ -31,8 +32,9 @@ export async function backtestCommand(configPath: string, symbolList?: string, d
 				throw new Error('Configuration file missing.');
 			}
 
-			const storage = new SqliteStorage();
-			const modelPersistence = new ModelPersistence(join(process.cwd(), 'data', 'models'));
+			const dataDir = resolve(process.cwd(), workspaceDir);
+			const storage = new SqliteStorage(workspaceDir);
+			const modelPersistence = new ModelPersistence(join(dataDir, 'models'));
 			const predictionEngine = new PredictionEngine();
 			const backtestEngine = new BacktestEngine(config, predictionEngine);
 

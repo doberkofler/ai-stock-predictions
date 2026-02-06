@@ -120,10 +120,8 @@ export class BacktestEngine {
 		const totalIterations = historicalData.length - startIndex;
 
 		for (let i = startIndex; i < historicalData.length; i++) {
-			// Check for interrupt every 10 iterations
-			if ((i - startIndex) % 10 === 0) {
-				InterruptHandler.throwIfInterrupted();
-			}
+			// Check for interrupt signal every iteration for maximum responsiveness
+			InterruptHandler.throwIfInterrupted();
 
 			const currentPoint = historicalData[i];
 			if (!currentPoint) continue;

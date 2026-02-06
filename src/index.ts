@@ -1,29 +1,20 @@
 import {Command} from 'commander';
 
-import {exportCommand} from './cli/commands/export.ts';
-import {backtestCommand} from './cli/commands/backtest.ts';
-import {importCommand} from './cli/commands/import.ts';
-import {initCommand} from './cli/commands/init.ts';
-import {predictCommand} from './cli/commands/predict.ts';
-import {symbolAddCommand, symbolDefaultsCommand, symbolListCommand, symbolRemoveCommand} from './cli/commands/symbols.ts';
-import {syncCommand} from './cli/commands/sync.ts';
-import {trainCommand} from './cli/commands/train.ts';
-import {tuneCommand} from './cli/commands/tune.ts';
-
 const program = new Command();
 
 program.name('ai-stock-predictions').description('AI-powered stock price prediction using LSTM neural networks').version('1.0.0');
 
 // Global options
-program.option('-c, --config <path>', 'path to configuration file', 'config.jsonc');
+program.option('-w, --workspace-dir <path>', 'path to the workspace directory', 'data');
 
 program
 	.command('init')
-	.description('Initialize project structure and create default configuration')
+	.description('Create default configuration file')
 	.option('-f, --force', 'overwrite existing configuration and wipe all data', false)
 	.action(async (options: {force: boolean}) => {
-		const programOptions = program.opts<{config: string}>();
-		await initCommand(programOptions.config, options.force);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {initCommand} = await import('./cli/commands/init.ts');
+		await initCommand(programOptions.workspaceDir, options.force);
 	});
 
 program
@@ -31,8 +22,9 @@ program
 	.description('Add new symbols to the portfolio')
 	.argument('<symbols>', 'comma-separated list of symbols (e.g., AAPL,MSFT)')
 	.action(async (symbols: string) => {
-		const programOptions = program.opts<{config: string}>();
-		await symbolAddCommand(programOptions.config, symbols);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {symbolAddCommand} = await import('./cli/commands/symbols.ts');
+		await symbolAddCommand(programOptions.workspaceDir, symbols);
 	});
 
 program
@@ -40,32 +32,46 @@ program
 	.description('Remove symbols and associated data/models from the portfolio')
 	.argument('<symbols>', 'comma-separated list of symbols to remove')
 	.action(async (symbols: string) => {
-		const programOptions = program.opts<{config: string}>();
-		await symbolRemoveCommand(programOptions.config, symbols);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {symbolRemoveCommand} = await import('./cli/commands/symbols.ts');
+		await symbolRemoveCommand(programOptions.workspaceDir, symbols);
 	});
 
 program
 	.command('symbol-defaults')
 	.description('Add default symbols to the portfolio')
 	.action(async () => {
-		const programOptions = program.opts<{config: string}>();
-		await symbolDefaultsCommand(programOptions.config);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {symbolDefaultsCommand} = await import('./cli/commands/symbols.ts');
+		await symbolDefaultsCommand(programOptions.workspaceDir);
 	});
 
 program
 	.command('symbol-list')
 	.description('Display detailed status of all symbols in the portfolio')
 	.action(async () => {
-		const programOptions = program.opts<{config: string}>();
-		await symbolListCommand(programOptions.config);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {symbolListCommand} = await import('./cli/commands/symbols.ts');
+		await symbolListCommand(programOptions.workspaceDir);
+	});
+
+program
+	.command('symbol-import')
+	.description('Import a symbol and its history from a JSON file')
+	.argument('<path>', 'path to the JSON file')
+	.action(async (path: string) => {
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {symbolImportCommand} = await import('./cli/commands/symbols.ts');
+		await symbolImportCommand(programOptions.workspaceDir, path);
 	});
 
 program
 	.command('sync')
 	.description('Update historical market data for all symbols in the portfolio')
 	.action(async () => {
-		const programOptions = program.opts<{config: string}>();
-		await syncCommand(programOptions.config);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {syncCommand} = await import('./cli/commands/sync.ts');
+		await syncCommand(programOptions.workspaceDir);
 	});
 
 program
@@ -74,8 +80,9 @@ program
 	.option('-q, --quick-test', 'run with limited data and epochs for rapid verification', false)
 	.option('-s, --symbols <list>', 'comma-separated list of specific symbols to train')
 	.action(async (options: {quickTest: boolean; symbols?: string}) => {
-		const programOptions = program.opts<{config: string}>();
-		await trainCommand(programOptions.config, options.quickTest, options.symbols);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {trainCommand} = await import('./cli/commands/train.ts');
+		await trainCommand(programOptions.workspaceDir, options.quickTest, options.symbols);
 	});
 
 program
@@ -83,8 +90,9 @@ program
 	.description('Find optimal hyperparameters for a specific symbol')
 	.argument('<symbol>', 'The stock symbol to tune (e.g., AAPL)')
 	.action(async (symbol: string) => {
-		const programOptions = program.opts<{config: string}>();
-		await tuneCommand(programOptions.config, symbol);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {tuneCommand} = await import('./cli/commands/tune.ts');
+		await tuneCommand(programOptions.workspaceDir, symbol);
 	});
 
 program
@@ -93,8 +101,9 @@ program
 	.option('-q, --quick-test', 'run with limited symbols and forecast window', false)
 	.option('-s, --symbols <list>', 'comma-separated list of specific symbols to predict')
 	.action(async (options: {quickTest: boolean; symbols?: string}) => {
-		const programOptions = program.opts<{config: string}>();
-		await predictCommand(programOptions.config, options.quickTest, options.symbols);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {predictCommand} = await import('./cli/commands/predict.ts');
+		await predictCommand(programOptions.workspaceDir, options.quickTest, options.symbols);
 	});
 
 program
@@ -103,8 +112,9 @@ program
 	.option('-s, --symbols <list>', 'comma-separated list of specific symbols to backtest')
 	.option('-d, --days <number>', 'number of historical days to backtest', '252')
 	.action(async (options: {days: string; symbols?: string}) => {
-		const programOptions = program.opts<{config: string}>();
-		await backtestCommand(programOptions.config, options.symbols, Number.parseInt(options.days, 10));
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {backtestCommand} = await import('./cli/commands/backtest.ts');
+		await backtestCommand(programOptions.workspaceDir, options.symbols, Number.parseInt(options.days, 10));
 	});
 
 program
@@ -112,8 +122,9 @@ program
 	.description('Export databases to a JSON file for portability')
 	.argument('[path]', 'path to the export file', 'export.json')
 	.action(async (path: string) => {
-		const programOptions = program.opts<{config: string}>();
-		await exportCommand(programOptions.config, path);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {exportCommand} = await import('./cli/commands/export.ts');
+		await exportCommand(programOptions.workspaceDir, path);
 	});
 
 program
@@ -121,8 +132,9 @@ program
 	.description('Import databases from a JSON file (overwrites existing)')
 	.argument('[path]', 'path to the import file', 'export.json')
 	.action(async (path: string) => {
-		const programOptions = program.opts<{config: string}>();
-		await importCommand(programOptions.config, path);
+		const programOptions = program.opts<{workspaceDir: string}>();
+		const {importCommand} = await import('./cli/commands/import.ts');
+		await importCommand(programOptions.workspaceDir, path);
 	});
 
 // Parse command line arguments

@@ -40,8 +40,7 @@ describe('SqliteStorage', () => {
 	});
 
 	beforeEach(() => {
-		vi.spyOn(process, 'cwd').mockReturnValue(testDataDir);
-		storage = new SqliteStorage();
+		storage = new SqliteStorage(testDataDir);
 	});
 
 	afterEach(() => {

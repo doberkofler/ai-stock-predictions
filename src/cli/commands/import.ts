@@ -26,18 +26,21 @@ const ExportSchema = z.object({
 
 /**
  * Import command implementation
- * @param configPath - Path to the configuration file (needed for runCommand)
+ * @param workspaceDir - Path to the workspace directory
  * @param importPath - Path to the JSON file to import
  */
-export async function importCommand(configPath: string, importPath = 'export.json'): Promise<void> {
+export async function importCommand(workspaceDir: string, importPath = 'export.json'): Promise<void> {
 	await runCommand(
 		{
-			configPath,
+			workspaceDir,
 			description: 'Hydrating the relational SQLite databases from a serialized JSON backup.',
 			nextSteps: ['Run: {cli} sync to update historical data', 'Run: {cli} train to regenerate models'],
 			title: 'Data Import',
 		},
-		async () => {
+		async ({config}) => {
+			if (!config) {
+				throw new Error('Configuration file missing.');
+			}
 			const spinner = ui.spinner('Importing databases...').start();
 
 			const resolvedPath = join(process.cwd(), importPath);
@@ -46,7 +49,7 @@ export async function importCommand(configPath: string, importPath = 'export.jso
 			spinner.text = 'Validating import data...';
 			const validatedData = ExportSchema.parse(rawData);
 
-			const storage = new SqliteStorage();
+			const storage = new SqliteStorage(workspaceDir);
 
 			spinner.text = 'Overwriting symbols...';
 			await storage.overwriteSymbols(validatedData.symbols);

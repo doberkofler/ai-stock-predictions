@@ -150,7 +150,7 @@ export class HyperparameterTuner {
 				await model.train(trainData, this.config, undefined, marketFeatures);
 
 				// Evaluate on the next segment (out of sample)
-				const metrics = model.evaluate(evalData, this.config, marketFeatures);
+				const metrics = await model.evaluate(evalData, this.config, marketFeatures);
 
 				if (metrics.isValid) {
 					totalLoss += metrics.loss;

@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {Config} from '../../../src/config/schema.ts';
+import {DefaultConfig} from '../../../src/config/schema.ts';
 import type {ReportPrediction} from '../../../src/types/index.ts';
 
 import {HtmlGenerator} from '../../../src/output/html-generator.ts';
@@ -77,47 +78,9 @@ describe('HtmlGenerator', () => {
 	];
 
 	const mockAppConfig: Config = {
-		aBTesting: {enabled: false},
-		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
-		dataSource: {rateLimit: 1000, retries: 3, timeout: 10000},
-		market: {
-			featureConfig: {
-				enabled: true,
-				includeBeta: true,
-				includeCorrelation: true,
-				includeDistanceFromMA: true,
-				includeMarketReturn: true,
-				includeRegime: true,
-				includeRelativeReturn: true,
-				includeVix: true,
-				includeVolatilitySpread: true,
-			},
-			primaryIndex: '^GSPC',
-			volatilityIndex: '^VIX',
-		},
-		model: {
-			architecture: 'lstm',
-			batchSize: 128,
-			dropout: 0.2,
-			epochs: 50,
-			l1Regularization: 0.001,
-			l2Regularization: 0.001,
-			learningRate: 0.001,
-			recurrentDropout: 0.1,
-			windowSize: 30,
-		},
+		...DefaultConfig,
 		prediction: mockOutputConfig,
 		training: {maxHistoricalYears: 3, minNewDataPoints: 50, minQualityScore: 60},
-		tuning: {
-			architecture: ['lstm', 'gru', 'attention-lstm'],
-			batchSize: [64, 128, 256],
-			enabled: false,
-			epochs: [30, 50, 100],
-			learningRate: [0.001, 0.0005],
-			maxTrials: 20,
-			validationSplits: 3,
-			windowSize: [20, 30, 60],
-		},
 	};
 
 	beforeEach(() => {

@@ -1,14 +1,16 @@
 import {beforeAll, beforeEach, describe, expect, it} from 'vitest';
 
 import type {Config} from '../../../src/config/schema.ts';
+import {DefaultConfig} from '../../../src/config/schema.ts';
 import type {StockDataPoint} from '../../../src/types/index.ts';
 
 import {LstmModel} from '../../../src/compute/lstm-model.ts';
-import {initializeEnvironment} from '../../../src/env.ts';
+import {initializeEnvironment, initializeTensorFlow} from '../../../src/env.ts';
 
 describe('LstmModel', () => {
 	beforeAll(async () => {
 		await initializeEnvironment();
+		await initializeTensorFlow();
 	});
 
 	const mockMlConfig = {
@@ -24,46 +26,17 @@ describe('LstmModel', () => {
 	};
 
 	const mockAppConfig: Config = {
-		aBTesting: {enabled: false},
-		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
+		...DefaultConfig,
 		dataSource: {rateLimit: 100, retries: 3, timeout: 5000},
-		market: {
-			featureConfig: {
-				enabled: true,
-				includeBeta: true,
-				includeCorrelation: true,
-				includeDistanceFromMA: true,
-				includeMarketReturn: true,
-				includeRegime: true,
-				includeRelativeReturn: true,
-				includeVix: true,
-				includeVolatilitySpread: true,
-			},
-			primaryIndex: '^GSPC',
-			volatilityIndex: '^VIX',
-		},
 		model: mockMlConfig,
 		prediction: {
-			buyThreshold: 0.05,
+			...DefaultConfig.prediction,
 			contextDays: 5,
 			days: 1,
-			directory: 'output',
 			historyChartDays: 10,
-			minConfidence: 0.6,
-			sellThreshold: -0.05,
 			uncertaintyIterations: 10,
 		},
 		training: {maxHistoricalYears: 3, minNewDataPoints: 5, minQualityScore: 60},
-		tuning: {
-			architecture: ['lstm', 'gru', 'attention-lstm'],
-			batchSize: [64, 128, 256],
-			enabled: false,
-			epochs: [30, 50, 100],
-			learningRate: [0.001, 0.0005],
-			maxTrials: 20,
-			validationSplits: 3,
-			windowSize: [20, 30, 60],
-		},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 15}, (_, i) => ({
@@ -155,7 +128,7 @@ describe('LstmModel', () => {
 
 		const modelWithFeatures = new LstmModel(mockMlConfig, mockAppConfig.market.featureConfig);
 		await modelWithFeatures.train(mockData, mockAppConfig, undefined, mockMarketFeatures);
-		const predictions = modelWithFeatures.predict(mockData, 5, mockMarketFeatures);
+		const predictions = await modelWithFeatures.predict(mockData, 5, mockMarketFeatures);
 
 		expect(predictions).toHaveLength(5);
 		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
@@ -177,7 +150,7 @@ describe('LstmModel', () => {
 
 		const modelWithFeatures = new LstmModel(mockMlConfig, mockAppConfig.market.featureConfig);
 		await modelWithFeatures.train(mockData, mockAppConfig, undefined, mockMarketFeatures);
-		const performance = modelWithFeatures.evaluate(mockData, mockAppConfig, mockMarketFeatures);
+		const performance = await modelWithFeatures.evaluate(mockData, mockAppConfig, mockMarketFeatures);
 
 		expect(performance).toBeDefined();
 		expect(performance.mape).toBeDefined();
@@ -186,7 +159,7 @@ describe('LstmModel', () => {
 
 	it('should handle prediction without market features', async () => {
 		await model.train(mockData, mockAppConfig);
-		const predictions = model.predict(mockData, 3);
+		const predictions = await model.predict(mockData, 3);
 
 		expect(predictions).toHaveLength(3);
 		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
@@ -199,7 +172,7 @@ describe('LstmModel', () => {
 		};
 		const attentionModel = new LstmModel(attentionConfig);
 		await attentionModel.train(mockData, mockAppConfig);
-		const predictions = attentionModel.predict(mockData, 3);
+		const predictions = await attentionModel.predict(mockData, 3);
 
 		expect(predictions).toHaveLength(3);
 		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);
@@ -215,7 +188,7 @@ describe('LstmModel', () => {
 		};
 		const gruModel = new LstmModel(gruConfig);
 		await gruModel.train(mockData, mockAppConfig);
-		const predictions = gruModel.predict(mockData, 3);
+		const predictions = await gruModel.predict(mockData, 3);
 
 		expect(predictions).toHaveLength(3);
 		expect(predictions.every((p) => typeof p === 'number' && p > 0)).toBe(true);

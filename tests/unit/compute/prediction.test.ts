@@ -1,6 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {Config} from '../../../src/config/schema.ts';
+import {DefaultConfig} from '../../../src/config/schema.ts';
 import type {PredictionResult, StockDataPoint} from '../../../src/types/index.ts';
 
 import {LstmModel} from '../../../src/compute/lstm-model.ts';
@@ -10,56 +11,21 @@ describe('PredictionEngine', () => {
 	let engine: PredictionEngine;
 
 	const mockAppConfig: Config = {
-		aBTesting: {enabled: false},
-		backtest: {enabled: true, initialCapital: 10000, transactionCost: 0.001},
+		...DefaultConfig,
 		dataSource: {rateLimit: 100, retries: 3, timeout: 5000},
-		market: {
-			featureConfig: {
-				enabled: true,
-				includeBeta: true,
-				includeCorrelation: true,
-				includeDistanceFromMA: true,
-				includeMarketReturn: true,
-				includeRegime: true,
-				includeRelativeReturn: true,
-				includeVix: true,
-				includeVolatilitySpread: true,
-			},
-			primaryIndex: '^GSPC',
-			volatilityIndex: '^VIX',
-		},
 		model: {
-			architecture: 'lstm',
+			...DefaultConfig.model,
 			batchSize: 32,
-			dropout: 0.2,
 			epochs: 2,
-			l1Regularization: 0.001,
-			l2Regularization: 0.001,
-			learningRate: 0.001,
-			recurrentDropout: 0.1,
 			windowSize: 10,
 		},
 		prediction: {
-			buyThreshold: 0.05,
+			...DefaultConfig.prediction,
 			contextDays: 15,
 			days: 1,
-			directory: 'output',
-			historyChartDays: 1825,
-			minConfidence: 0.6,
-			sellThreshold: -0.05,
 			uncertaintyIterations: 1,
 		},
 		training: {maxHistoricalYears: 3, minNewDataPoints: 5, minQualityScore: 60},
-		tuning: {
-			architecture: ['lstm', 'gru', 'attention-lstm'],
-			batchSize: [64, 128, 256],
-			enabled: false,
-			epochs: [30, 50, 100],
-			learningRate: [0.001, 0.0005],
-			maxTrials: 20,
-			validationSplits: 3,
-			windowSize: [20, 30, 60],
-		},
 	};
 
 	const mockData: StockDataPoint[] = Array.from({length: 20}, (_, i) => ({
